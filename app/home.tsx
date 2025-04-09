@@ -1,60 +1,93 @@
-import { View, Text, Button, StyleSheet } from 'react-native'; 
+import { View, StyleSheet, Image, TouchableOpacity } from 'react-native'; 
 import { useRouter } from 'expo-router'; 
-
-<<<<<<< HEAD
+import { Text, Button, Surface } from 'react-native-paper';
 export default function Home() {
-=======
-export default function Home(){
->>>>>>> fd9869f4a97418bb3fcf589878d6f3f16dec8db0
   const router = useRouter(); 
 
   return (
+    
     <View style={styles.container}>
-<<<<<<< HEAD
-      <Text style={styles.title}>Divi</Text>
-      <Text style={styles.subtitle}>Split your bills with ease</Text>
-      <View style={styles.button}>
-      <Button
-      title="Login"
-      onPress={() => {router.push('/pick')}}>
-      </Button>
-      </View>
-      </View>
-    )
-      
+      <TouchableOpacity 
+      style = {styles.helpButton}
+      onPress={() => {router.push('/help')}}>
+        <Text style={styles.helpButtonText}>?</Text>
+      </TouchableOpacity>
+        <Surface style={styles.surface}>
+          <Image style={styles.logo} source={require('../assets/images/reciept-icon.png')}></Image>
+          <Text variant="headlineLarge" style={styles.title}>D I V I</Text>
+          <Text variant="bodyMedium" style={styles.subtitle}>Split your bills with ease</Text>
+          <Button 
+          mode="contained"
+          onPress={() => {router.push('/expense-splitter')}}
+          style={styles.button}>Login</Button>
+        </Surface>
+    </View>
+  )
 }
 
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#e0f7fa',  // Light aquamarine background
+    justifyContent: 'center',
     padding: 20,
-    backgroundColor: '#f5f5f5',
   },
   title: {
-    fontSize: 24,
+    color: '#00838f',  // Dark aquamarine text
+    fontSize: 40,
     fontWeight: 'bold',
     textAlign: 'center',
     marginBottom: 20,
-    marginTop: 20
+    marginTop: 20,
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: 20,
     textAlign: 'center',
     marginBottom: 20,
+    color: '#006064',  // Medium aquamarine text
   },
   button: {
-    marginTop: 20,
+    marginTop: 50,
+    width: '50%',
+    alignSelf: 'center',
+    marginBottom: 10,
+    backgroundColor: '#00acc1'Z // Aquamarine button
+  },
+  surface: {
+    elevation: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
+    height: '70%',
+    width: '90%',
+    alignSelf: 'center',
+    padding: 20,
+    backgroundColor: '#ffffff', 
+    borderRadius: 65,
+    borderWidth: 3,
+    borderColor: '#b2ebf2',
+  },
+  logo: {
+    width: 100,
+    height: 100,
+    resizeMode: 'contain',
+  },
+  helpButton: {
+    position: 'absolute',
+    top: 40,
+    right: 20,
+    backgroundColor: '#00acc1',
+    width: 33,
+    height: 33,
+    borderRadius: 25,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#b2ebf2',
+  },
+  helpButtonText: {
+    color: 'white',
+    fontSize: 15,
+    fontWeight: 'bold'
   }
-=======
-      <Text style={StyleSheet.title}>Divi</Text>
-      <
-  )
-
-
-}
-
-const styles = StyleSheet.create({
-  
->>>>>>> fd9869f4a97418bb3fcf589878d6f3f16dec8db0
 });

@@ -1,97 +1,96 @@
-import { View, Text, TextInput, Button, StyleSheet } from 'react-native';
-import { useState } from 'react';
+import {View, StyleSheet, Image, TouchableOpacity} from 'react-native'
+import {Text, Button, Surface} from 'react-native-paper'
+import { useState } from 'react'
+import { useRouter } from 'expo-router'
 
-export default function ExpenseSplitter() {
-  const [restaurantName, setRestaurantName] = useState('');
-  const [totalBill, setTotalBill] = useState('');
-  const [numberOfPeople, setNumberOfPeople] = useState('');
-  const [billPerPerson, setBillPerPerson] = useState('');
-  const [displayRestaurantName, setDisplayRestaurantName] = useState(false);
-
-  
-  function calculateBillSplit(){
-    if(!restaurantName || !totalBill || !numberOfPeople){
-      alert('Please fill in all fields');
-      return;
-    }
-    
-    const billPerPerson = (parseFloat(totalBill) / parseInt(numberOfPeople)).toFixed(2);
-     setBillPerPerson(billPerPerson);
-     setDisplayRestaurantName(true);
-  }
+export default function MainPage() {
+  const router = useRouter()
 
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>Restaurant Name</Text>
-      <TextInput
-      style={styles.input}
-      value={restaurantName}
-      onChangeText={setRestaurantName}
-      placeholder="Enter restaurant name: ">
-      </TextInput>
-      <Text style={styles.label}>Total bill amount</Text>
-      <TextInput 
-      style={styles.label}
-      value={totalBill}
-      onChangeText={setTotalBill}
-      placeholder="Enter the total bill amount"
-      keyboardType="numeric"
-      >
-      </TextInput>
-      <Text style={styles.label}>Number of people</Text>
-      <TextInput 
-      style={styles.label}
-      value={numberOfPeople}
-      onChangeText={setNumberOfPeople}
-      keyboardType="numeric"
-      placeholder="Enter the total number of people">
-      </TextInput>
-      <Button  
-      title="Calculate"
-      onPress={() => {calculateBillSplit()}}>
-      </Button>
-      {displayRestaurantName && (
-        <Text style={styles.result}>
-          {`Restaurant Name: ${restaurantName}`}
-        </Text>
-      )}
-      {billPerPerson && (
-        <Text style={styles.result}>
-          {`Bill per person: ${billPerPerson}`}
-        </Text>
-      )}  
-     </View>
-  );
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => {/* Handle search */}}>
+          <Image source={require('../assets/images/v2_search-small-512.webp')} style={styles.icon} />
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => {/* Navigate to account/profile */}}>
+          <Image source={require('../assets/images/account-icon.png')} style={styles.icon} />
+        </TouchableOpacity>
+      </View>
 
+      {/* Body */}
+      <View style={styles.body}>
+        <Surface style={styles.surface}>
+        <Text style={styles.bodyTitle}>Your Past Bills</Text>
+        {/* Render past bills here */}
+        </Surface>
+      </View>
+
+      {/* Footer */}
+      <View style={styles.footer}>
+        <TouchableOpacity style={styles.footerButton} onPress={() => {/* Navigate to friends */}}>
+          <Text style={styles.footerButton}> Friends </Text>
+        </TouchableOpacity>
+        <Button style={styles.footerButton} onPress={() => {/* Navigate to add new bill */}}>
+          +
+        </Button>
+        <Button style={styles.footerButton} onPress={() => {/* Navigate to account/profile */}}>
+          Your Account
+        </Button>
+      </View>
+    </View>
+  )
 }
-
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20,
-    backgroundColor: '#f5f5f5',
-    justifyContent: 'center',
-    alignItems: 'center'
+    backgroundColor: "white"
   },
-  title: {
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    padding: 10,
+    marginRight: 20,
+    marginLeft: 20,
+    alignItems: 'center',
+  },
+  icon: {
+    width: 30,
+    height: 30,
+  },
+  body: {
+    flex: 1,
+    padding: 20,
+  },
+  bodyTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: 20,
-    marginTop: 20
+    marginBottom: 10,
   },
-  label: {
-    fontSize: 16,
-    marginBottom: 5,
+  footer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    padding: 10,
+    backgroundColor: '#ffffff',
+    margin: 20,
+    marginTop: 0
   },
-  input: {
-    backgroundColor: 'white',
-    width: '50%'
+  footerButton: {
+    flex: 1,
+    marginHorizontal: 5,
   },
-  result: {
-    fontSize: 18,
-    marginTop: 20,
-    textAlign: 'center',
-  },
-});
+  surface: {
+    elevation: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
+    height: '100%',
+    width: '100%',
+    alignSelf: 'center',
+    padding: 20,
+    backgroundColor: '#ffffff', 
+    borderRadius: 20,
+    borderWidth: 3,
+    borderColor: '#b2ebf2',
+  }
+})
