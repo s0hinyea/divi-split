@@ -52,7 +52,7 @@ const styles = StyleSheet.create({
     width: '50%',
     alignSelf: 'center',
     marginBottom: 10,
-    backgroundColor: '#00acc1'Z // Aquamarine button
+    backgroundColor: '#00acc1' // Aquamarine button
   },
   surface: {
     elevation: 4,

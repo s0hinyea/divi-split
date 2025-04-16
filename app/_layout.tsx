@@ -34,6 +34,11 @@ export default function RootLayout() {
         <Stack>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="home" options={{ headerShown: false }} />
+          <Stack.Screen name="expense-splitter" options={{headerShown: true}} />
+          <Stack.Screen name="add-bill" options={{
+            presentation: 'modal',
+            title: 'Before You Scan'
+          }} />
           <Stack.Screen name="+not-found" />
         </Stack>
         <StatusBar style="auto" />

@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router'
 
 export default function MainPage() {
   const router = useRouter()
-
+  
   return (
     <View style={styles.container}>
       {/* Header */}
@@ -31,7 +31,7 @@ export default function MainPage() {
         <TouchableOpacity style={styles.footerButton} onPress={() => {/* Navigate to friends */}}>
           <Text style={styles.footerButton}> Friends </Text>
         </TouchableOpacity>
-        <Button style={styles.footerButton} onPress={() => {/* Navigate to add new bill */}}>
+        <Button style={styles.footerButton} onPress={() => {router.push('/add-bill')}}>
           +
         </Button>
         <Button style={styles.footerButton} onPress={() => {/* Navigate to account/profile */}}>
