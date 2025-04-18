@@ -32,11 +32,11 @@ export default function RootLayout() {
     <PaperProvider>
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
         <Stack>
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="home" options={{ headerShown: false }} />
           <Stack.Screen name="expense-splitter" options={{headerShown: true}} />
-          <Stack.Screen name="add-bill" options={{
+          <Stack.Screen name="addBill" options={{
             presentation: 'modal',
+            headerShown: false,
             title: 'Before You Scan'
           }} />
           <Stack.Screen name="+not-found" />

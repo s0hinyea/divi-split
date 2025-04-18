@@ -1,10 +1,11 @@
-import {View, StyleSheet, Image, TouchableOpacity} from 'react-native'
+import {View, Modal, StyleSheet, Image, TouchableOpacity} from 'react-native'
 import {Text, Button, Surface} from 'react-native-paper'
 import { useState } from 'react'
 import { useRouter } from 'expo-router'
 
 export default function MainPage() {
   const router = useRouter()
+  const[visible, setVisible] = useState(false)
   
   return (
     <View style={styles.container}>
@@ -26,12 +27,24 @@ export default function MainPage() {
         </Surface>
       </View>
 
+      <Modal animationType='slide' transparent={false} visible={visible} 
+      onRequestClose={() => {setVisible(false)}}>
+        <View style={styles.modalContainer}>
+          <View style={styles.modal}>
+            <Surface style={styles.modalSurface}> 
+              <Text>Add bill</Text>
+            </Surface>
+           
+          </View>
+        </View>
+      </Modal>
+
       {/* Footer */}
       <View style={styles.footer}>
         <TouchableOpacity style={styles.footerButton} onPress={() => {/* Navigate to friends */}}>
           <Text style={styles.footerButton}> Friends </Text>
         </TouchableOpacity>
-        <Button style={styles.footerButton} onPress={() => {router.push('/add-bill')}}>
+        <Button style={styles.footerButton} onPress={() => {setVisible(true)}}>
           +
         </Button>
         <Button style={styles.footerButton} onPress={() => {/* Navigate to account/profile */}}>
@@ -86,6 +99,27 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     height: '100%',
     width: '100%',
+    alignSelf: 'center',
+    padding: 20,
+    backgroundColor: '#ffffff', 
+    borderRadius: 20,
+    borderWidth: 3,
+    borderColor: '#b2ebf2',
+  },
+  modalContainer:{
+    flex: 1,
+    justifyContent: 'center'
+  },
+  modal:{
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalSurface:{
+    elevation: 4,
+  
+    height: '60%',
+    width: '80%',
     alignSelf: 'center',
     padding: 20,
     backgroundColor: '#ffffff', 
