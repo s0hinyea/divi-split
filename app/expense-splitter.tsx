@@ -1,7 +1,9 @@
-import {View, Modal, StyleSheet, Image, TouchableOpacity} from 'react-native'
+import {View, Modal, StyleSheet, Image, TouchableOpacity, Touchable} from 'react-native'
 import {Text, Button, Surface} from 'react-native-paper'
 import { useState } from 'react'
 import { useRouter } from 'expo-router'
+import { rgbaColor } from 'react-native-reanimated/lib/typescript/Colors'
+import { TouchableWithoutFeedback } from 'react-native'
 
 export default function MainPage() {
   const router = useRouter()
@@ -27,17 +29,24 @@ export default function MainPage() {
         </Surface>
       </View>
 
-      <Modal animationType='slide' transparent={false} visible={visible} 
-      onRequestClose={() => {setVisible(false)}}>
-        <View style={styles.modalContainer}>
-          <View style={styles.modal}>
-            <Surface style={styles.modalSurface}> 
-              <Text>Add bill</Text>
-            </Surface>
-           
-          </View>
-        </View>
-      </Modal>
+  <Modal animationType='slide' transparent={true} visible={visible} onRequestClose={() => setVisible(false)}>
+  <TouchableWithoutFeedback onPress={() => setVisible(false)}>
+    <View style={styles.modalContainer}>
+      <Surface style={styles.modalSurface}>
+        {/* Scan Option */}
+        <TouchableOpacity style={styles.optionButton} onPress={() => { /* Handle scan */ }}>
+          <Image style={styles.cameraImage} source={require('../assets/images/camera-icon.png')} />
+          <Text style={styles.optionText}>Scan Receipt</Text>
+        </TouchableOpacity>
+
+        {/* Manual Entry Option */}
+        <TouchableOpacity style={styles.optionButton} onPress={() => { /* Handle manual entry */ }}>
+          <Text style={styles.optionText}>Manual</Text>
+        </TouchableOpacity>
+      </Surface>
+    </View>
+  </TouchableWithoutFeedback>
+</Modal>
 
       {/* Footer */}
       <View style={styles.footer}>
@@ -45,10 +54,10 @@ export default function MainPage() {
           <Text style={styles.footerButton}> Friends </Text>
         </TouchableOpacity>
         <Button style={styles.footerButton} onPress={() => {setVisible(true)}}>
-          +
+          <Image source={require('../assets/images/plus.png')}/>
         </Button>
         <Button style={styles.footerButton} onPress={() => {/* Navigate to account/profile */}}>
-          Your Account
+          <Text style={styles.footerButton}> Your Account </Text>
         </Button>
       </View>
     </View>
@@ -87,13 +96,18 @@ const styles = StyleSheet.create({
     padding: 10,
     backgroundColor: '#ffffff',
     margin: 20,
-    marginTop: 0
+    marginTop: 0,
+    
   },
   footerButton: {
     flex: 1,
     marginHorizontal: 5,
+    height: 50,
+    width: 30,
+    color: 'purple'
   },
   surface: {
+   
     elevation: 4,
     justifyContent: 'center',
     alignItems: 'center',
@@ -106,25 +120,45 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     borderColor: '#b2ebf2',
   },
-  modalContainer:{
-    flex: 1,
-    justifyContent: 'center'
-  },
-  modal:{
+  modalContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.4)', // optional background dim
   },
-  modalSurface:{
-    elevation: 4,
   
-    height: '60%',
-    width: '80%',
-    alignSelf: 'center',
+  modalSurface: {
+    height: '100%',
+    width: '100%',
     padding: 20,
-    backgroundColor: '#ffffff', 
+    justifyContent: 'center',
+    backgroundColor: '#ffffff',
     borderRadius: 20,
     borderWidth: 3,
     borderColor: '#b2ebf2',
+  },
+  
+  optionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f0f8ff',
+    paddingVertical: 15,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    marginVertical: 10,
+    borderWidth: 1,
+    borderColor: '#b2ebf2',
+  },
+  
+  optionText: {
+    fontSize: 18,
+    marginLeft: 10,
+    color: '#333',
+  },
+  
+  cameraImage: {
+    height: 30,
+    width: 30,
+    resizeMode: 'contain',
   }
 })
