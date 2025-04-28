@@ -1,9 +1,8 @@
-import {View, Modal, StyleSheet, Image, TouchableOpacity, Touchable} from 'react-native'
+import {View, Modal, StyleSheet, Image, TouchableOpacity, Touchable, TouchableWithoutFeedback} from 'react-native'
+import {CameraView, CameraType, useCameraPermissions} from 'expo-camera';
 import {Text, Button, Surface} from 'react-native-paper'
 import { useState } from 'react'
 import { useRouter } from 'expo-router'
-import { rgbaColor } from 'react-native-reanimated/lib/typescript/Colors'
-import { TouchableWithoutFeedback } from 'react-native'
 
 export default function MainPage() {
   const router = useRouter()
@@ -34,11 +33,13 @@ export default function MainPage() {
     <View style={styles.modalContainer}>
       <Surface style={styles.modalSurface}>
         {/* Scan Option */}
-        <TouchableOpacity style={styles.optionButton} onPress={() => { /* Handle scan */ }}>
+      
+
+        <TouchableOpacity style={styles.optionButton} onPress={() => { setVisible(false) , router.push('/scan') }}>
           <Image style={styles.cameraImage} source={require('../assets/images/camera-icon.png')} />
           <Text style={styles.optionText}>Scan Receipt</Text>
         </TouchableOpacity>
-
+        
         {/* Manual Entry Option */}
         <TouchableOpacity style={styles.optionButton} onPress={() => { /* Handle manual entry */ }}>
           <Text style={styles.optionText}>Manual</Text>
@@ -53,9 +54,10 @@ export default function MainPage() {
         <TouchableOpacity style={styles.footerButton} onPress={() => {/* Navigate to friends */}}>
           <Text style={styles.footerButton}> Friends </Text>
         </TouchableOpacity>
-        <Button style={styles.footerButton} onPress={() => {setVisible(true)}}>
-          <Image source={require('../assets/images/plus.png')}/>
-        </Button>
+        <TouchableOpacity style={styles.plusButton} onPress={() => {setVisible(true)}}>
+  <Image source={require('../assets/images/plus.png')} style={styles.plusIcon} />
+</TouchableOpacity>
+
         <Button style={styles.footerButton} onPress={() => {/* Navigate to account/profile */}}>
           <Text style={styles.footerButton}> Your Account </Text>
         </Button>
@@ -102,9 +104,27 @@ const styles = StyleSheet.create({
   footerButton: {
     flex: 1,
     marginHorizontal: 5,
-    height: 50,
+    color: 'black',
+  },
+  plusButton: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#00acc1',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: -20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  
+  plusIcon: {
     width: 30,
-    color: 'purple'
+    height: 30,
+    resizeMode: 'contain',
   },
   surface: {
    
@@ -124,7 +144,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.4)', // optional background dim
+    backgroundColor: 'rgba(0, 0, 0, 0.4)', 
   },
   
   modalSurface: {
