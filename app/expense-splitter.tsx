@@ -156,6 +156,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     borderWidth: 3,
     borderColor: '#b2ebf2',
+    gap: 15
   },
   
   optionButton: {
