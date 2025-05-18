@@ -4,6 +4,8 @@ import { useRouter } from 'expo-router';
 import { useFocusEffect } from 'expo-router';
 import { Alert, View, Text } from 'react-native';
 import { ActivityIndicator } from 'react-native-paper';
+import { handleOCR } from '../utils/ocrUtil';
+import{ loadingOCR } from '../utils/loadingOCR';
 
 type OCRResponse = {
   text: string; 
@@ -30,9 +32,9 @@ export default function Scan() {
       const permissionRes = await ImagePicker.requestCameraPermissionsAsync();
       if (!permissionRes.granted) {
         Alert.alert("Camera permission required to scan receipts");
-        // Reset state before navigating
-        cameraActive.current = false;
-        router.back();
+        // Reset state before navigating 
+        cameraActive.current = false;  
+        router.back();  
         return;
       } 
 
@@ -54,7 +56,10 @@ export default function Scan() {
       const base64DataUrl = `data:image/jpeg;base64,${asset.base64}`;
       console.log("Photo taken successfully");
       
+      setLoading(true);
+      loadingOCR(loading);
       await handleOCR(base64DataUrl);
+      setLoading(false);
     } catch (error) {
       console.error("Camera error:", error);
       Alert.alert("Error", "There was a problem opening the camera");
@@ -69,24 +74,9 @@ export default function Scan() {
     }
   };
 
-  const handleOCR = async (base64DataUrl: any) => {
-    setLoading(true); 
-    try { 
-      const data = await fetch('https://divi-backend-krh1.onrender.com', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ image: base64DataUrl }),
-      });
-      
-      const extractedData: OCRResponse = await data.json(); 
-      console.log(extractedData);
-    } catch (error) {
-      console.error("OCR Failed:", error);
-      return;
-    } finally {
-      setLoading(false);
-    }
-  };
+  
+
+
 
   // When this screen comes into focus
   useFocusEffect(
@@ -105,18 +95,5 @@ export default function Scan() {
         cameraActive.current = false;
       };
     }, [])
-  );
-
-  return (
-    <View style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}>
-      {loading ? (
-        <>
-          <ActivityIndicator size="large" color="blue" />
-          <Text>Processing...</Text>  
-        </>
-      ) : (
-        <Text> </Text>
-      )}
-    </View>
   );
 }
