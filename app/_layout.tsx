@@ -8,6 +8,7 @@ import 'react-native-reanimated';
 import { PaperProvider } from 'react-native-paper';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { ReceiptProvider } from '../utils/ReceiptContext';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -29,23 +30,24 @@ export default function RootLayout() {
   }
 
   return (
-  <GestureHandlerRootView style={{ flex: 1 }}>
-   <PaperProvider>
-      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-        <Stack>
-          <Stack.Screen name="home" options={{ headerShown: false }} />
-          <Stack.Screen name="expense-splitter" options={{headerShown: true}} />
-          <Stack.Screen name="addBill" options={{
-            presentation: 'modal',
-            headerShown: false,
-            title: 'Before You Scan'
-          }} />
-          <Stack.Screen name="+not-found" />
-        </Stack>
-        <StatusBar style="auto" />
-      </ThemeProvider>
-    </PaperProvider>
-  </GestureHandlerRootView>
-  
+    <ReceiptProvider>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <PaperProvider>
+          <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+            <Stack>
+              <Stack.Screen name="home" options={{ headerShown: false }} />
+              <Stack.Screen name="expense-splitter" options={{headerShown: true}} />
+              <Stack.Screen name="addBill" options={{
+                presentation: 'modal',
+                headerShown: false,
+                title: 'Before You Scan'
+              }} />
+              <Stack.Screen name="+not-found" />
+            </Stack>
+            <StatusBar style="auto" />
+          </ThemeProvider>
+        </PaperProvider>
+      </GestureHandlerRootView>
+    </ReceiptProvider>
   );
 }

@@ -1,6 +1,7 @@
 import { useLocalSearchParams } from 'expo-router';
-import { View, Text, ScrollView, StyleSheet } from 'react-native';
-import type { ReceiptItem } from '../utils/ocrUtil';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
+import type { ReceiptItem } from '../utils/receiptItems';
+import { ExtractedData } from '../utils/receiptItems';
 
 export default function OCRResults() {
   const params = useLocalSearchParams();
@@ -8,13 +9,15 @@ export default function OCRResults() {
   
   return (
     <ScrollView style={styles.container}>
-      <Text style={styles.title}>Receipt Items</Text>
+      <Text style={styles.title}>Click to make changes</Text>
       <View style={styles.itemsContainer}>
         {items.map((item, index) => (
+          <TouchableOpacity>
           <View key={index} style={styles.itemRow}>
             <Text style={styles.itemName}>{item.name}</Text>
             <Text style={styles.itemPrice}>${item.price.toFixed(2)}</Text>
           </View>
+          </TouchableOpacity>
         ))}
       </View>
       
@@ -43,7 +46,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   itemsContainer: {
-    gap: 8,
+    gap: 10,
   },
   itemRow: {
     flexDirection: 'row',
