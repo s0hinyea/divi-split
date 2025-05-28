@@ -5,11 +5,15 @@ import { useFocusEffect } from 'expo-router';
 import { Alert, View, Text } from 'react-native';
 import { ActivityIndicator } from 'react-native-paper';
 import { handleOCR } from '../utils/ocrUtil';
+import { useReceipt } from '../utils/ReceiptContext'
+
 
 export default function PickPhoto() {  
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const galleryActive = useRef<boolean>(false);
+  const { updateReceiptData } = useReceipt(); 
+
 
   const pickFromGallery = async () => {
     if (galleryActive.current) {
@@ -44,7 +48,7 @@ export default function PickPhoto() {
       console.log("Image selected successfully");
       
       setLoading(true);
-      await handleOCR(base64DataUrl);
+      await handleOCR(base64DataUrl, updateReceiptData);
       setLoading(false);
     } catch (error) {
       console.error("Gallery picker error:", error);

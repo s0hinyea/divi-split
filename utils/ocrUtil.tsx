@@ -1,13 +1,11 @@
 import { useRouter } from 'expo-router';
 import { Alert } from 'react-native';
-import { useReceipt } from '../utils/ReceiptContext'
+import { useReceipt, OCRResponse } from '../utils/ReceiptContext'
 
 
-export const handleOCR = async (base64DataUrl: string) => {
+export const handleOCR = async (base64DataUrl: string, updateReceiptData: (data: OCRResponse) => void) => {
+  const router = useRouter();
 
-  const { receiptData, updateItem } = useReceipt();
-
-  const router = useRouter()
   try { 
     const data = await fetch('https://divi-backend-krh1.onrender.com/ocr', {
       method: 'POST',
@@ -15,22 +13,25 @@ export const handleOCR = async (base64DataUrl: string) => {
       body: JSON.stringify({ image: base64DataUrl }),
     });
     
-    console.log("Image sent for OCR processing" );
-    let ExtractedData = await data.json(); 
+    console.log("Image sent for OCR processing");
+    const extractedData = await data.json(); 
     
-    if ('text' in ExtractedData) {
-      console.log(ExtractedData.text)
-      console.log(ExtractedData.items)
+    if ('text' in extractedData) {
+      console.log(extractedData.text);
+      console.log(extractedData.items);
+      
+      // Update the context with the new data
+      updateReceiptData(extractedData);
 
       router.push({
         pathname: "/result",
         params: {
-          text: ExtractedData.text,
-          items: JSON.stringify(ExtractedData.items)
+          text: extractedData.text,
+          items: JSON.stringify(extractedData.items)
         }
       });
-    } else if ('error' in ExtractedData) {
-      console.error("OCR error:", ExtractedData.error);
+    } else if ('error' in extractedData) {
+      console.error("OCR error:", extractedData.error);
       Alert.alert("Error", "There was a problem processing the image");
     }
   } catch (error) {

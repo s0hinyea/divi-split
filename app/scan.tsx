@@ -6,6 +6,7 @@ import { Alert, View, Text } from 'react-native';
 import { ActivityIndicator } from 'react-native-paper';
 import { handleOCR } from '../utils/ocrUtil';
 import{ loadingOCR } from '../utils/loadingOCR';
+import { useReceipt } from '../utils/ReceiptContext'
 
 type OCRResponse = {
   text: string; 
@@ -17,6 +18,8 @@ export default function Scan() {
   const router = useRouter();
   const [loading, setLoading] = useState<boolean>(false);
   const cameraActive = useRef<boolean>(false);
+  const { updateReceiptData } = useReceipt(); 
+  
 
   const openCamera = async () => {
     // If camera is already active, don't try to open it again
@@ -58,7 +61,7 @@ export default function Scan() {
       
       setLoading(true);
       loadingOCR(loading);
-      await handleOCR(base64DataUrl);
+      await handleOCR(base64DataUrl, updateReceiptData);
       setLoading(false);
     } catch (error) {
       console.error("Camera error:", error);
