@@ -39,6 +39,11 @@ export default function MainPage() {
           <Image style={styles.cameraImage} source={require('../assets/images/camera-icon.png')} />
           <Text style={styles.optionText}>Scan Receipt</Text>
         </TouchableOpacity>
+
+        <TouchableOpacity style={styles.optionButton} onPress={() => { setVisible(false) , router.push('/library') }}>
+          <Image style={styles.cameraImage} source={require('../assets/images/camera-icon.png')} />
+          <Text style={styles.optionText}>Pick From Photos</Text>
+        </TouchableOpacity>
         
         {/* Manual Entry Option */}
         <TouchableOpacity style={styles.optionButton} onPress={() => { /* Handle manual entry */ }}>
@@ -156,6 +161,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     borderWidth: 3,
     borderColor: '#b2ebf2',
+    gap: 15
   },
   
   optionButton: {
