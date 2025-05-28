@@ -24,6 +24,8 @@
     "expo-constants": "~17.1.5",
     "expo-font": "~13.3.1",
     "expo-haptics": "~14.1.4",
+    "expo-image-crop": "^1.0.4",
+    "expo-image-manipulator": "~13.1.7",
     "expo-image-picker": "~16.1.4",
     "expo-linking": "~7.1.4",
     "expo-router": "~5.0.5",
@@ -32,6 +34,7 @@
     "expo-symbols": "~0.4.4",
     "expo-system-ui": "~5.0.7",
     "expo-web-browser": "~14.1.6",
+    "opencv.js": "^1.2.1",
     "react": "19.0.0",
     "react-dom": "19.0.0",
     "react-native": "0.79.2",
@@ -43,7 +46,8 @@
     "react-native-text-gradient": "^0.1.7",
     "react-native-vector-icons": "^10.2.0",
     "react-native-web": "^0.20.0",
-    "react-native-webview": "13.13.5"
+    "react-native-webview": "13.13.5",
+    "expo-file-system": "~18.1.10"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",

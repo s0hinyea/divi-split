@@ -28,7 +28,7 @@ export default function PickPhoto() {
       }
       
       const res = await ImagePicker.launchImageLibraryAsync({
-        quality: 1,
+        quality: 0.8,
         allowsEditing: false,
         mediaTypes: ["images"],
         base64: true

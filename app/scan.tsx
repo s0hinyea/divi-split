@@ -39,7 +39,7 @@ export default function Scan() {
       } 
 
       const res = await ImagePicker.launchCameraAsync({
-        quality: 1,
+        quality: 0.8,
         allowsEditing: false,
         mediaTypes: ['images'],
         base64: true
