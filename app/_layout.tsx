@@ -9,6 +9,7 @@ import { PaperProvider } from 'react-native-paper';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { ReceiptProvider } from '../utils/ReceiptContext';
+import { ChangeProvider } from '../utils/ChangesContext'
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -31,6 +32,7 @@ export default function RootLayout() {
 
   return (
     <ReceiptProvider>
+      <ChangeProvider>
       <GestureHandlerRootView style={{ flex: 1 }}>
         <PaperProvider>
           <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
@@ -48,6 +50,7 @@ export default function RootLayout() {
           </ThemeProvider>
         </PaperProvider>
       </GestureHandlerRootView>
+      </ChangeProvider>
     </ReceiptProvider>
   );
 }
