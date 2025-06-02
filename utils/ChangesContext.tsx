@@ -25,7 +25,6 @@ export function ChangeProvider({children} : {children: ReactNode}) {
 
   const addChange = (change: Change) => {
     setChanges(prevChanges => [...prevChanges, change]);
-    console.log(changes)
   }
 
   const undoChange = () => {
