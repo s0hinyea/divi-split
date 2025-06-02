@@ -55,7 +55,6 @@ export function ReceiptProvider({ children }: { children: ReactNode }) {
         items: [...receiptData.items, item]
       });
     }
-    console.log(item);
   };
 
   // Function to remove an item

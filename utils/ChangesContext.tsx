@@ -7,7 +7,7 @@ import { useReceipt } from '../utils/ReceiptContext';
 export type Change = { 
   type: string,
   id: string,
-  previous: ReceiptItem
+  previous: ReceiptItem 
 }
 
 type ChangeContextType = {

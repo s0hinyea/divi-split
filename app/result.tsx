@@ -5,8 +5,9 @@ import { Text, Button, Surface } from 'react-native-paper';
 import { useReceipt, ReceiptItem } from '../utils/ReceiptContext';
 import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import { MaterialIcons } from '@expo/vector-icons';
-import { useChange } from '../utils/ChangesContext'
-import { v4 as uuidv4 } from 'uuid';
+import { useChange } from '../utils/ChangesContext';
+import 'react-native-get-random-values';
+import * as uuid from 'uuid';
 import { BlurView } from 'expo-blur';
 import { styles } from "../styles/resultCss"
 
@@ -27,7 +28,6 @@ export default function OCRResults() {
 
   // Monitor changes array
   useEffect(() => {
-    console.log('Changes stack updated:', changes);
     isStackEmpty(changes.length === 0);
   }, [changes]);
 
@@ -37,9 +37,7 @@ export default function OCRResults() {
     // Save the change only when Done is clicked
     if (changeType) {
       const previousItem = items.find(item => item.id === changing);
-      if (!previousItem) return; // Guard against undefined
-      console.log('Saving change:', { type: changeType, id: changing, previous: previousItem });
-      // Apply the actual change here
+      if (!previousItem) return; // Guard against undefined     
       if (changeType === 'EDIT_NAME') {
         updateItem(changing, { ...previousItem, name: newName });
       } else if (changeType === 'EDIT_PRICE') {
@@ -64,20 +62,17 @@ export default function OCRResults() {
     setNewName(item ? item.name : '');
     setNewPrice(item ? item.price.toString() : '');
     setChangeType(''); // Reset change type when starting new change
-    console.log('Starting change for item:', item);
   }
 
   function changePrice(id: string, text: string, item: ReceiptItem) {
     const price = parseFloat(text) || 0;
     setNewPrice(text);
     setChangeType('EDIT_PRICE');
-    console.log('Price changed to:', price);
   }
 
   function changeName(id: string, text: string, item: ReceiptItem) {
     setNewName(text);
     setChangeType('EDIT_NAME');
-    console.log('Name changed to:', text);
   }
 
   function deleteItem(id: string, item: ReceiptItem){
@@ -86,10 +81,13 @@ export default function OCRResults() {
   }
 
   function addNewItem(){
-    const newID = uuidv4()
+    const newID = uuid.v4()
     const price = parseFloat(newPrice) || 0;
     const newItem: ReceiptItem = { id:newID, name: newName, price}
     addItem(newItem);
+    isAdding(false);
+    setNewName('');
+    setNewPrice('');
   }
 
 
@@ -107,7 +105,6 @@ export default function OCRResults() {
   // Clear changes when component unmounts
   useEffect(() => {
     return () => {
-      console.log('Clearing changes on unmount');
       clearChanges();
     };
   }, []);
@@ -170,10 +167,8 @@ export default function OCRResults() {
           <Pressable style={styles.modalOverlay} onPress={() => isAdding(false)}>
             <View style={styles.modalContainer}>
               <Surface style={styles.modalSurface}>
-                <Text style={styles.modalTitle}>Add New Item</Text>
                 <Pressable style={styles.modalInput}>
                   <TextInput 
-                    style={styles.itemName}
                     value={newName}
                     onChangeText={(text) => setNewName(text)}
                     placeholder="Item name"
@@ -181,8 +176,7 @@ export default function OCRResults() {
                   />
                 </Pressable>
                 <Pressable style={styles.modalInput}>
-                  <TextInput 
-                    style={styles.itemPrice}
+                  <TextInput
                     value={newPrice}
                     onChangeText={(text) => setNewPrice(text)}
                     keyboardType="decimal-pad"

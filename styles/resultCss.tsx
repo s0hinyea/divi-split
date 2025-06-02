@@ -154,10 +154,11 @@ import { StyleSheet } from 'react-native';
     alignItems: 'center',
   },
   modalContainer: {
-    width: '90%',
-    maxWidth: 400,
+    width: 300,
+    height: 200
   },
   modalSurface: {
+    width: '100%',
     padding: 20,
     borderRadius: 12,
     backgroundColor: '#ffffff',
