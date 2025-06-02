@@ -2,18 +2,17 @@ import { useLocalSearchParams } from 'expo-router';
 import { useState, useEffect } from 'react';
 import { View, TextInput, ScrollView, StyleSheet, TouchableOpacity, Pressable, Image} from 'react-native';
 import { Text, Button } from 'react-native-paper';
-import type { ReceiptItem } from '../utils/receiptItems';
-import { useReceipt } from '../utils/ReceiptContext';
+import { useReceipt, ReceiptItem } from '../utils/ReceiptContext';
 import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useChange } from '../utils/ChangesContext'
 
 export default function OCRResults() {
   const params = useLocalSearchParams();
-  const [ changing, changeItem ] = useState<number>(-1);
+  const [ changing, changeItem ] = useState<string>('');
   const { updateItem, removeItem, addItem, updateReceiptData, receiptData } = useReceipt(); 
   const { addChange, undoChange, clearChanges, changes } = useChange(); 
-  const [ buttonVisible, setButtonVisible] = useState<boolean>(false);
+  const [ donebuttonVisible, setDoneButtonVisible] = useState<boolean>(false);
   const [ newName, setNewName] = useState<string>('');
   const [ newPrice, setNewPrice ] = useState<string>('');
   const [ stackEmpty, isStackEmpty] = useState<boolean>(true);
@@ -29,22 +28,23 @@ export default function OCRResults() {
   }, [changes]);
 
   function finishChange(){
-    setButtonVisible(false);
-    changeItem(-1);
+    setDoneButtonVisible(false);
+    changeItem('');
     // Save the change only when Done is clicked
     if (changeType) {
-      const previousItem = items[changing];
-      console.log('Saving change:', { type: changeType, index: changing, previous: previousItem });
+      const previousItem = items.find(item => item.id === changing);
+      if (!previousItem) return; // Guard against undefined
+      console.log('Saving change:', { type: changeType, id: changing, previous: previousItem });
       // Apply the actual change here
       if (changeType === 'EDIT_NAME') {
-        updateItem(changing, { ...items[changing], name: newName });
+        updateItem(changing, { ...previousItem, name: newName });
       } else if (changeType === 'EDIT_PRICE') {
         const price = parseFloat(newPrice) || 0;
-        updateItem(changing, { ...items[changing], price });
+        updateItem(changing, { ...previousItem, price });
       }
       addChange({
         type: changeType,
-        index: changing,
+        id: changing,
         previous: previousItem
       });
     }
@@ -53,39 +53,39 @@ export default function OCRResults() {
 
   //The text inputs are pre-filled with current value
   //i.e. if i put "bro" for setNewName, when that item is in edit state, it will show "bro" in the pressable  
-  function startChange(index: number){
-    setButtonVisible(true);
-    changeItem(index);
-    setNewName(items[index].name);
-    setNewPrice(items[index].price.toString());
+  function startChange(id: string){
+    setDoneButtonVisible(true);
+    changeItem(id);
+    const item = items.find(it => it.id === id);
+    setNewName(item ? item.name : '');
+    setNewPrice(item ? item.price.toString() : '');
     setChangeType(''); // Reset change type when starting new change
-    console.log('Starting change for item:', items[index]);
+    console.log('Starting change for item:', item);
   }
 
-  function changePrice(index: number, text: string, item: ReceiptItem) {
+  function changePrice(id: string, text: string, item: ReceiptItem) {
     const price = parseFloat(text) || 0;
     setNewPrice(text);
     setChangeType('EDIT_PRICE');
     console.log('Price changed to:', price);
   }
 
-  function changeName(index: number, text: string, item: ReceiptItem) {
+  function changeName(id: string, text: string, item: ReceiptItem) {
     setNewName(text);
     setChangeType('EDIT_NAME');
     console.log('Name changed to:', text);
   }
 
-  function deleteItem(index: number, item: ReceiptItem){
-    removeItem(index);
-    setChangeType('DELETE');
-    addChange({type: changeType, index, previous: item })
+  function deleteItem(id: string, item: ReceiptItem){
+    addChange({type: 'DELETE', id, previous: item })
+    removeItem(id);
   }
 
-  const renderRightActions = (index: number, item: ReceiptItem) => {
+  const renderRightActions = (id: string, item: ReceiptItem) => {
     return (
       <TouchableOpacity
         style={styles.deleteAction}
-        onPress={() => deleteItem(index, item)}
+        onPress={() => deleteItem(item.id, item)}
       >
         <MaterialIcons name="delete" size={24} color="white" />
       </TouchableOpacity>
@@ -103,34 +103,34 @@ export default function OCRResults() {
   return (
     <View style={styles.container}>
       <ScrollView style={styles.scrollView}>
-        <Text style={styles.title}>Click to make changes</Text>
+        <Text style={styles.title}>Click to change, swipe to delete</Text>
         <View style={styles.itemsContainer}>
-          {items.map((item, index) => (
-            changing === index ? (
-              <View key={index} style={styles.changeRow}>
+          {items.map(item => (
+            changing === item.id ? (
+              <View key={item.id} style={styles.changeRow}>
                 <Pressable style={styles.changeName}>
                   <TextInput 
                     style={styles.itemName}
                     value={newName}
-                    onChangeText={(text) => changeName(index, text, item)}
+                    onChangeText={(text) => changeName(item.id, text, item)}
                   />
                 </Pressable>
                 <Pressable style={styles.changePrice}>
                   <TextInput 
                     style={styles.itemPrice}
                     value={newPrice}
-                    onChangeText={(text) => changePrice(index, text, item)}
+                    onChangeText={(text) => changePrice(item.id, text, item)}
                     keyboardType="decimal-pad"
                   />
                 </Pressable>
               </View>
             ) : (
               <Swipeable
-                key={index}
-                renderRightActions={() => renderRightActions(index, item)}
+                key={item.id}
+                renderRightActions={() => renderRightActions(item.id, item)}
                 rightThreshold={20}
               >
-                <TouchableOpacity onPress={() => {startChange(index)}}>
+                <TouchableOpacity onPress={() => {startChange(item.id)}}>
                   <View style={styles.itemRow}>
                     <Text style={styles.itemName}>{item.name}</Text>
                     <Text style={styles.itemPrice}>${item.price.toFixed(2)}</Text>
@@ -152,8 +152,10 @@ export default function OCRResults() {
           </View>
         )}
       </ScrollView>
+
       
-      {buttonVisible && (
+      
+      {donebuttonVisible ? (
         <View>
           <Button 
             mode="contained"
@@ -162,6 +164,10 @@ export default function OCRResults() {
             Done
           </Button>
         </View>
+      ) :(
+        <TouchableOpacity style={styles.plusButton} onPress={() => {}}>
+  <Image source={require('../assets/images/plus.png')} style={styles.plusIcon} />
+</TouchableOpacity>
       )}
 
       {changes.length > 0 && (
@@ -182,10 +188,13 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#e0f7fa',
+    justifyContent: 'center',
+    alignItems: 'center'
   },
   scrollView: {
     flex: 1,
     padding: 16,
+    marginTop: 40
   },
   button: {
     marginTop: 50,
@@ -299,5 +308,28 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 8,
     borderBottomLeftRadius: 8,
     marginLeft: 5
-  }
+  },
+  plusButton: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#00acc1',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: -20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+    position: 'absolute',
+    bottom: 70,
+    
+  },
+  plusIcon: {
+      width: 30,
+      height: 30,
+      resizeMode: 'contain',
+      
+    }
 });

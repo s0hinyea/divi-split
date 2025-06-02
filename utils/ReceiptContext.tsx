@@ -1,9 +1,11 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
+import { v4 as uuidv4 } from 'uuid';
 
 // Define our types
 export type ReceiptItem = {
   name: string;
   price: number;
+  id: string
 };
 
 export type OCRResponse = {
@@ -17,9 +19,9 @@ export type OCRResponse = {
 type ReceiptContextType = {
   receiptData: OCRResponse;
   updateReceiptData: (data: OCRResponse) => void;
-  updateItem: (index: number, item: ReceiptItem) => void;
+  updateItem: (id: string, item: ReceiptItem) => void;
   addItem: (item: ReceiptItem) => void;
-  removeItem: (index: number) => void;
+  removeItem: (id: string) => void;
 };
 
 // Create the context with a default value
@@ -36,10 +38,11 @@ export function ReceiptProvider({ children }: { children: ReactNode }) {
   };
 
   // Function to update a single item
-  const updateItem = (index: number, item: ReceiptItem) => {
+  const updateItem = (id: string, item: ReceiptItem) => {
     if ('items' in receiptData) {
-      const newItems = [...receiptData.items];
-      newItems[index] = item;
+      const newItems = receiptData.items.map((it) =>
+        it.id === id ? item : it
+      );
       setReceiptData({ ...receiptData, items: newItems });
     }
   };
@@ -52,12 +55,13 @@ export function ReceiptProvider({ children }: { children: ReactNode }) {
         items: [...receiptData.items, item]
       });
     }
+    console.log(item);
   };
 
   // Function to remove an item
-  const removeItem = (index: number) => {
+  const removeItem = (id: string) => {
     if ('items' in receiptData) {
-      const newItems = receiptData.items.filter((_, i) => i !== index);
+      const newItems = receiptData.items.filter((it) => it.id !== id);
       setReceiptData({ ...receiptData, items: newItems });
     }
   };

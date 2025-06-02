@@ -36,12 +36,11 @@ export default function RootLayout() {
       <GestureHandlerRootView style={{ flex: 1 }}>
         <PaperProvider>
           <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-            <Stack>
-              <Stack.Screen name="home" options={{ headerShown: false }} />
-              <Stack.Screen name="expense-splitter" options={{headerShown: true}} />
+            <Stack screenOptions={{ headerShown: false }}>
+              <Stack.Screen name="home" />
+              <Stack.Screen name="expense-splitter" />
               <Stack.Screen name="addBill" options={{
                 presentation: 'modal',
-                headerShown: false,
                 title: 'Before You Scan'
               }} />
               <Stack.Screen name="+not-found" />

@@ -22,14 +22,8 @@ export const handleOCR = async (base64DataUrl: string, updateReceiptData: (data:
       
       // Update the context with the new data
       updateReceiptData(extractedData);
-
-      router.push({
-        pathname: "/result",
-        params: {
-          text: extractedData.text,
-          items: JSON.stringify(extractedData.items)
-        }
-      });
+      router.push('/result');
+      
     } else if ('error' in extractedData) {
       console.error("OCR error:", extractedData.error);
       Alert.alert("Error", "There was a problem processing the image");

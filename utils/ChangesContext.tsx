@@ -6,7 +6,7 @@ import { useReceipt } from '../utils/ReceiptContext';
 
 export type Change = { 
   type: string,
-  index: number,
+  id: string,
   previous: ReceiptItem
 }
 
@@ -35,17 +35,21 @@ export function ChangeProvider({children} : {children: ReactNode}) {
         const lastChange = newChanges.pop();
         if(lastChange){
           switch(lastChange.type) {
-            case 'EDIT_NAME':
-              updateItem(lastChange.index, { ...items[lastChange.index], name: lastChange.previous.name });
+            case 'EDIT_NAME': {
+              const item = items.find(it => it.id === lastChange.id);
+              if (item) updateItem(lastChange.id, { ...item, name: lastChange.previous.name });
               break;
-            case 'EDIT_PRICE':
-              updateItem(lastChange.index, { ...items[lastChange.index], price: lastChange.previous.price });
+            }
+            case 'EDIT_PRICE': {
+              const item = items.find(it => it.id === lastChange.id);
+              if (item) updateItem(lastChange.id, { ...item, price: lastChange.previous.price });
               break;
+            }
             case 'DELETE':
               addItem(lastChange.previous);
               break;
             case 'ADD':
-              removeItem(lastChange.index)
+              removeItem(lastChange.id)
               break;
           }
         }
