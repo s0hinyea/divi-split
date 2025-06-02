@@ -1,11 +1,14 @@
 import { useLocalSearchParams } from 'expo-router';
 import { useState, useEffect } from 'react';
-import { View, TextInput, ScrollView, StyleSheet, TouchableOpacity, Pressable, Image} from 'react-native';
-import { Text, Button } from 'react-native-paper';
+import { View, TextInput, ScrollView, StyleSheet, TouchableOpacity, Pressable, Image, Modal} from 'react-native';
+import { Text, Button, Surface } from 'react-native-paper';
 import { useReceipt, ReceiptItem } from '../utils/ReceiptContext';
 import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useChange } from '../utils/ChangesContext'
+import { v4 as uuidv4 } from 'uuid';
+import { BlurView } from 'expo-blur';
+import { styles } from "../styles/resultCss"
 
 export default function OCRResults() {
   const params = useLocalSearchParams();
@@ -17,6 +20,7 @@ export default function OCRResults() {
   const [ newPrice, setNewPrice ] = useState<string>('');
   const [ stackEmpty, isStackEmpty] = useState<boolean>(true);
   const [ changeType, setChangeType ] = useState<string>('');
+  const [adding, isAdding ] = useState<boolean>(false);
   
   // Get items from context instead of params
   const items = 'items' in receiptData ? receiptData.items : [];
@@ -80,6 +84,14 @@ export default function OCRResults() {
     addChange({type: 'DELETE', id, previous: item })
     removeItem(id);
   }
+
+  function addNewItem(){
+    const newID = uuidv4()
+    const price = parseFloat(newPrice) || 0;
+    const newItem: ReceiptItem = { id:newID, name: newName, price}
+    addItem(newItem);
+  }
+
 
   const renderRightActions = (id: string, item: ReceiptItem) => {
     return (
@@ -153,7 +165,42 @@ export default function OCRResults() {
         )}
       </ScrollView>
 
-      
+      <Modal animationType='slide' transparent={true} visible={adding} onRequestClose={() => isAdding(false)}>
+        <BlurView intensity={50} style={styles.modalOverlay}>
+          <Pressable style={styles.modalOverlay} onPress={() => isAdding(false)}>
+            <View style={styles.modalContainer}>
+              <Surface style={styles.modalSurface}>
+                <Text style={styles.modalTitle}>Add New Item</Text>
+                <Pressable style={styles.modalInput}>
+                  <TextInput 
+                    style={styles.itemName}
+                    value={newName}
+                    onChangeText={(text) => setNewName(text)}
+                    placeholder="Item name"
+                    placeholderTextColor="#80deea"
+                  />
+                </Pressable>
+                <Pressable style={styles.modalInput}>
+                  <TextInput 
+                    style={styles.itemPrice}
+                    value={newPrice}
+                    onChangeText={(text) => setNewPrice(text)}
+                    keyboardType="decimal-pad"
+                    placeholder="Price"
+                    placeholderTextColor="#80deea"
+                  />
+                </Pressable>
+
+                <TouchableOpacity 
+                  style={styles.modalButton}
+                  onPress={() => {addNewItem()}}>
+                  <Text style={styles.modalButtonText}>Add Item</Text>
+                </TouchableOpacity>
+              </Surface>
+            </View>
+          </Pressable>
+        </BlurView>
+      </Modal>
       
       {donebuttonVisible ? (
         <View>
@@ -165,7 +212,7 @@ export default function OCRResults() {
           </Button>
         </View>
       ) :(
-        <TouchableOpacity style={styles.plusButton} onPress={() => {}}>
+        <TouchableOpacity style={styles.plusButton} onPress={() => {isAdding(true)}}>
   <Image source={require('../assets/images/plus.png')} style={styles.plusIcon} />
 </TouchableOpacity>
       )}
@@ -183,153 +230,3 @@ export default function OCRResults() {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#e0f7fa',
-    justifyContent: 'center',
-    alignItems: 'center'
-  },
-  scrollView: {
-    flex: 1,
-    padding: 16,
-    marginTop: 40
-  },
-  button: {
-    marginTop: 50,
-    width: '50%',
-    alignSelf: 'center',
-    marginBottom: 50,
-    backgroundColor: '#00acc1' // Aquamarine button
-  },
-  undoButtonContainer: {
-    position: 'absolute',
-    bottom: 20,
-    right: 20,
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: '#00acc1',
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-  },
-  undoButton: {
-    width: 30,
-    height: 30,
-    resizeMode: 'contain',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 16,
-    color: '#00838f',  // Dark aquamarine text
-    textAlign: 'center',
-  },
-  itemsContainer: {
-    gap: 10,
-  },
-  itemRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    padding: 16,
-    backgroundColor: '#ffffff',
-    borderRadius: 8,
-    elevation: 4,
-    borderWidth: 1,
-    borderColor: '#b2ebf2',
-  },
-  changeRow:{
-    flexDirection: 'row',
-    gap: 8
-  },
-  changeName:{
-    flex: 3,
-    padding: 16,
-    backgroundColor: '#ffffff',
-    borderRadius: 8,
-    elevation: 4,
-    borderWidth: 1,
-    borderColor: '#b2ebf2',
-  },
-  changePrice:{
-    flex: 1,
-    padding: 16,
-    backgroundColor: '#ffffff',
-    borderRadius: 8,
-    elevation: 4,
-    borderWidth: 1,
-    borderColor: '#b2ebf2',
-  },
-  itemName: {
-    fontSize: 16,
-    color: '#006064',  // Medium aquamarine text
-    flex: 1,
-  },
-  itemPrice: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#00acc1',  // Aquamarine accent
-  },
-  totalContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    padding: 16,
-    marginTop: 16,
-    backgroundColor: '#ffffff',
-    borderRadius: 8,
-    elevation: 4,
-    borderWidth: 1,
-    borderColor: '#b2ebf2',
-  },
-  totalLabel: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#00838f',  // Dark aquamarine text
-  },
-  totalAmount: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#00acc1',  // Aquamarine accent
-  },
-  deleteAction: {
-    backgroundColor: '#ff5252',
-    justifyContent: 'center',
-    alignItems: 'center',
-    width: 80,
-    height: '100%',
-    borderTopRightRadius: 8,
-    borderBottomRightRadius: 8,
-    borderTopLeftRadius: 8,
-    borderBottomLeftRadius: 8,
-    marginLeft: 5
-  },
-  plusButton: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#00acc1',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: -20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-    position: 'absolute',
-    bottom: 70,
-    
-  },
-  plusIcon: {
-      width: 30,
-      height: 30,
-      resizeMode: 'contain',
-      
-    }
-});
