@@ -32,7 +32,7 @@ export default function RootLayout() {
 
   return (
     <ReceiptProvider>
-          <ChangeProvider>
+        <ChangeProvider>
       <GestureHandlerRootView style={{ flex: 1 }}>
         <PaperProvider>
           <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
