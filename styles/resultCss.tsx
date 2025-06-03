@@ -19,27 +19,7 @@ import { StyleSheet } from 'react-native';
     marginBottom: 50,
     backgroundColor: '#00acc1' // Aquamarine button
   },
-  undoButtonContainer: {
-    position: 'absolute',
-    bottom: 20,
-    right: 20,
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: '#00acc1',
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-  },
-  undoButton: {
-    width: 30,
-    height: 30,
-    resizeMode: 'contain',
-  },
+  
   title: {
     fontSize: 24,
     fontWeight: 'bold',
@@ -125,29 +105,6 @@ import { StyleSheet } from 'react-native';
     borderBottomLeftRadius: 8,
     marginLeft: 5
   },
-  plusButton: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#00acc1',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: -20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-    position: 'absolute',
-    bottom: 70,
-    
-  },
-  plusIcon: {
-      width: 30,
-      height: 30,
-      resizeMode: 'contain',
-      
-    },
   modalOverlay: {
     flex: 1,
     justifyContent: 'center',
@@ -193,4 +150,52 @@ import { StyleSheet } from 'react-native';
     fontSize: 16,
     fontWeight: 'bold',
   },
+  footer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 100,
+    backgroundColor: 'white',
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#e0e0e0',
+    elevation: 8, // for Android shadow
+    shadowColor: '#000', // for iOS shadow
+    shadowOffset: {
+      width: 0,
+      height: -2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  footerButton: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 20,
+    backgroundColor: '#f5f5f5',
+  },
+  footerIcon: {
+  width: 24,
+  height: 24,
+  resizeMode: 'contain',
+},
+continueButton: {
+  width: 60,
+  height: 60,
+  justifyContent: 'center',
+  alignItems: 'center',
+  borderRadius: 30,
+  backgroundColor: '#f5f5f5',
+},
+continueIcon: {
+width: 30,
+height: 30,
+resizeMode: 'contain',
+}
 });

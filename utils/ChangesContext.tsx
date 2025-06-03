@@ -56,7 +56,7 @@ export function ChangeProvider({children} : {children: ReactNode}) {
         
         return newChanges;
       })
-    }
+    } else { return; }
   };
 
   const clearChanges = () => {

@@ -20,7 +20,6 @@ export default function OCRResults() {
   const [ newName, setNewName] = useState<string>('');
   const [ newPrice, setNewPrice ] = useState<string>('');
   const [ stackEmpty, isStackEmpty] = useState<boolean>(true);
-  const [ changeType, setChangeType ] = useState<string>('');
   const [adding, isAdding ] = useState<boolean>(false);
   
   // Get items from context instead of params
@@ -34,23 +33,30 @@ export default function OCRResults() {
   function finishChange(){
     setDoneButtonVisible(false);
     changeItem('');
-    // Save the change only when Done is clicked
-    if (changeType) {
-      const previousItem = items.find(item => item.id === changing);
-      if (!previousItem) return; // Guard against undefined     
-      if (changeType === 'EDIT_NAME') {
-        updateItem(changing, { ...previousItem, name: newName });
-      } else if (changeType === 'EDIT_PRICE') {
-        const price = parseFloat(newPrice) || 0;
-        updateItem(changing, { ...previousItem, price });
-      }
-      addChange({
-        type: changeType,
-        id: changing,
-        previous: previousItem
-      });
+    const previousItem = items.find(item => item.id === changing);
+    if (!previousItem) return;
+
+    // Build the updated item with all changes
+    let updatedItem = { ...previousItem };
+    let changed = false;
+
+    if (previousItem.name !== newName) {
+      updatedItem.name = newName;
+      addChange({ type: 'EDIT_NAME', id: changing, previous: previousItem });
+      changed = true;
     }
-    setChangeType(''); // Reset change type
+    if (previousItem.price !== parseFloat(newPrice)) {
+      updatedItem.price = parseFloat(newPrice);
+      addChange({ type: 'EDIT_PRICE', id: changing, previous: previousItem });
+      changed = true;
+    }
+
+    // Only update if something changed
+    if (changed) {
+      updateItem(changing, updatedItem);
+      setNewName('');
+      setNewPrice('');
+    }
   }
 
   //The text inputs are pre-filled with current value
@@ -61,18 +67,15 @@ export default function OCRResults() {
     const item = items.find(it => it.id === id);
     setNewName(item ? item.name : '');
     setNewPrice(item ? item.price.toString() : '');
-    setChangeType(''); // Reset change type when starting new change
   }
 
   function changePrice(id: string, text: string, item: ReceiptItem) {
     const price = parseFloat(text) || 0;
     setNewPrice(text);
-    setChangeType('EDIT_PRICE');
   }
 
   function changeName(id: string, text: string, item: ReceiptItem) {
     setNewName(text);
-    setChangeType('EDIT_NAME');
   }
 
   function deleteItem(id: string, item: ReceiptItem){
@@ -206,21 +209,31 @@ export default function OCRResults() {
           </Button>
         </View>
       ) :(
-        <TouchableOpacity style={styles.plusButton} onPress={() => {isAdding(true)}}>
-  <Image source={require('../assets/images/plus.png')} style={styles.plusIcon} />
-</TouchableOpacity>
+        <View style={styles.footer}>
+    <TouchableOpacity 
+    style={styles.footerButton} 
+    onPress={() => {isAdding(true)}}>
+    <Image source={require('../assets/images/plus.png')} style={styles.footerIcon} />
+  </TouchableOpacity>
+
+  <TouchableOpacity 
+    style={styles.continueButton} 
+    onPress={() => {}}>
+    <Image source={require('../assets/images/check.png')} style={styles.continueIcon} />
+  </TouchableOpacity>
+
+  <TouchableOpacity 
+      style={styles.footerButton}
+      onPress={undoChange}>
+      <Image 
+        style={styles.footerIcon} 
+        source={require('../assets/images/undo-button.png')}
+      />
+    </TouchableOpacity>
+  </View>
       )}
 
-      {changes.length > 0 && (
-        <TouchableOpacity 
-          onPress={undoChange}
-          style={styles.undoButtonContainer}>
-          <Image 
-            style={styles.undoButton} 
-            source={require('../assets/images/undo-button.png')}
-          />
-        </TouchableOpacity>
-      )}
+      
     </View>
   );
 }
