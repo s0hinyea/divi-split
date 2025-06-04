@@ -4,10 +4,22 @@ import {Text, Button, Surface} from 'react-native-paper'
 import { useState } from 'react'
 import { useRouter } from 'expo-router'
 import { styles } from '../styles/expense-splitterCss'
+import { ocrTest} from '../scripts/manual'
+import { useReceipt} from '../utils/ReceiptContext'
+import { useOCR} from '../utils/OCRContext'
+import { handleOCR } from '../utils/ocrUtil'
+
 
 export default function MainPage() {
   const router = useRouter()
   const[visible, setVisible] = useState(false)
+  const { updateReceiptData } = useReceipt();
+  const { setIsProcessing } = useOCR();
+
+  
+
+
+  
   
   return (
     <View style={styles.container}>
@@ -47,7 +59,13 @@ export default function MainPage() {
         </TouchableOpacity>
         
         {/* Manual Entry Option */}
-        <TouchableOpacity style={styles.optionButton} onPress={() => { /* Handle manual entry */ }}>
+        <TouchableOpacity 
+          style={styles.optionButton} 
+          onPress={async () => {
+            setVisible(false);
+            await handleOCR(ocrTest, updateReceiptData, setIsProcessing);
+          }}
+        >
           <Text style={styles.optionText}>Manual</Text>
         </TouchableOpacity>
       </Surface>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect} from 'react';
-import { View, Text, FlatList, TouchableOpacity, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, ActivityIndicator, StyleSheet, Image, TextInput } from 'react-native';
 import * as Contacts from 'expo-contacts';
 import { useOCR } from "../utils/OCRContext"
 
@@ -16,6 +16,7 @@ export default function ChooseContacts() {
   const [loading, setLoading] = useState(true);
   const [selectedContacts, setSelectedContacts] = useState<string[]>([]);
   const {isProcessing} = useOCR();
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     (async () => {
@@ -38,6 +39,10 @@ export default function ChooseContacts() {
     }
   };
 
+  const filteredContacts = contacts.filter(contact => 
+    contact.name?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false
+  );
+
   if (loading) {
     return (
       <View style={styles.container}>
@@ -49,16 +54,30 @@ export default function ChooseContacts() {
   return (
     <View style={styles.container}>
       {isProcessing ? (
-        <Text>
-          Processing
-        </Text>
+        <View style={styles.loadingContainer}>
+          <View style={styles.loading}>
+            <ActivityIndicator size="large" color="#0000ff" />
+          </View>
+          <Text>Processing</Text>
+        </View>
       ) : (
-        <Text>
-          Done
-        </Text>
+        <View style={styles.loadingContainer}>
+          <View style={styles.loading}>
+            <Image style={styles.done} source={require("../assets/images/like.png")} />
+          </View>
+          <Text>Done</Text>
+        </View>
       )}
+      
+      <TextInput
+        style={styles.searchInput}
+        value={searchQuery}
+        onChangeText={setSearchQuery}
+        placeholder="Search Name"
+      />
+      
       <FlatList
-        data={contacts}
+        data={filteredContacts}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
           <TouchableOpacity
@@ -84,6 +103,16 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
     padding: 20,
+    margin: 20,
+    marginTop: 40
+  },
+  searchInput: {
+    height: 40,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    marginBottom: 10,
   },
   contactItem: {
     padding: 15,
@@ -102,4 +131,20 @@ const styles = StyleSheet.create({
     color: '#666',
     marginTop: 5,
   },
+  loading: {
+    marginRight: 10,
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 10
+  },
+  done: {
+    width: 24,
+    height: 24,
+    resizeMode: 'contain',
+  }
 });
