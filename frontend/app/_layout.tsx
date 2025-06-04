@@ -11,9 +11,9 @@ import { useEffect } from "react";
 import "react-native-reanimated";
 import { PaperProvider } from "react-native-paper";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { useColorScheme } from "@/frontend/hooks/useColorScheme";
+import { useColorScheme } from "@/hooks/useColorScheme";
 import { ReceiptProvider } from "../utils/ReceiptContext";
-import { ChangeProvider } from "@/frontend/utils/ChangesContext";
+import { ChangeProvider } from "@/utils/ChangesContext";
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();

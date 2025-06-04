@@ -3,10 +3,7 @@ import { Alert } from "react-native";
 import { useReceipt, OCRResponse } from "./ReceiptContext";
 
 // The URL can be changed based on environment
-const API_URL =
-	process.env.NODE_ENV === "development"
-		? "http://localhost:3000/ocr"
-		: "https://divi-backend-krh1.onrender.com/ocr";
+const API_URL = "https://divi-backend-7bfd.onrender.com/ocr";
 
 export const handleOCR = async (
 	base64DataUrl: string,
