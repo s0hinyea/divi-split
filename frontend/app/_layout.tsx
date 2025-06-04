@@ -14,6 +14,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { ReceiptProvider } from "../utils/ReceiptContext";
 import { ChangeProvider } from "@/utils/ChangesContext";
+import { OCRProvider } from "@/utils/OCRContext";
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -37,24 +38,26 @@ export default function RootLayout() {
 	return (
 		<ReceiptProvider>
 			<ChangeProvider>
-				<GestureHandlerRootView style={{ flex: 1 }}>
-					<PaperProvider>
-						<ThemeProvider
-							value={
-								colorScheme === "dark"
-									? DarkTheme
-									: DefaultTheme
-							}
-						>
-							<Stack screenOptions={{ headerShown: false }}>
-								<Stack.Screen name="home" />
-								<Stack.Screen name="expense-splitter" />
-								<Stack.Screen name="+not-found" />
-							</Stack>
-							<StatusBar style="auto" />
-						</ThemeProvider>
-					</PaperProvider>
-				</GestureHandlerRootView>
+				<OCRProvider>
+					<GestureHandlerRootView style={{ flex: 1 }}>
+						<PaperProvider>
+							<ThemeProvider
+								value={
+									colorScheme === "dark"
+										? DarkTheme
+										: DefaultTheme
+								}
+							>
+								<Stack screenOptions={{ headerShown: false }}>
+									<Stack.Screen name="home" />
+									<Stack.Screen name="expense-splitter" />
+									<Stack.Screen name="+not-found" />
+								</Stack>
+								<StatusBar style="auto" />
+							</ThemeProvider>
+						</PaperProvider>
+					</GestureHandlerRootView>
+				</OCRProvider>
 			</ChangeProvider>
 		</ReceiptProvider>
 	);

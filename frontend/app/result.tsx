@@ -1,4 +1,4 @@
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState, useEffect } from 'react';
 import { View, TextInput, ScrollView, StyleSheet, TouchableOpacity, Pressable, Image, Modal} from 'react-native';
 import { Text, Button, Surface } from 'react-native-paper';
@@ -13,6 +13,7 @@ import { styles } from "../styles/resultCss"
 
 export default function OCRResults() {
   const params = useLocalSearchParams();
+  const router = useRouter();
   const [ changing, changeItem ] = useState<string>('');
   const { updateItem, removeItem, addItem, updateReceiptData, receiptData } = useReceipt(); 
   const { addChange, undoChange, clearChanges, changes } = useChange(); 
@@ -218,7 +219,7 @@ export default function OCRResults() {
 
   <TouchableOpacity 
     style={styles.continueButton} 
-    onPress={() => {}}>
+    onPress={() => {router.push("/contacts")}}>
     <Image source={require('../assets/images/check.png')} style={styles.continueIcon} />
   </TouchableOpacity>
 
