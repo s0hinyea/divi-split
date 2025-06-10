@@ -1,10 +1,12 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import { ReceiptItem } from "../utils/ReceiptContext"
 
 
 export type Contact = {
   id: string;
   name: string;
-  phoneNumber: string | undefined;
+  phoneNumber: string | undefined; 
+  items: ReceiptItem[];
 };
 
 export type SelectedContactsType = {

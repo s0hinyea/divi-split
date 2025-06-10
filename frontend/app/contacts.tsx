@@ -93,7 +93,7 @@ export default function ChooseContacts() {
         )}
       />
 
-      {selected.length > 0 && 
+      {selected.length > 0 && !isProcessing && 
         <View>
         <TouchableOpacity 
         style={styles.continueButton} 
@@ -101,7 +101,7 @@ export default function ChooseContacts() {
         <Image source={require('../assets/images/check.png')} style={styles.continueIcon} />
         </TouchableOpacity>
         </View>
-      }
+        }
 
     </View>
   );
