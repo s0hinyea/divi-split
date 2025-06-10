@@ -16,11 +16,6 @@ export default function MainPage() {
   const { updateReceiptData } = useReceipt();
   const { setIsProcessing } = useOCR();
 
-  
-
-
-  
-  
   return (
     <View style={styles.container}>
       {/* Header */}

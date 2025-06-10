@@ -219,7 +219,7 @@ export default function OCRResults() {
 
   <TouchableOpacity 
     style={styles.continueButton} 
-    onPress={() => {router.push("/contacts")}}>
+    onPress={() => {}}>
     <Image source={require('../assets/images/check.png')} style={styles.continueIcon} />
   </TouchableOpacity>
 

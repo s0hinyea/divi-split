@@ -26,8 +26,6 @@ export const handleOCR = async (
 		const extractedData = await data.json();
 
 		if ("text" in extractedData) {
-			console.log(extractedData.text);
-			console.log(extractedData.items);
 			setIsProcessing(false);
 			// Update the context with the new data
 			updateReceiptData(extractedData);

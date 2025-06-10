@@ -179,6 +179,8 @@ import { StyleSheet } from 'react-native';
     alignItems: 'center',
     borderRadius: 20,
     backgroundColor: '#f5f5f5',
+    borderColor: '#e0f7fa',
+    borderWidth: 4
   },
   footerIcon: {
   width: 24,
@@ -192,6 +194,8 @@ continueButton: {
   alignItems: 'center',
   borderRadius: 30,
   backgroundColor: '#f5f5f5',
+  borderColor: '#e0f7fa',
+  borderWidth: 4
 },
 continueIcon: {
 width: 30,

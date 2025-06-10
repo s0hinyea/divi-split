@@ -15,6 +15,7 @@ import { useColorScheme } from "@/hooks/useColorScheme";
 import { ReceiptProvider } from "../utils/ReceiptContext";
 import { ChangeProvider } from "@/utils/ChangesContext";
 import { OCRProvider } from "@/utils/OCRContext";
+import { ContactsProvider } from "@/utils/ContactsContext";
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -39,6 +40,7 @@ export default function RootLayout() {
 		<ReceiptProvider>
 			<ChangeProvider>
 				<OCRProvider>
+					<ContactsProvider>
 					<GestureHandlerRootView style={{ flex: 1 }}>
 						<PaperProvider>
 							<ThemeProvider
@@ -57,6 +59,7 @@ export default function RootLayout() {
 							</ThemeProvider>
 						</PaperProvider>
 					</GestureHandlerRootView>
+					</ContactsProvider>
 				</OCRProvider>
 			</ChangeProvider>
 		</ReceiptProvider>
