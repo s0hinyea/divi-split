@@ -24,6 +24,8 @@ export default function RootLayout() {
 	const colorScheme = useColorScheme();
 	const [loaded] = useFonts({
 		SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
+		TanMeringue: require("../assets/fonts/TanMeringue.otf"),
+		OptimaRoman: require("../assets/fonts/OptimaRoman.otf"),
 	});
 
 	useEffect(() => {
@@ -41,24 +43,26 @@ export default function RootLayout() {
 			<ChangeProvider>
 				<OCRProvider>
 					<ContactsProvider>
-					<GestureHandlerRootView style={{ flex: 1 }}>
-						<PaperProvider>
-							<ThemeProvider
-								value={
-									colorScheme === "dark"
-										? DarkTheme
-										: DefaultTheme
-								}
-							>
-								<Stack screenOptions={{ headerShown: false }}>
-									<Stack.Screen name="home" />
-									<Stack.Screen name="expense-splitter" />
-									<Stack.Screen name="+not-found" />
-								</Stack>
-								<StatusBar style="auto" />
-							</ThemeProvider>
-						</PaperProvider>
-					</GestureHandlerRootView>
+						<GestureHandlerRootView style={{ flex: 1 }}>
+							<PaperProvider>
+								<ThemeProvider
+									value={
+										colorScheme === "dark"
+											? DarkTheme
+											: DefaultTheme
+									}
+								>
+									<Stack
+										screenOptions={{ headerShown: false }}
+									>
+										<Stack.Screen name="home" />
+										<Stack.Screen name="expense-splitter" />
+										<Stack.Screen name="+not-found" />
+									</Stack>
+									<StatusBar style="dark" />
+								</ThemeProvider>
+							</PaperProvider>
+						</GestureHandlerRootView>
 					</ContactsProvider>
 				</OCRProvider>
 			</ChangeProvider>
