@@ -9,6 +9,26 @@ export const styles = StyleSheet.create({
 		justifyContent: "center",
 		padding: 40,
 	},
+	bgImageContainer: {
+		position: "absolute",
+		top: 0,
+		left: 0,
+		right: 0,
+	},
+	bgImage: {
+		width: 400,
+		height: 400,
+		opacity: 1,
+		position: "absolute",
+		top: 0,
+	},
+	gradientOverlay: {
+		position: "absolute",
+		left: 0,
+		right: 0,
+		top: 0,
+		height: 800,
+	},
 	title: {
 		color: "#205237",
 		fontSize: 48,
@@ -50,13 +70,6 @@ export const styles = StyleSheet.create({
 		borderRadius: 65,
 		borderWidth: 3,
 		borderColor: "#b2ebf2",
-	},
-	bgImage: {
-		width: 400,
-		height: 400,
-		opacity: 0.5,
-		position: "absolute",
-		top: 0,
 	},
 	loginContainer: {
 		flexDirection: "row",
