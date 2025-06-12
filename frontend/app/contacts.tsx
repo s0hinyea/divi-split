@@ -15,6 +15,20 @@ export default function ChooseContacts() {
   const [searchQuery, setSearchQuery] = useState('');
   const  router  = useRouter();
 
+  let contact1 = {
+    id: 'c1',
+    name: "jerome",
+    phoneNumber: "9295130735",
+    items: []
+  }
+  
+  let contact2 = {
+    id: 'c2',
+    name: "maya",
+    phoneNumber: "3476120033",
+    items: []
+  }
+
   useEffect(() => {
     (async () => {
       const { status } = await Contacts.requestPermissionsAsync();
@@ -26,10 +40,11 @@ export default function ChooseContacts() {
         const newData = data.map(contact => ({
           id: contact.id,
           name: contact.name,
-          phoneNumber: (contact.phoneNumbers ? (contact.phoneNumbers[0].number)  : (undefined))
+          phoneNumber: (contact.phoneNumbers ? (contact.phoneNumbers[0].number)  : (undefined)),
+          items: []
         })) as Contact[];
 
-        setContacts(newData);
+        setContacts([...newData, contact1, contact2]);
       }
       setLoading(false);
     })();

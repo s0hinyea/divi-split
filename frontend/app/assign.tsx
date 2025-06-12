@@ -2,19 +2,54 @@ import React, { useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useContacts } from '../utils/ContactsContext';
-import { useReceipt } from '../utils/ReceiptContext';
+import { useReceipt, ReceiptItem } from '../utils/ReceiptContext';
 import { styles } from '../styles/assignCss';
 
 export default function AssignAmounts() {
   const router = useRouter();
-  const { selected } = useContacts();
-  const { receiptData } = useReceipt();
+  const { selected, manageItems } = useContacts();
+  const { receiptData, removeItem, addItem, updateReceiptData } = useReceipt();
   const [currentContactIndex, setCurrentContactIndex] = useState(0);
+  const [assigned, setAssigned] = useState<ReceiptItem[]>([]);
+
+ 
 
   const currentContact = selected[currentContactIndex];
   const items = 'items' in receiptData ? receiptData.items : [];
 
-  return (
+  const available = items.filter(item => !assigned.some(assigned => assigned.id === item.id));
+
+  const toggleItem = (item: ReceiptItem) => {
+    if (currentContact) {
+      manageItems(item, currentContact);
+    } else {
+      return;
+    }
+  }
+  
+  const getItemStyle = (item: ReceiptItem) => {
+    if (!currentContact) return styles.itemPill;
+    return [
+      styles.itemPill,
+      currentContact.items?.some(it => it.id === item.id) && styles.selectedItemPill
+    ];
+  }
+
+  const nextContact = () => {
+    if(currentContact?.items){
+      setAssigned(prev => [...prev, ...currentContact.items])
+    }
+    setCurrentContactIndex(currentContactIndex + 1);
+
+  }
+
+  return currentContactIndex == selected.length ? (
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>DONE</Text>
+      </View>
+    </View>
+  ) : currentContact ? (
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Assign Items to <Text style={styles.contactName}>{currentContact?.name}</Text></Text>
@@ -22,11 +57,11 @@ export default function AssignAmounts() {
 
       <ScrollView style={styles.scrollView}>
         <View style={styles.itemsContainer}>
-          {items.map(item => (
+          {available.map(item => (
             <TouchableOpacity
               key={item.id}
-              style={styles.itemPill}
-              onPress={() => {}}
+              style={ getItemStyle(item)}
+              onPress={() => {toggleItem(item)}}
             >
               <Text style={styles.itemName}>{item.name}</Text>
               <Text style={styles.itemPrice}>${item.price.toFixed(2)}</Text>
@@ -38,7 +73,7 @@ export default function AssignAmounts() {
       <View style={styles.footer}>
         <TouchableOpacity 
           style={styles.continueButton}
-          onPress={() => router.push('/result')}>
+          onPress={() =>{ nextContact() }}>
           <Image 
             source={require('../assets/images/check.png')} 
             style={styles.continueIcon} 
@@ -46,5 +81,8 @@ export default function AssignAmounts() {
         </TouchableOpacity>
       </View>
     </View>
-  );
+  ) : null
+  ;
 }
+    
+

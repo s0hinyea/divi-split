@@ -33,6 +33,9 @@ export const styles = StyleSheet.create({
     margin: 5,
     alignItems: 'center',
   },
+  selectedItemPill: {
+    backgroundColor: '#90caf9',
+  },
   itemName: {
     fontSize: 14,
     marginRight: 8,
