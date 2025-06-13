@@ -57,7 +57,6 @@ export function ContactsProvider({ children }: { children: ReactNode }) {
   }
 
   useEffect(() => {
-    console.log('Selected contacts changed:', selected);
   }, [selected]);
 
   const value = {

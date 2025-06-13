@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Image } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, Image, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useContacts } from '../utils/ContactsContext';
 import { useReceipt, ReceiptItem } from '../utils/ReceiptContext';
@@ -8,11 +8,17 @@ import { styles } from '../styles/assignCss';
 export default function AssignAmounts() {
   const router = useRouter();
   const { selected, manageItems } = useContacts();
-  const { receiptData, removeItem, addItem, updateReceiptData } = useReceipt();
+  const { receiptData } = useReceipt();
   const [currentContactIndex, setCurrentContactIndex] = useState(0);
   const [assigned, setAssigned] = useState<ReceiptItem[]>([]);
 
- 
+  useEffect(() => {
+    return () => {
+      setAssigned([]);
+    };
+  }, []);
+
+  console.log(assigned);
 
   const currentContact = selected[currentContactIndex];
   const items = 'items' in receiptData ? receiptData.items : [];
@@ -22,8 +28,6 @@ export default function AssignAmounts() {
   const toggleItem = (item: ReceiptItem) => {
     if (currentContact) {
       manageItems(item, currentContact);
-    } else {
-      return;
     }
   }
   
@@ -37,10 +41,17 @@ export default function AssignAmounts() {
 
   const nextContact = () => {
     if(currentContact?.items){
-      setAssigned(prev => [...prev, ...currentContact.items])
+      setAssigned(prev => [...prev, ...currentContact.items]);
     }
-    setCurrentContactIndex(currentContactIndex + 1);
-
+    if(currentContactIndex + 1 == selected.length && assigned.length !== items.length){
+      Alert.alert(
+        "Incomplete Assignment",
+        "Please assign all items before continuing",
+        [{text : "OK"}]
+      );
+      return;
+    } else { setCurrentContactIndex(currentContactIndex + 1);
+    }
   }
 
   return currentContactIndex == selected.length ? (
@@ -60,8 +71,8 @@ export default function AssignAmounts() {
           {available.map(item => (
             <TouchableOpacity
               key={item.id}
-              style={ getItemStyle(item)}
-              onPress={() => {toggleItem(item)}}
+              style={getItemStyle(item)}
+              onPress={() => toggleItem(item)}
             >
               <Text style={styles.itemName}>{item.name}</Text>
               <Text style={styles.itemPrice}>${item.price.toFixed(2)}</Text>
@@ -73,7 +84,7 @@ export default function AssignAmounts() {
       <View style={styles.footer}>
         <TouchableOpacity 
           style={styles.continueButton}
-          onPress={() =>{ nextContact() }}>
+          onPress={nextContact}>
           <Image 
             source={require('../assets/images/check.png')} 
             style={styles.continueIcon} 
@@ -81,8 +92,7 @@ export default function AssignAmounts() {
         </TouchableOpacity>
       </View>
     </View>
-  ) : null
-  ;
+  ) : null;
 }
     
 
