@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Image, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useContacts } from '../utils/ContactsContext';
 import { useReceipt, ReceiptItem } from '../utils/ReceiptContext';
@@ -8,7 +8,7 @@ import { styles } from '../styles/assignCss';
 export default function AssignAmounts() {
   const router = useRouter();
   const { selected, manageItems } = useContacts();
-  const { receiptData } = useReceipt();
+  const { receiptData, setUserItems } = useReceipt();
   const [currentContactIndex, setCurrentContactIndex] = useState(0);
   const [assigned, setAssigned] = useState<ReceiptItem[]>([]);
 
@@ -17,8 +17,7 @@ export default function AssignAmounts() {
       setAssigned([]);
     };
   }, []);
-
-  console.log(assigned);
+  
 
   const currentContact = selected[currentContactIndex];
   const items = 'items' in receiptData ? receiptData.items : [];
@@ -39,20 +38,31 @@ export default function AssignAmounts() {
     ];
   }
 
-  const nextContact = () => {
+  const nextContact = async () => {
     if(currentContact?.items){
-      setAssigned(prev => [...prev, ...currentContact.items]);
+      await setAssigned(prev => [...prev, ...currentContact.items]);
     }
-    if(currentContactIndex + 1 == selected.length && assigned.length !== items.length){
-      Alert.alert(
-        "Incomplete Assignment",
-        "Please assign all items before continuing",
-        [{text : "OK"}]
+    
+    if(currentContactIndex + 1 === selected.length) {
+      const allAssignedItems = [
+        ...assigned,
+        ...(currentContact?.items || [])
+      ];
+      
+      const remainingItems = items.filter(item => 
+        !allAssignedItems.some(assigned => assigned.id === item.id)
       );
-      return;
-    } else { setCurrentContactIndex(currentContactIndex + 1);
+      
+      if (remainingItems.length > 0) {
+        await setUserItems(remainingItems);
+      }
+      router.push("/review");
     }
+    
+    setCurrentContactIndex(currentContactIndex + 1);
   }
+
+
 
   return currentContactIndex == selected.length ? (
     <View style={styles.container}>
@@ -95,4 +105,5 @@ export default function AssignAmounts() {
   ) : null;
 }
     
+
 

@@ -11,6 +11,7 @@ export type ReceiptItem = {
 export type OCRResponse = {
   text: string;
   items: ReceiptItem[];
+  userItems?: ReceiptItem[];
 } | {
   error?: string;
 };
@@ -22,6 +23,7 @@ type ReceiptContextType = {
   updateItem: (id: string, item: ReceiptItem) => void;
   addItem: (item: ReceiptItem) => void;
   removeItem: (id: string) => void;
+  setUserItems: (items: ReceiptItem[]) => void;
 };
 
 // Create the context with a default value
@@ -35,6 +37,13 @@ export function ReceiptProvider({ children }: { children: ReactNode }) {
   // Function to update the entire receipt data
   const updateReceiptData = (data: OCRResponse) => {
     setReceiptData(data);
+  };
+
+  // Function to set user items
+  const setUserItems = (items: ReceiptItem[]) => {
+    if ('items' in receiptData) {
+      setReceiptData({ ...receiptData, userItems: items });
+    }
   };
 
   // Function to update a single item
@@ -71,7 +80,8 @@ export function ReceiptProvider({ children }: { children: ReactNode }) {
     updateReceiptData,
     updateItem,
     addItem,
-    removeItem
+    removeItem,
+    setUserItems
   };
 
   return (

@@ -15,14 +15,15 @@ export type Contact = {
 export type SelectedContactsType = {
   selected: Array<Contact>,
   manageContacts: (newContact: Contact) => void,
-  manageItems: (newItem: ReceiptItem, currentContact: Contact) => void
+  manageItems: (newItem: ReceiptItem, currentContact: Contact) => void,
+  clearItems: () => void,
+  clearSelected: () => void
 }
 
 const ContactsContext = createContext<SelectedContactsType | undefined>(undefined);
 
 export function ContactsProvider({ children }: { children: ReactNode }) {
   const [selected, setSelectedContacts] = useState<Contact[]>([]);
-  const [contactItems, setContactItems] = useState<ReceiptItem[]>([]);
 
   const manageContacts = (newContact: Contact) => {
     if (selected.some(contact => contact.id === newContact.id)){
@@ -54,7 +55,20 @@ export function ContactsProvider({ children }: { children: ReactNode }) {
         return contact;
       })
     );
-  }
+    }
+
+    const clearSelected = () => {
+      setSelectedContacts([]);
+    }
+
+    const clearItems = () => {
+      setSelectedContacts(prev => 
+        prev.map(contact => ({
+          ...contact,
+          items: []
+        }))
+      )
+    }
 
   useEffect(() => {
   }, [selected]);
@@ -62,7 +76,9 @@ export function ContactsProvider({ children }: { children: ReactNode }) {
   const value = {
     selected,
     manageContacts,
-    manageItems
+    manageItems, 
+    clearItems,
+    clearSelected
   }
 
   return (
