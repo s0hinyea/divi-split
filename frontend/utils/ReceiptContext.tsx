@@ -11,6 +11,8 @@ export type ReceiptItem = {
 export type OCRResponse = {
   text: string;
   items: ReceiptItem[];
+  tax?: number,
+  tip?: number,
   userItems?: ReceiptItem[];
 } | {
   error?: string;
@@ -32,7 +34,7 @@ const ReceiptContext = createContext<ReceiptContextType | undefined>(undefined);
 // Create a provider component
 export function ReceiptProvider({ children }: { children: ReactNode }) {
   // Initialize state with empty data
-  const [receiptData, setReceiptData] = useState<OCRResponse>({ text: '', items: [] });
+  const [receiptData, setReceiptData] = useState<OCRResponse>({ text: '', items: [], tax: 0});
 
   // Function to update the entire receipt data
   const updateReceiptData = (data: OCRResponse) => {
