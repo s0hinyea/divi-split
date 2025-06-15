@@ -3,6 +3,7 @@ import cors from 'cors';
 import Tesseract from 'tesseract.js';
 import { v4 as uuidv4 } from 'uuid';
 
+
 const app = express();
 //create instance of backend, your main application object 
 
@@ -22,14 +23,23 @@ function parseReceiptText(text) {
   console.log(lines);
 
   const items = [];
+  const tax = "";
+  const tip = "";
   
   // Common price patterns: $XX.XX, XX.XX, XX,XX
   const pricePattern = /\$?\d+[.,]\d{2}/;
   
+  const taxPattern = [
+    /\b(?:sales\s*)?tax\b[:\s]*\$?\s*(\d+(?:\.\d{1,2})?)/i,
+    /\btax\b[:\s]*\$?\s*(\d+(?:\.\d{1,2})?)/i,
+    /\btax\b[:\s]*(\d+(?:\.\d{1,2})?)%/i,
+  ];
+
   lines.forEach(line => {
     // Try to find a price in the line
     const priceMatch = line.match(pricePattern);
-    
+    const taxMatch = taxPattern.map(pattern => line.match(pattern)).find(match => match !== null);
+
     if (priceMatch) {
       // Extract the price
       const price = priceMatch[0].replace('$', '').replace(',', '.');
@@ -45,9 +55,13 @@ function parseReceiptText(text) {
         });
       }
     }
+
+    if(taxMatch){
+       tax = parseFloat(taxMatch[1]);
+    }
   });
 
-  return items;
+  return {items, taxMatch}
 }
 
 // 👇 OCR endpoint
@@ -70,13 +84,15 @@ app.post('/ocr', async (req, res) => {
     const extractedText = result.data.text;
 
     // Parse the receipt text into structured data
-    const items = parseReceiptText(extractedText);
+    const results = parseReceiptText(extractedText);
+    const {items, tax} = results;
     
     console.log('[OCR] Text extracted and parsed');
     
     res.json({ 
       text: extractedText,  // Keep original text for debugging
-      items: items        // Add structured items
+      items: items,
+      tax: tax       // Add structured items
     });
   } catch (error) {
     console.error('[OCR] ERROR:', error.message);
