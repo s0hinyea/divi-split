@@ -1,87 +1,274 @@
-import {View, Modal, StyleSheet, Image, TouchableOpacity, Touchable, TouchableWithoutFeedback} from 'react-native'
-import {CameraView, CameraType, useCameraPermissions} from 'expo-camera';
-import {Text, Button, Surface} from 'react-native-paper'
-import { useState } from 'react'
-import { useRouter } from 'expo-router'
-import { styles } from '../styles/expense-splitterCss'
-import { ocrTest} from '../scripts/manual'
-import { useReceipt} from '../utils/ReceiptContext'
-import { useOCR} from '../utils/OCRContext'
-import { handleOCR } from '../utils/ocrUtil'
-
+import {
+	View,
+	Modal,
+	StyleSheet,
+	Image,
+	TouchableOpacity,
+	Touchable,
+	TouchableWithoutFeedback,
+	Animated,
+} from "react-native";
+import { Text, Button, Surface, Icon } from "react-native-paper";
+import { useState, useRef, useEffect } from "react";
+import { useRouter } from "expo-router";
+import { styles } from "../styles/expense-splitterCss";
+import { ocrTest } from "../scripts/manual";
+import { useReceipt } from "../utils/ReceiptContext";
+import { useOCR } from "../utils/OCRContext";
+import { handleOCR } from "../utils/ocrUtil";
+import { SafeAreaView } from "react-native-safe-area-context";
+import Colors from "../constants/Colors";
 
 export default function MainPage() {
-  const router = useRouter()
-  const[visible, setVisible] = useState(false)
-  const { updateReceiptData } = useReceipt();
-  const { setIsProcessing } = useOCR();
+	const router = useRouter();
+	const [visible, setVisible] = useState(false);
+	const { updateReceiptData } = useReceipt();
+	const { setIsProcessing } = useOCR();
 
-  return (
-    <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => {/* Handle search */}}>
-          <Image source={require('../assets/images/v2_search-small-512.webp')} style={styles.icon} />
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => {/* Navigate to account/profile */}}>
-          <Image source={require('../assets/images/account-icon.png')} style={styles.icon} />
-        </TouchableOpacity>
-      </View>
+	// Animation values for each button
+	const animatedValues = useRef([
+		new Animated.Value(0),
+		new Animated.Value(0),
+		new Animated.Value(0),
+	]).current;
 
-      {/* Body */}
-      <View style={styles.body}>
-        <Surface style={styles.surface}>
-        <Text style={styles.bodyTitle}>Your Past Bills</Text>
-        {/* Render past bills here */}
-        </Surface>
-      </View>
+	const showModal = () => {
+		setVisible(true);
+		// Reset animations
+		animatedValues.forEach((value) => value.setValue(0));
 
-  <Modal animationType='slide' transparent={true} visible={visible} onRequestClose={() => setVisible(false)}>
-  <TouchableWithoutFeedback onPress={() => setVisible(false)}>
-    <View style={styles.modalContainer}>
-      <Surface style={styles.modalSurface}>
-        {/* Scan Option */}
-      
+		// Animate buttons in sequence
+		const animations = animatedValues.map((value, index) =>
+			Animated.timing(value, {
+				toValue: 1,
+				duration: 200,
+				useNativeDriver: true,
+			})
+		);
 
-        <TouchableOpacity style={styles.optionButton} onPress={() => { setVisible(false) , router.push('/scan') }}>
-          <Image style={styles.cameraImage} source={require('../assets/images/camera-icon.png')} />
-          <Text style={styles.optionText}>Scan Receipt</Text>
-        </TouchableOpacity>
+		Animated.stagger(100, animations).start();
+	};
 
-        <TouchableOpacity style={styles.optionButton} onPress={() => { setVisible(false) , router.push('/library') }}>
-          <Image style={styles.cameraImage} source={require('../assets/images/camera-icon.png')} />
-          <Text style={styles.optionText}>Pick From Photos</Text>
-        </TouchableOpacity>
-        
-        {/* Manual Entry Option */}
-        <TouchableOpacity 
-          style={styles.optionButton} 
-          onPress={async () => {
-            setVisible(false);
-            await handleOCR(ocrTest, updateReceiptData, setIsProcessing);
-          }}
-        >
-          <Text style={styles.optionText}>Manual</Text>
-        </TouchableOpacity>
-      </Surface>
-    </View>
-  </TouchableWithoutFeedback>
-</Modal>
+	const hideModal = () => {
+		// Animate buttons out in reverse
+		const animations = animatedValues.map((value, index) =>
+			Animated.timing(value, {
+				toValue: 0,
+				duration: 200,
+				useNativeDriver: true,
+			})
+		);
 
-      {/* Footer */}
-      <View style={styles.footer}>
-        <TouchableOpacity style={styles.footerButton} onPress={() => {/* Navigate to friends */}}>
-          <Text style={styles.footerButton}> Friends </Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.plusButton} onPress={() => {setVisible(true)}}>
-  <Image source={require('../assets/images/plus.png')} style={styles.plusIcon} />
-</TouchableOpacity>
+		Animated.stagger(100, animations).start(() => {
+			setVisible(false);
+		});
+	};
 
-        <Button style={styles.footerButton} onPress={() => {/* Navigate to account/profile */}}>
-          <Text style={styles.footerButton}> Your Account </Text>
-        </Button>
-      </View>
-    </View>
-  )
+	return (
+		<SafeAreaView style={styles.container}>
+			{/* Header */}
+			<View style={styles.header}>
+				<Text style={styles.title}>Your Past Receipts</Text>
+				<TouchableOpacity style={styles.plusButton} onPress={showModal}>
+					<Icon source="plus" size={30} color="#f0f0f0" />
+				</TouchableOpacity>
+			</View>
+
+			{/* Body */}
+			<View style={styles.body}>
+				<View style={styles.card}>
+					<Text style={styles.cardText}>
+						You do not have any past receipts.
+					</Text>
+				</View>
+				{/* Render past bills here */}
+			</View>
+
+			<Modal
+				animationType="fade"
+				transparent={true}
+				visible={visible}
+				onRequestClose={hideModal}
+			>
+				<TouchableWithoutFeedback onPress={hideModal}>
+					<View style={styles.modalContainer}>
+						<SafeAreaView style={styles.modalContent}>
+							<TouchableOpacity
+								style={[
+									styles.plusButton,
+									styles.modalPlusButton,
+								]}
+								onPress={showModal}
+							>
+								<Icon source="plus" size={30} color="#f0f0f0" />
+							</TouchableOpacity>
+						</SafeAreaView>
+
+						{/* Scan Receipt Option */}
+						<Animated.View
+							style={[
+								styles.floatingButton,
+								{
+									opacity: animatedValues[0],
+									transform: [
+										{
+											translateY:
+												animatedValues[0].interpolate({
+													inputRange: [0, 1],
+													outputRange: [100, 100], // Start from plus button area, move down
+												}),
+										},
+										{
+											translateX:
+												animatedValues[0].interpolate({
+													inputRange: [0, 1],
+													outputRange: [60, -60], // Move slightly left
+												}),
+										},
+										{
+											scale: animatedValues[0].interpolate(
+												{
+													inputRange: [0, 1],
+													outputRange: [0, 1],
+												}
+											),
+										},
+									],
+								},
+							]}
+						>
+							<TouchableOpacity
+								style={styles.optionButton}
+								onPress={() => {
+									hideModal();
+									setTimeout(() => router.push("/scan"), 300);
+								}}
+							>
+								<Icon
+									source="camera"
+									size={20}
+									color={Colors.orange}
+								/>
+								<Text style={styles.optionText}>
+									Scan Receipt
+								</Text>
+							</TouchableOpacity>
+						</Animated.View>
+
+						{/* Pick From Photos Option */}
+						<Animated.View
+							style={[
+								styles.floatingButton,
+								{
+									opacity: animatedValues[1],
+									transform: [
+										{
+											translateY:
+												animatedValues[1].interpolate({
+													inputRange: [0, 1],
+													outputRange: [100, 160], // Start from plus button area, move down more
+												}),
+										},
+										{
+											translateX:
+												animatedValues[1].interpolate({
+													inputRange: [0, 1],
+													outputRange: [60, -60], // Move slightly left, less than first
+												}),
+										},
+										{
+											scale: animatedValues[1].interpolate(
+												{
+													inputRange: [0, 1],
+													outputRange: [0, 1],
+												}
+											),
+										},
+									],
+								},
+							]}
+						>
+							<TouchableOpacity
+								style={styles.optionButton}
+								onPress={() => {
+									hideModal();
+									setTimeout(
+										() => router.push("/library"),
+										300
+									);
+								}}
+							>
+								<Icon
+									source="image"
+									size={20}
+									color={Colors.orange}
+								/>
+								<Text style={styles.optionText}>
+									Pick From Photos
+								</Text>
+							</TouchableOpacity>
+						</Animated.View>
+
+						{/* Manual Entry Option */}
+						<Animated.View
+							style={[
+								styles.floatingButton,
+								{
+									opacity: animatedValues[2],
+									transform: [
+										{
+											translateY:
+												animatedValues[2].interpolate({
+													inputRange: [0, 1],
+													outputRange: [100, 220], // Start from plus button area, move down most
+												}),
+										},
+										{
+											translateX:
+												animatedValues[2].interpolate({
+													inputRange: [0, 1],
+													outputRange: [30, -60], // Move slightly left, least amount
+												}),
+										},
+										{
+											scale: animatedValues[2].interpolate(
+												{
+													inputRange: [0, 1],
+													outputRange: [0.3, 1],
+												}
+											),
+										},
+									],
+								},
+							]}
+						>
+							<TouchableOpacity
+								style={styles.optionButton}
+								onPress={async () => {
+									hideModal();
+									setTimeout(async () => {
+										await handleOCR(
+											ocrTest,
+											updateReceiptData,
+											setIsProcessing
+										);
+									}, 300);
+								}}
+							>
+								<Icon
+									source="pencil"
+									size={20}
+									color={Colors.orange}
+								/>
+								<Text style={styles.optionText}>Manual</Text>
+							</TouchableOpacity>
+						</Animated.View>
+					</View>
+				</TouchableWithoutFeedback>
+			</Modal>
+
+			{/* Footer */}
+			<View style={styles.footer}></View>
+		</SafeAreaView>
+	);
 }
-
