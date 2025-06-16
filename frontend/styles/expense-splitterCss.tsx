@@ -1,119 +1,135 @@
-import { StyleSheet } from 'react-native';
+import { StyleSheet } from "react-native";
+import Colors from "../constants/Colors";
 
 export const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "white"
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    padding: 10,
-    marginRight: 20,
-    marginLeft: 20,
-    alignItems: 'center',
-  },
-  icon: {
-    width: 30,
-    height: 30,
-  },
-  body: {
-    flex: 1,
-    padding: 20,
-  },
-  bodyTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 10,
-  },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    padding: 10,
-    backgroundColor: '#ffffff',
-    margin: 20,
-    marginTop: 0,
-    
-  },
-  footerButton: {
-    flex: 1,
-    marginHorizontal: 5,
-    color: 'black',
-  },
-  plusButton: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#00acc1',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: -20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
-  
-  plusIcon: {
-    width: 30,
-    height: 30,
-    resizeMode: 'contain',
-  },
-  surface: {
-   
-    elevation: 4,
-    justifyContent: 'center',
-    alignItems: 'center',
-    height: '100%',
-    width: '100%',
-    alignSelf: 'center',
-    padding: 20,
-    backgroundColor: '#ffffff', 
-    borderRadius: 20,
-    borderWidth: 3,
-    borderColor: '#b2ebf2',
-  },
-  modalContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.4)', 
-  },
-  
-  modalSurface: {
-    height: '100%',
-    width: '100%',
-    padding: 20,
-    justifyContent: 'center',
-    backgroundColor: '#ffffff',
-    borderRadius: 20,
-    borderWidth: 3,
-    borderColor: '#b2ebf2',
-    gap: 15
-  },
-  
-  optionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f0f8ff',
-    paddingVertical: 15,
-    paddingHorizontal: 20,
-    borderRadius: 12,
-    marginVertical: 10,
-    borderWidth: 1,
-    borderColor: '#b2ebf2',
-  },
-  
-  optionText: {
-    fontSize: 18,
-    marginLeft: 10,
-    color: '#333',
-  },
-  
-  cameraImage: {
-    height: 30,
-    width: 30,
-    resizeMode: 'contain',
-  }
-})
+	container: {
+		flex: 1,
+		backgroundColor: Colors.cream,
+		padding: 20,
+	},
+	header: {
+		flexDirection: "row",
+		justifyContent: "space-between",
+		alignItems: "center",
+	},
+	title: {
+		fontFamily: "TanMeringue",
+		fontSize: 20,
+		fontWeight: "bold",
+		color: Colors.darkGreen,
+	},
+	body: {
+		flex: 1,
+		marginTop: 20,
+		marginBottom: 20,
+	},
+	card: {
+		backgroundColor: Colors.white,
+		shadowColor: "#101010",
+		shadowOpacity: 0.1,
+		shadowRadius: 3,
+		shadowOffset: {
+			width: 0,
+			height: 0,
+		},
+		padding: 20,
+		borderRadius: 20,
+	},
+	cardText: {
+		fontSize: 16,
+		fontFamily: "OptimaRoman",
+		color: Colors.black,
+		textAlign: "center",
+	},
+	footer: {
+		flexDirection: "row",
+		justifyContent: "space-around",
+	},
+	footerButton: {
+		flex: 1,
+		marginHorizontal: 5,
+		color: "black",
+	},
+	plusButton: {
+		width: 50,
+		height: 50,
+		borderRadius: 20,
+		backgroundColor: Colors.orange,
+		justifyContent: "center",
+		alignItems: "center",
+		shadowColor: "#101010",
+		shadowOpacity: 0.1,
+		shadowRadius: 3,
+		shadowOffset: {
+			width: 0,
+			height: 0,
+		},
+		elevation: 8,
+	},
+	plusButtonText: {
+		fontSize: 20,
+		fontWeight: "bold",
+		color: "#f0f0f0",
+		fontFamily: "OptimaRoman",
+		marginLeft: 5,
+	},
+	surface: {
+		elevation: 4,
+		justifyContent: "center",
+		alignItems: "center",
+		height: "100%",
+		width: "100%",
+		alignSelf: "center",
+		backgroundColor: Colors.cream,
+	},
+	modalContainer: {
+		flex: 1,
+		backgroundColor: "rgba(0, 0, 0, 0.5)",
+	},
+	modalContent: {
+		flex: 1,
+		alignItems: "flex-end",
+		padding: 20,
+	},
+	modalPlusButton: {},
+	floatingButton: {
+		position: "absolute",
+		top: 50, // Adjust based on your header height
+		right: 40, // Align with plus button position
+		zIndex: 1000,
+		width: 100,
+	},
+
+	optionButton: {
+		flexDirection: "row",
+		alignItems: "center",
+		backgroundColor: Colors.white,
+		height: 40,
+		padding: 10,
+		paddingLeft: 15,
+		borderRadius: 20,
+		shadowColor: "#101010",
+		shadowOpacity: 0.2,
+		shadowRadius: 8,
+		shadowOffset: {
+			width: 0,
+			height: 2,
+		},
+		elevation: 8,
+		minWidth: 180,
+	},
+
+	optionText: {
+		fontSize: 16,
+		marginLeft: 5,
+		color: "#333",
+		fontFamily: "OptimaRoman",
+		fontWeight: "bold",
+	},
+
+	cameraImage: {
+		height: 30,
+		width: 30,
+		resizeMode: "contain",
+	},
+});
