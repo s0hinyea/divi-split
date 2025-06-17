@@ -43,28 +43,25 @@ export const styles = StyleSheet.create({
 	},
 	footer: {
 		flexDirection: "row",
-		justifyContent: "space-around",
-	},
-	footerButton: {
-		flex: 1,
-		marginHorizontal: 5,
-		color: "black",
+		justifyContent: "flex-end",
 	},
 	plusButton: {
-		width: 50,
-		height: 50,
+		width: 60,
+		height: 60,
 		borderRadius: 20,
 		backgroundColor: Colors.orange,
 		justifyContent: "center",
 		alignItems: "center",
 		shadowColor: "#101010",
-		shadowOpacity: 0.1,
-		shadowRadius: 3,
+		shadowOpacity: 0.2,
+		shadowRadius: 8,
 		shadowOffset: {
 			width: 0,
-			height: 0,
+			height: 2,
 		},
 		elevation: 8,
+		marginBottom: -20,
+		marginRight: 10,
 	},
 	plusButtonText: {
 		fontSize: 20,
@@ -89,15 +86,15 @@ export const styles = StyleSheet.create({
 	modalContent: {
 		flex: 1,
 		alignItems: "flex-end",
+		justifyContent: "flex-end",
 		padding: 20,
 	},
-	modalPlusButton: {},
+	modalPlusButton: {
+		shadowOpacity: 0,
+	},
 	floatingButton: {
-		position: "absolute",
-		top: 50, // Adjust based on your header height
-		right: 40, // Align with plus button position
-		zIndex: 1000,
-		width: 100,
+		justifyContent: "center",
+		alignItems: "flex-end",
 	},
 
 	optionButton: {
