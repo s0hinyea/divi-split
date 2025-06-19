@@ -23,8 +23,8 @@ function parseReceiptText(text) {
   console.log(lines);
 
   const items = [];
-  const tax = "";
-  const tip = "";
+  let tax = "";
+  let tip = "";
   
   // Common price patterns: $XX.XX, XX.XX, XX,XX
   const pricePattern = /\$?\d+[.,]\d{2}/;
@@ -38,7 +38,7 @@ function parseReceiptText(text) {
   lines.forEach(line => {
     // Try to find a price in the line
     const priceMatch = line.match(pricePattern);
-    const taxMatch = taxPattern.map(pattern => line.match(pattern)).find(match => match !== null);
+    let taxMatch = taxPattern.map(pattern => line.match(pattern)).find(match => match !== null);
 
     if (priceMatch) {
       // Extract the price

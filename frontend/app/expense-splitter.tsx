@@ -142,7 +142,7 @@ export default function MainPage() {
 										hideModal();
 										setTimeout(
 											() => router.push("/scan"),
-											300
+											150
 										);
 									}}
 								>
@@ -204,7 +204,7 @@ export default function MainPage() {
 										hideModal();
 										setTimeout(
 											() => router.push("/library"),
-											300
+											150
 										);
 									}}
 								>
@@ -270,7 +270,7 @@ export default function MainPage() {
 												updateReceiptData,
 												setIsProcessing
 											);
-										}, 300);
+										}, 150);
 									}}
 								>
 									<Icon
