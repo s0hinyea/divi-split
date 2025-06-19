@@ -283,21 +283,6 @@ export default function MainPage() {
 									</Text>
 								</TouchableOpacity>
 							</Animated.View>
-							<SafeAreaView style={styles.modalContent}>
-								<TouchableOpacity
-									style={[
-										styles.plusButton,
-										styles.modalPlusButton,
-									]}
-									onPress={showModal}
-								>
-									<Icon
-										source="plus"
-										size={30}
-										color="#f0f0f0"
-									/>
-								</TouchableOpacity>
-							</SafeAreaView>
 						</View>
 					</TouchableWithoutFeedback>
 				</Modal>
