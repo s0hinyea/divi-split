@@ -25,7 +25,7 @@ const Colors = {
 	},
 	white: "#fafafa",
 	black: "#0a0a0a",
-	cream: "#fff0db",
+	beige: "#fff0db",
 	darkGreen: "#205237",
 	orange: "#f66b00",
 	lightGray: "#a0a0a0",

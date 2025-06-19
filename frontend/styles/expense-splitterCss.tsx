@@ -4,7 +4,7 @@ import Colors from "../constants/Colors";
 export const styles = StyleSheet.create({
 	container: {
 		flex: 1,
-		backgroundColor: Colors.cream,
+		backgroundColor: Colors.beige,
 		padding: 20,
 	},
 	header: {
@@ -77,7 +77,7 @@ export const styles = StyleSheet.create({
 		height: "100%",
 		width: "100%",
 		alignSelf: "center",
-		backgroundColor: Colors.cream,
+		backgroundColor: Colors.beige,
 	},
 	modalContainer: {
 		flex: 1,
