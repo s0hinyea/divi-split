@@ -61,7 +61,7 @@ function parseReceiptText(text) {
     }
   });
 
-  return {items, taxMatch}
+  return { items, tax };
 }
 
 // 👇 OCR endpoint
