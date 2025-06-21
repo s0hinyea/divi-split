@@ -2,7 +2,8 @@ import express from 'express';
 import cors from 'cors';
 import Tesseract from 'tesseract.js';
 import { v4 as uuidv4 } from 'uuid';
-import 'dotenv/config';
+import dotenv from 'dotenv';
+dotenv.config({ path: './twilio.env' });
 
 const app = express();
 //create instance of backend, your main application object 
@@ -121,7 +122,7 @@ app.post('/sms', async(req, res) => {
   try {
     const results = await Promise.all(contacts.map(async (contact) =>{
 
-      const {phoneNumber} = contact; //extract
+      const {phoneNumber, total} = contact; //extract
       if(!phoneNumber) return { success: false, error: 'Missing phone number'};
       if(!total) return {success: false, error: 'Missing total'};
 
