@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import Tesseract from 'tesseract.js';
 import { v4 as uuidv4 } from 'uuid';
-
+import 'dotenv/config';
 
 const app = express();
 //create instance of backend, your main application object 
@@ -97,6 +97,48 @@ app.post('/ocr', async (req, res) => {
   } catch (error) {
     console.error('[OCR] ERROR:', error.message);
     res.status(500).json({ error: 'OCR failed', details: error.message });
+  }
+});
+
+app.post('/sms', async(req, res) => {
+  console.log("Sending SMS");
+
+  //Extracts contacts from request body
+  const { contacts, user } = req.body;
+  const date = new Date();
+  //configures Twilio client to send messages from 
+  const twilio = require('twilio');
+  const client = new twilio(
+    process.env.TWILIO_ACCOUNT_SID,
+    process.env.TWILIO_AUTH_TOKEN
+  );
+
+  if (!contacts) {
+    console.log("No contacts")
+    return res.status(400).json({ error: 'No contacts provided' });
+  }
+
+  try {
+    const results = await Promise.all(contacts.map(async (contact) =>{
+
+      const {phoneNumber} = contact; //extract
+      if(!phoneNumber) return { success: false, error: 'Missing phone number'};
+      if(!total) return {success: false, error: 'Missing total'};
+
+      const message = `Hello! You owe $${total} for the bill created on ${date} by ${user} (from Divi)`;
+
+      const result = await client.messages.create({
+        body: message,
+        from: process.env.TWILIO_PHONE,
+        to: phoneNumber
+      });
+      return { success: true, sid: result.sid, to: phoneNumber};
+  }));
+    res.json({results});
+  }
+  catch (err){
+    console.error("SMS send failed", err.message);
+    res.status(500).json({ error: "SMS sending failed", details: err.message });
   }
 });
   
