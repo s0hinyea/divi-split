@@ -5,10 +5,14 @@ import { v4 as uuidv4 } from 'uuid';
 import dotenv from 'dotenv';
 dotenv.config({ path: './twilio.env' });
 
+console.log('File exists check:', require('fs').existsSync('./twilio.env'));
+console.log('Keys:', Object.keys(process.env).filter(key => key.includes('TWILIO')));
+
 console.log('Environment check:');
 console.log('TWILIO_ACCOUNT_SID:', process.env.TWILIO_ACCOUNT_SID ? 'Found' : 'Missing');
 console.log('TWILIO_AUTH_TOKEN:', process.env.TWILIO_AUTH_TOKEN ? 'Found' : 'Missing');
 console.log('TWILIO_PHONE:', process.env.TWILIO_PHONE);
+
 
 const app = express();
 //create instance of backend, your main application object 
