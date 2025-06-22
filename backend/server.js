@@ -2,11 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import Tesseract from 'tesseract.js';
 import { v4 as uuidv4 } from 'uuid';
-import dotenv from 'dotenv';
-dotenv.config({ path: './twilio.env' });
-
-console.log('File exists check:', require('fs').existsSync('./twilio.env'));
-console.log('Keys:', Object.keys(process.env).filter(key => key.includes('TWILIO')));
+import 'dotenv/config';
 
 console.log('Environment check:');
 console.log('TWILIO_ACCOUNT_SID:', process.env.TWILIO_ACCOUNT_SID ? 'Found' : 'Missing');
