@@ -20,7 +20,7 @@ export default function AssignAmounts() {
   
 
   const currentContact = selected[currentContactIndex];
-  const items = 'items' in receiptData ? receiptData.items : [];
+  const items = 'items' in receiptData ? receiptData.items.filter(item => !/tax/i.test(item.name)) : [];
 
   const available = items.filter(item => !assigned.some(assigned => assigned.id === item.id));
 
