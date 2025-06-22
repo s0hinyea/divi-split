@@ -3,6 +3,7 @@ import cors from 'cors';
 import Tesseract from 'tesseract.js';
 import { v4 as uuidv4 } from 'uuid';
 import 'dotenv/config';
+import twilio from 'twilio';
 
 console.log('Environment check:');
 console.log('TWILIO_ACCOUNT_SID:', process.env.TWILIO_ACCOUNT_SID ? 'Found' : 'Missing');
@@ -113,7 +114,6 @@ app.post('/sms', async(req, res) => {
   const { contacts, user } = req.body;
   const date = new Date();
   //configures Twilio client to send messages from 
-  const twilio = require('twilio');
   const client = new twilio(
     process.env.TWILIO_ACCOUNT_SID,
     process.env.TWILIO_AUTH_TOKEN
