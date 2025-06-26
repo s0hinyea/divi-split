@@ -1,7 +1,7 @@
 import {
-	DarkTheme,
-	DefaultTheme,
-	ThemeProvider,
+  DarkTheme,
+  DefaultTheme,
+  ThemeProvider,
 } from "@react-navigation/native";
 import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
@@ -21,90 +21,92 @@ import { supabase } from "../lib/supabase";
 
 // Create a session context
 export const SessionContext = createContext<{
-	session: Session | null;
-	isLoading: boolean;
+  session: Session | null;
+  isLoading: boolean;
 }>({
-	session: null,
-	isLoading: true,
+  session: null,
+  isLoading: true,
 });
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
-	const colorScheme = useColorScheme();
-	const [session, setSession] = useState<Session | null>(null);
-	const [isLoading, setIsLoading] = useState(true);
+  const colorScheme = useColorScheme();
+  const [session, setSession] = useState<Session | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-	const [loaded] = useFonts({
-		SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
-		TanMeringue: require("../assets/fonts/TanMeringue.otf"),
-		OptimaRoman: require("../assets/fonts/OptimaRoman.otf"),
-	});
+  const [loaded] = useFonts({
+    SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
+    TanMeringue: require("../assets/fonts/TanMeringue.otf"),
+    OptimaRoman: require("../assets/fonts/OptimaRoman.otf"),
+    Outfit: require("../assets/fonts/Outfit-VariableFont_wght.ttf"),
+    WorkSans: require("../assets/fonts/WorkSans-Regular.ttf"),
+    "WorkSans-Regular": require("../assets/fonts/WorkSans-Regular.ttf"),
+    "WorkSans-Bold": require("../assets/fonts/WorkSans-Bold.ttf"),
+    "WorkSans-SemiBold": require("../assets/fonts/WorkSans-SemiBold.ttf"),
+    "WorkSans-Medium": require("../assets/fonts/WorkSans-Medium.ttf"),
+  });
 
-	useEffect(() => {
-		// Get initial session
-		supabase.auth.getSession().then(({ data: { session } }) => {
-			setSession(session);
-			setIsLoading(false);
-		});
+  useEffect(() => {
+    // Get initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setIsLoading(false);
+    });
 
-		// Set up auth subscription
-		const {
-			data: { subscription },
-		} = supabase.auth.onAuthStateChange((_event, session) => {
-			setSession(session);
-		});
+    // Set up auth subscription
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
 
-		return () => subscription.unsubscribe();
-	}, []);
+    return () => subscription.unsubscribe();
+  }, []);
 
-	useEffect(() => {
-		if (loaded) {
-			SplashScreen.hideAsync();
-		}
-	}, [loaded]);
+  useEffect(() => {
+    if (loaded) {
+      SplashScreen.hideAsync();
+    }
+  }, [loaded]);
 
-	if (!loaded || isLoading) {
-		return null;
-	}
+  if (!loaded || isLoading) {
+    return null;
+  }
 
-	return (
-		<SessionContext.Provider value={{ session, isLoading }}>
-			<ReceiptProvider>
-				<ChangeProvider>
-					<OCRProvider>
-						<ContactsProvider>
-							<GestureHandlerRootView style={{ flex: 1 }}>
-								<PaperProvider>
-									<ThemeProvider
-										value={
-											colorScheme === "dark"
-												? DarkTheme
-												: DefaultTheme
-										}
-									>
-										<Stack
-											screenOptions={{
-												headerShown: false,
-												animation: "default", // Basic animation
-												// Options: 'default', 'fade', 'slide_from_right', 'slide_from_left', 'slide_from_bottom', 'none'
-											}}
-										>
-											<Stack.Screen name="index" />
-											<Stack.Screen name="home" />
-											<Stack.Screen name="expense-splitter" />
-											<Stack.Screen name="auth" />
-											<Stack.Screen name="+not-found" />
-										</Stack>
-										<StatusBar style="inverted" />
-									</ThemeProvider>
-								</PaperProvider>
-							</GestureHandlerRootView>
-						</ContactsProvider>
-					</OCRProvider>
-				</ChangeProvider>
-			</ReceiptProvider>
-		</SessionContext.Provider>
-	);
+  return (
+    <SessionContext.Provider value={{ session, isLoading }}>
+      <ReceiptProvider>
+        <ChangeProvider>
+          <OCRProvider>
+            <ContactsProvider>
+              <GestureHandlerRootView style={{ flex: 1 }}>
+                <PaperProvider>
+                  <ThemeProvider
+                    value={colorScheme === "dark" ? DarkTheme : DefaultTheme}
+                  >
+                    <Stack
+                      screenOptions={{
+                        headerShown: false,
+                        animation: "default", // Basic animation
+                        // Options: 'default', 'fade', 'slide_from_right', 'slide_from_left', 'slide_from_bottom', 'none'
+                      }}
+                    >
+                      <Stack.Screen name="index" />
+                      <Stack.Screen name="home" />
+                      <Stack.Screen name="expense-splitter" />
+                      <Stack.Screen name="auth" />
+                      <Stack.Screen name="+not-found" />
+                    </Stack>
+                    <StatusBar style="dark" />
+                  </ThemeProvider>
+                </PaperProvider>
+              </GestureHandlerRootView>
+            </ContactsProvider>
+          </OCRProvider>
+        </ChangeProvider>
+      </ReceiptProvider>
+    </SessionContext.Provider>
+  );
 }

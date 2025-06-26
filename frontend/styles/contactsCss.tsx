@@ -1,87 +1,96 @@
-import { StyleSheet } from 'react-native'
+import { StyleSheet } from "react-native";
+import Colors from "../constants/Colors";
 
 export const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.beige,
     padding: 20,
-    margin: 20,
-    marginTop: 40
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "column",
+    justifyContent: "space-between",
     marginBottom: 20,
   },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
+    fontSize: 24,
+    fontWeight: "bold",
+    color: Colors.darkGreen,
+    fontFamily: "OptimaRoman",
+    marginBottom: 20,
+  },
+  listContainer: {
+    height: "100%",
+    borderRadius: 15,
   },
   statusContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   statusText: {
     marginLeft: 8,
-    fontSize: 14,
+    fontSize: 20,
+    fontFamily: "WorkSans",
   },
   searchInput: {
-    height: 40,
+    backgroundColor: "#fafafa",
+    borderRadius: 15,
     borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    marginBottom: 10,
+    borderColor: "#dddddd",
+    padding: 12,
+    paddingLeft: 15,
+    fontSize: 16,
+    fontFamily: "WorkSans",
+    color: "#0a0a0a",
+    marginBottom: 20,
   },
   contactItem: {
     padding: 15,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: "#d9b99b",
   },
   selectedContact: {
-    backgroundColor: '#e3f2fd',
+    backgroundColor: "#eed9c4",
   },
   contactName: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontFamily: "WorkSans-Medium",
+    color: Colors.black,
+    fontWeight: "500",
   },
   phoneNumber: {
     fontSize: 14,
-    color: '#666',
+    color: "#666",
     marginTop: 5,
   },
   loading: {
     marginRight: 10,
-    justifyContent: 'center',
-    alignItems: 'center'
+    justifyContent: "center",
+    alignItems: "center",
   },
   loadingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
   },
   done: {
     width: 24,
     height: 24,
-    resizeMode: 'contain',
+    resizeMode: "contain",
   },
   continueButton: {
-    position: "absolute",
-    right: 5,
-    bottom: 5,
-    justifyContent: 'center',
-    alignItems: 'center',
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#f5f5f5',
-    borderColor: '#e0f7fa',
-    borderWidth: 4
+    marginTop: 50,
+    padding: 15,
+    width: "100%",
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#f66b00",
+    borderRadius: 15,
   },
-  continueIcon: {
-  width: 30,
-  height: 30,
-  resizeMode: 'contain',
-  }
+  buttonText: {
+    color: "#f0f0f0",
+    fontSize: 20,
+    fontFamily: "OptimaRoman",
+    fontWeight: "bold",
+  },
 });

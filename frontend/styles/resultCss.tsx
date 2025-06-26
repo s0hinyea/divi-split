@@ -1,6 +1,6 @@
 import { StyleSheet } from 'react-native';
 
- export const styles = StyleSheet.create({
+export const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#e0f7fa',
@@ -19,7 +19,7 @@ import { StyleSheet } from 'react-native';
     marginBottom: 50,
     backgroundColor: '#00acc1' // Aquamarine button
   },
-  
+
   title: {
     fontSize: 24,
     fontWeight: 'bold',
@@ -40,11 +40,11 @@ import { StyleSheet } from 'react-native';
     borderWidth: 1,
     borderColor: '#b2ebf2',
   },
-  changeRow:{
+  changeRow: {
     flexDirection: 'row',
     gap: 8
   },
-  changeName:{
+  changeName: {
     flex: 3,
     padding: 16,
     backgroundColor: '#ffffff',
@@ -53,7 +53,7 @@ import { StyleSheet } from 'react-native';
     borderWidth: 1,
     borderColor: '#b2ebf2',
   },
-  changePrice:{
+  changePrice: {
     flex: 1,
     padding: 16,
     backgroundColor: '#ffffff',
@@ -177,29 +177,29 @@ import { StyleSheet } from 'react-native';
     height: 40,
     justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: 20,
+    borderRadius: 15,
     backgroundColor: '#f5f5f5',
     borderColor: '#e0f7fa',
     borderWidth: 4
   },
   footerIcon: {
-  width: 24,
-  height: 24,
-  resizeMode: 'contain',
-},
-continueButton: {
-  width: 60,
-  height: 60,
-  justifyContent: 'center',
-  alignItems: 'center',
-  borderRadius: 30,
-  backgroundColor: '#f5f5f5',
-  borderColor: '#e0f7fa',
-  borderWidth: 4
-},
-continueIcon: {
-width: 30,
-height: 30,
-resizeMode: 'contain',
-}
+    width: 24,
+    height: 24,
+    resizeMode: 'contain',
+  },
+  continueButton: {
+    width: 60,
+    height: 60,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 30,
+    backgroundColor: '#f5f5f5',
+    borderColor: '#e0f7fa',
+    borderWidth: 4
+  },
+  continueIcon: {
+    width: 30,
+    height: 30,
+    resizeMode: 'contain',
+  }
 });

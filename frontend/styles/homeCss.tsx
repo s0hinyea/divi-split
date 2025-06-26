@@ -45,12 +45,12 @@ export const styles = StyleSheet.create({
 	},
 	button: {
 		marginTop: 50,
+		padding: 15,
 		width: "100%",
-		height: 50,
 		justifyContent: "center",
 		alignItems: "center",
 		backgroundColor: "#f66b00",
-		borderRadius: 20,
+		borderRadius: 15,
 	},
 	buttonText: {
 		color: "#f0f0f0",
