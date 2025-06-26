@@ -2,6 +2,13 @@ import express from 'express';
 import cors from 'cors';
 import Tesseract from 'tesseract.js';
 import { v4 as uuidv4 } from 'uuid';
+import 'dotenv/config';
+import twilio from 'twilio';
+
+console.log('Environment check:');
+console.log('TWILIO_ACCOUNT_SID:', process.env.TWILIO_ACCOUNT_SID ? 'Found' : 'Missing');
+console.log('TWILIO_AUTH_TOKEN:', process.env.TWILIO_AUTH_TOKEN ? 'Found' : 'Missing');
+console.log('TWILIO_PHONE:', process.env.TWILIO_PHONE);
 
 
 const app = express();
@@ -23,8 +30,8 @@ function parseReceiptText(text) {
   console.log(lines);
 
   const items = [];
-  const tax = "";
-  const tip = "";
+  let tax = "";
+  let tip = "";
   
   // Common price patterns: $XX.XX, XX.XX, XX,XX
   const pricePattern = /\$?\d+[.,]\d{2}/;
@@ -38,7 +45,7 @@ function parseReceiptText(text) {
   lines.forEach(line => {
     // Try to find a price in the line
     const priceMatch = line.match(pricePattern);
-    const taxMatch = taxPattern.map(pattern => line.match(pattern)).find(match => match !== null);
+    let taxMatch = taxPattern.map(pattern => line.match(pattern)).find(match => match !== null);
 
     if (priceMatch) {
       // Extract the price
@@ -61,7 +68,7 @@ function parseReceiptText(text) {
     }
   });
 
-  return {items, taxMatch}
+  return { items, tax };
 }
 
 // 👇 OCR endpoint
@@ -97,6 +104,47 @@ app.post('/ocr', async (req, res) => {
   } catch (error) {
     console.error('[OCR] ERROR:', error.message);
     res.status(500).json({ error: 'OCR failed', details: error.message });
+  }
+});
+
+app.post('/sms', async(req, res) => {
+  console.log("Sending SMS");
+
+  //Extracts contacts from request body
+  const { contacts, user } = req.body;
+  const date = new Date();
+  //configures Twilio client to send messages from 
+  const client = new twilio(
+    process.env.TWILIO_ACCOUNT_SID,
+    process.env.TWILIO_AUTH_TOKEN
+  );
+
+  if (!contacts) {
+    console.log("No contacts")
+    return res.status(400).json({ error: 'No contacts provided' });
+  }
+
+  try {
+    const results = await Promise.all(contacts.map(async (contact) =>{
+
+      const {phoneNumber, total} = contact; //extract
+      if(!phoneNumber) return { success: false, error: 'Missing phone number'};
+      if(!total) return {success: false, error: 'Missing total'};
+
+      const message = `Hello! You owe $${total} for the bill created on ${date} by ${user} (from Divi)`;
+
+      const result = await client.messages.create({
+        body: message,
+        from: process.env.TWILIO_PHONE,
+        to: phoneNumber
+      });
+      return { success: true, sid: result.sid, to: phoneNumber};
+  }));
+    res.json({results});
+  }
+  catch (err){
+    console.error("SMS send failed", err.message);
+    res.status(500).json({ error: "SMS sending failed", details: err.message });
   }
 });
   

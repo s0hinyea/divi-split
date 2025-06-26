@@ -22,6 +22,9 @@ export default function OCRResults() {
   const [ newPrice, setNewPrice ] = useState<string>('');
   const [ stackEmpty, isStackEmpty] = useState<boolean>(true);
   const [adding, isAdding ] = useState<boolean>(false);
+  const [taxInput, setTaxInput] = useState<string>(receiptData && 'tax' in receiptData && receiptData.tax !== undefined ? receiptData.tax.toString() : '');
+  const [editingTax, setEditingTax] = useState<boolean>(false);
+  const [showTaxDone, setShowTaxDone] = useState<boolean>(false);
   
   // Get items from context instead of params
   const items = 'items' in receiptData ? receiptData.items : [];
@@ -94,6 +97,19 @@ export default function OCRResults() {
     setNewPrice('');
   }
 
+  function startTaxEdit() {
+    setEditingTax(true);
+    setShowTaxDone(true);
+  }
+
+  function finishTaxEdit() {
+    setEditingTax(false);
+    setShowTaxDone(false);
+    const taxValue = parseFloat(taxInput) || 0;
+    if ('items' in receiptData) {
+      updateReceiptData({ ...receiptData, tax: taxValue });
+    }
+  }
 
   const renderRightActions = (id: string, item: ReceiptItem) => {
     return (
@@ -117,41 +133,85 @@ export default function OCRResults() {
     <View style={styles.container}>
       <ScrollView style={styles.scrollView}>
         <Text style={styles.title}>Click to change, swipe to delete</Text>
+        {/* Tax input field */}
+        <View style={{ marginBottom: 16 }}>
+          <Text style={{ fontSize: 18, color: '#00838f', fontWeight: 'bold', marginBottom: 4 }}>Tax</Text>
+          {editingTax ? (
+            <TextInput
+              style={{
+                backgroundColor: '#fff',
+                borderColor: '#b2ebf2',
+                borderWidth: 1,
+                borderRadius: 8,
+                padding: 12,
+                fontSize: 16,
+                color: '#006064',
+              }}
+              value={taxInput}
+              onChangeText={setTaxInput}
+              keyboardType="decimal-pad"
+              placeholder="Enter tax amount"
+              placeholderTextColor="#80deea"
+              autoFocus
+            />
+          ) : (
+            <Pressable onPress={startTaxEdit}>
+              <Text style={{
+                backgroundColor: '#fff',
+                borderColor: '#b2ebf2',
+                borderWidth: 1,
+                borderRadius: 8,
+                padding: 12,
+                fontSize: 16,
+                color: '#006064',
+              }}>
+                {taxInput ? `$${parseFloat(taxInput).toFixed(2)}` : 'Tap to enter tax'}
+              </Text>
+            </Pressable>
+          )}
+          {showTaxDone && (
+            <Button mode="contained" onPress={finishTaxEdit} style={{ marginTop: 8 }}>
+              Done
+            </Button>
+          )}
+        </View>
         <View style={styles.itemsContainer}>
-          {items.map(item => (
-            changing === item.id ? (
-              <View key={item.id} style={styles.changeRow}>
-                <Pressable style={styles.changeName}>
-                  <TextInput 
-                    style={styles.itemName}
-                    value={newName}
-                    onChangeText={(text) => changeName(item.id, text, item)}
-                  />
-                </Pressable>
-                <Pressable style={styles.changePrice}>
-                  <TextInput 
-                    style={styles.itemPrice}
-                    value={newPrice}
-                    onChangeText={(text) => changePrice(item.id, text, item)}
-                    keyboardType="decimal-pad"
-                  />
-                </Pressable>
-              </View>
-            ) : (
-              <Swipeable
-                key={item.id}
-                renderRightActions={() => renderRightActions(item.id, item)}
-                rightThreshold={20}
-              >
-                <TouchableOpacity onPress={() => {startChange(item.id)}}>
-                  <View style={styles.itemRow}>
-                    <Text style={styles.itemName}>{item.name}</Text>
-                    <Text style={styles.itemPrice}>${item.price.toFixed(2)}</Text>
-                  </View>
-                </TouchableOpacity>
-              </Swipeable>
-            )
-          ))}
+          {items
+            .filter(item => item.name.trim().toLowerCase() !== 'tax')
+            .map(item => (
+              changing === item.id ? (
+                <View key={item.id} style={styles.changeRow}>
+                  <Pressable style={styles.changeName}>
+                    <TextInput 
+                      style={styles.itemName}
+                      value={newName}
+                      onChangeText={(text) => changeName(item.id, text, item)}
+                    />
+                  </Pressable>
+                  <Pressable style={styles.changePrice}>
+                    <TextInput 
+                      style={styles.itemPrice}
+                      value={newPrice}
+                      onChangeText={(text) => changePrice(item.id, text, item)}
+                      keyboardType="decimal-pad"
+                    />
+                  </Pressable>
+                </View>
+              ) : (
+                <Swipeable
+                  key={item.id}
+                  renderRightActions={() => renderRightActions(item.id, item)}
+                  rightThreshold={20}
+                >
+                  <TouchableOpacity onPress={() => {startChange(item.id)}}>
+                    <View style={styles.itemRow}>
+                      <Text style={styles.itemName}>{item.name}</Text>
+                      <Text style={styles.itemPrice}>${item.price.toFixed(2)}</Text>
+                    </View>
+                  </TouchableOpacity>
+                </Swipeable>
+              )
+            ))}
 
         </View>
         
@@ -160,7 +220,7 @@ export default function OCRResults() {
           <View style={styles.totalContainer}>
             <Text style={styles.totalLabel}>Total:</Text>
             <Text style={styles.totalAmount}>
-              ${items.reduce((sum, item) => sum + item.price, 0).toFixed(2)}
+              ${(items.reduce((sum, item) => sum + item.price, 0) + (('tax' in receiptData && receiptData.tax) ? receiptData.tax : 0)).toFixed(2)}
             </Text>
           </View>
         )}
