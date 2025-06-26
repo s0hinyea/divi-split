@@ -29,7 +29,7 @@ export const styles = StyleSheet.create({
     backgroundColor: '#e3f2fd',
     paddingHorizontal: 15,
     paddingVertical: 8,
-    borderRadius: 20,
+    borderRadius: 15,
     margin: 5,
     alignItems: 'center',
   },
@@ -63,7 +63,7 @@ export const styles = StyleSheet.create({
     height: 24,
     resizeMode: 'contain',
   },
-  contactName : {
+  contactName: {
     color: 'green'
   }
 }); 
