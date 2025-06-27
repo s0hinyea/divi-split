@@ -19,7 +19,6 @@ import "react-native-get-random-values";
 import * as uuid from "uuid";
 import { BlurView } from "expo-blur";
 import { styles } from "../styles/resultCss";
-import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function OCRResults() {
 	const params = useLocalSearchParams();
@@ -40,6 +39,13 @@ export default function OCRResults() {
 	);
 	const [editingTax, setEditingTax] = useState<boolean>(false);
 	const [showTaxDone, setShowTaxDone] = useState<boolean>(false);
+	const [tipInput, setTipInput] = useState<string>(
+		receiptData && "tip" in receiptData && receiptData.tip !== undefined
+			? receiptData.tip.toString()
+			: ""
+	);
+	const [editingTip, setEditingTip] = useState<boolean>(false);
+	const [showTipDone, setShowTipDone] = useState<boolean>(false);
 
 	// Get items from context instead of params
 	const items = "items" in receiptData ? receiptData.items : [];
@@ -134,6 +140,20 @@ export default function OCRResults() {
 		}
 	}
 
+	function startTipEdit() {
+		setEditingTip(true);
+		setShowTipDone(true);
+	}
+
+	function finishTipEdit() {
+		setEditingTip(false);
+		setShowTipDone(false);
+		const tipValue = parseFloat(tipInput) || 0;
+		if ("items" in receiptData) {
+			updateReceiptData({ ...receiptData, tip: tipValue });
+		}
+	}
+
 	const renderRightActions = (id: string, item: ReceiptItem) => {
 		return (
 			<TouchableOpacity
@@ -153,9 +173,130 @@ export default function OCRResults() {
 	}, []);
 
 	return (
-		<SafeAreaView style={styles.container}>
-			<Text style={styles.title}>Tap to edit, swipe to delete.</Text>
+		<View style={styles.container}>
 			<ScrollView style={styles.scrollView}>
+				<Text style={styles.title}>
+					Click to change, swipe to delete
+				</Text>
+				{/* Tax input field */}
+				<View style={{ marginBottom: 16 }}>
+					<Text
+						style={{
+							fontSize: 18,
+							color: "#00838f",
+							fontWeight: "bold",
+							marginBottom: 4,
+						}}
+					>
+						Tax
+					</Text>
+					{editingTax ? (
+						<TextInput
+							style={{
+								backgroundColor: "#fff",
+								borderColor: "#b2ebf2",
+								borderWidth: 1,
+								borderRadius: 8,
+								padding: 12,
+								fontSize: 16,
+								color: "#006064",
+							}}
+							value={taxInput}
+							onChangeText={setTaxInput}
+							keyboardType="decimal-pad"
+							placeholder="Enter tax amount"
+							placeholderTextColor="#80deea"
+							autoFocus
+						/>
+					) : (
+						<Pressable onPress={startTaxEdit}>
+							<Text
+								style={{
+									backgroundColor: "#fff",
+									borderColor: "#b2ebf2",
+									borderWidth: 1,
+									borderRadius: 8,
+									padding: 12,
+									fontSize: 16,
+									color: "#006064",
+								}}
+							>
+								{taxInput
+									? `$${parseFloat(taxInput).toFixed(2)}`
+									: "Tap to enter tax"}
+							</Text>
+						</Pressable>
+					)}
+					{showTaxDone && (
+						<Button
+							mode="contained"
+							onPress={finishTaxEdit}
+							style={{ marginTop: 8 }}
+						>
+							Done
+						</Button>
+					)}
+				</View>
+
+				{/* Tip input field */}
+				<View style={{ marginBottom: 16 }}>
+					<Text
+						style={{
+							fontSize: 18,
+							color: "#00838f",
+							fontWeight: "bold",
+							marginBottom: 4,
+						}}
+					>
+						Tip
+					</Text>
+					{editingTip ? (
+						<TextInput
+							style={{
+								backgroundColor: "#fff",
+								borderColor: "#b2ebf2",
+								borderWidth: 1,
+								borderRadius: 8,
+								padding: 12,
+								fontSize: 16,
+								color: "#006064",
+							}}
+							value={tipInput}
+							onChangeText={setTipInput}
+							keyboardType="decimal-pad"
+							placeholder="Enter tip amount"
+							placeholderTextColor="#80deea"
+							autoFocus
+						/>
+					) : (
+						<Pressable onPress={startTipEdit}>
+							<Text
+								style={{
+									backgroundColor: "#fff",
+									borderColor: "#b2ebf2",
+									borderWidth: 1,
+									borderRadius: 8,
+									padding: 12,
+									fontSize: 16,
+									color: "#006064",
+								}}
+							>
+								{tipInput
+									? `$${parseFloat(tipInput).toFixed(2)}`
+									: "Tap to enter tip"}
+							</Text>
+						</Pressable>
+					)}
+					{showTipDone && (
+						<Button
+							mode="contained"
+							onPress={finishTipEdit}
+							style={{ marginTop: 8 }}
+						>
+							Done
+						</Button>
+					)}
+				</View>
 				<View style={styles.itemsContainer}>
 					{items
 						.filter(
@@ -224,70 +365,14 @@ export default function OCRResults() {
 								) +
 								("tax" in receiptData && receiptData.tax
 									? receiptData.tax
+									: 0) +
+								("tip" in receiptData && receiptData.tip
+									? receiptData.tip
 									: 0)
 							).toFixed(2)}
 						</Text>
 					</View>
 				)}
-				{/* Tax input field */}
-				<View style={{ marginBottom: 16 }}>
-					<Text
-						style={{
-							fontSize: 18,
-							color: "#00838f",
-							fontWeight: "bold",
-							marginBottom: 4,
-						}}
-					>
-						Tax
-					</Text>
-					{editingTax ? (
-						<TextInput
-							style={{
-								backgroundColor: "#fff",
-								borderColor: "#b2ebf2",
-								borderWidth: 1,
-								borderRadius: 8,
-								padding: 12,
-								fontSize: 16,
-								color: "#006064",
-							}}
-							value={taxInput}
-							onChangeText={setTaxInput}
-							keyboardType="decimal-pad"
-							placeholder="Enter tax amount"
-							placeholderTextColor="#80deea"
-							autoFocus
-						/>
-					) : (
-						<Pressable onPress={startTaxEdit}>
-							<Text
-								style={{
-									backgroundColor: "#fff",
-									borderColor: "#b2ebf2",
-									borderWidth: 1,
-									borderRadius: 8,
-									padding: 12,
-									fontSize: 16,
-									color: "#006064",
-								}}
-							>
-								{taxInput
-									? `$${parseFloat(taxInput).toFixed(2)}`
-									: "Tap to enter tax"}
-							</Text>
-						</Pressable>
-					)}
-					{showTaxDone && (
-						<Button
-							mode="contained"
-							onPress={finishTaxEdit}
-							style={{ marginTop: 8 }}
-						>
-							Done
-						</Button>
-					)}
-				</View>
 			</ScrollView>
 
 			<Modal
@@ -388,6 +473,6 @@ export default function OCRResults() {
 					</TouchableOpacity>
 				</View>
 			)}
-		</SafeAreaView>
+		</View>
 	);
 }

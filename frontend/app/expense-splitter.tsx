@@ -8,6 +8,7 @@ import {
   TouchableWithoutFeedback,
   Animated,
   Dimensions,
+  ScrollView,
 } from "react-native";
 import { Text, Button, Surface, Icon } from "react-native-paper";
 import { useState, useRef, useEffect } from "react";
@@ -19,12 +20,24 @@ import { useOCR } from "../utils/OCRContext";
 import { handleOCR } from "../utils/ocrUtil";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Colors from "../constants/Colors";
+import { BlurView } from "expo-blur";
 
 export default function MainPage() {
   const router = useRouter();
   const [visible, setVisible] = useState(false);
+  const [showReceiptsModal, setShowReceiptsModal] = useState(false);
   const { updateReceiptData } = useReceipt();
   const { setIsProcessing } = useOCR();
+
+  // Dummy data for past receipts (replace with real data later)
+  const pastReceipts = [
+    { id: 1, name: "Dinner at Olive Garden", date: "2024-01-15", total: 45.67 },
+    { id: 2, name: "Lunch with Friends", date: "2024-01-14", total: 32.40 },
+    { id: 3, name: "Coffee Shop Receipt", date: "2024-01-13", total: 18.25 },
+    { id: 4, name: "Grocery Store", date: "2024-01-12", total: 78.90 },
+    { id: 5, name: "Restaurant Receipt", date: "2024-01-11", total: 56.30 },
+    { id: 6, name: "Fast Food", date: "2024-01-10", total: 12.99 },
+  ];
 
   // Get screen dimensions for responsive positioning
   const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
@@ -101,12 +114,21 @@ export default function MainPage() {
 
       {/* Body */}
       <View style={styles.body}>
-        <View style={styles.card}>
-          <Text style={styles.cardText}>
-            You do not have any past receipts.
-          </Text>
-        </View>
-        {/* Render past bills here */}
+        <ScrollView style={styles.scrollContainer}>
+          {pastReceipts.map((receipt) => (
+            <TouchableOpacity 
+              key={receipt.id} 
+              style={styles.receiptCard}
+              onPress={() => setShowReceiptsModal(true)}
+            >
+              <View style={styles.receiptInfo}>
+                <Text style={styles.receiptName}>{receipt.name}</Text>
+                <Text style={styles.receiptDate}>{receipt.date}</Text>
+              </View>
+              <Text style={styles.receiptTotal}>${receipt.total.toFixed(2)}</Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
       </View>
 
       {/* Footer */}
@@ -275,6 +297,41 @@ export default function MainPage() {
               </Animated.View>
             </View>
           </TouchableWithoutFeedback>
+        </Modal>
+
+        {/* Receipt Details Modal */}
+        <Modal
+          animationType="fade"y  
+          transparent={true}
+          visible={showReceiptsModal}
+          onRequestClose={() => setShowReceiptsModal(false)}
+        >
+          <BlurView intensity={50} style={styles.receiptModalOverlay}>
+            <View style={styles.receiptModalContainer}>
+              <View style={styles.receiptModalHeader}>
+                <Text style={styles.receiptModalTitle}>Receipt Details</Text>
+                <TouchableOpacity 
+                  onPress={() => setShowReceiptsModal(false)}
+                  style={styles.closeButton}
+                >
+                  <Icon source="close" size={24} color="#333" />
+                </TouchableOpacity>
+              </View>
+              
+              <ScrollView style={styles.receiptModalContent}>
+                <Text style={styles.placeholder}>
+                  Receipt details will be loaded here...
+                </Text>
+                {/* Receipt details will be populated here later */}
+              </ScrollView>
+              
+              <View style={styles.receiptModalFooter}>
+                <TouchableOpacity style={styles.resendButton}>
+                  <Text style={styles.resendButtonText}>Resend SMS</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </BlurView>
         </Modal>
       </View>
     </SafeAreaView>

@@ -17,9 +17,12 @@ export default function ReviewPage() {
     if ('items' in receiptData) {
       const allMealItems = receiptData.items;
       const subtotal = calculateTotal(allMealItems);
-      updateReceiptData({...receiptData, total: subtotal })
+      const tax = receiptData.tax || 0;
+      const tip = receiptData.tip || 0;
+      const grandTotal = subtotal + tax + tip;
+      updateReceiptData({...receiptData, total: grandTotal })
     }
-  }, [receiptData.items, receiptData.tax, selected]);
+  }, [receiptData.items, receiptData.tax, receiptData.tip, selected]);
 
   const calculateTaxBreakdown = () => {
     if (!('tax' in receiptData) || !receiptData.tax || receiptData.tax <= 0) {
@@ -54,7 +57,42 @@ export default function ReviewPage() {
     return { taxPercentage, individualTaxes };
   };
 
+  const calculateTipBreakdown = () => {
+    if (!('tip' in receiptData) || !receiptData.tip || receiptData.tip <= 0) {
+      return { tipPerPerson: 0, individualTips: {} };
+    }
+
+    // Count total people (contacts + user if user has items)
+    let totalPeople = selected.length;
+    if (receiptData.userItems && receiptData.userItems.length > 0) {
+      totalPeople += 1;
+    }
+
+    if (totalPeople <= 0) {
+      return { tipPerPerson: 0, individualTips: {} };
+    }
+
+    // Split tip evenly among all people
+    const tipPerPerson = receiptData.tip / totalPeople;
+    
+    // Calculate individual tip amounts
+    const individualTips: { [key: string]: number } = {};
+    
+    // Assign tip for each contact
+    selected.forEach(contact => {
+      individualTips[contact.id] = tipPerPerson;
+    });
+    
+    // Assign tip for user if they have items
+    if (receiptData.userItems && receiptData.userItems.length > 0) {
+      individualTips['user'] = tipPerPerson;
+    }
+    
+    return { tipPerPerson, individualTips };
+  };
+
   const { taxPercentage, individualTaxes } = calculateTaxBreakdown();
+  const { tipPerPerson, individualTips } = calculateTipBreakdown();
 
   // SMS sending function
   const sendSmsToContacts = async () => {
@@ -65,7 +103,8 @@ export default function ReviewPage() {
       const contactsData = selected.map(contact => {
         const contactMealTotal = calculateTotal(contact.items as ReceiptItem[]);
         const contactTax = individualTaxes[contact.id] || 0;
-        const contactTotal = contactMealTotal + contactTax;
+        const contactTip = individualTips[contact.id] || 0;
+        const contactTotal = contactMealTotal + contactTax + contactTip;
         
         return {
           phoneNumber: contact.phoneNumber,
@@ -128,7 +167,8 @@ export default function ReviewPage() {
         {selected.map((contact) => {
           const contactMealTotal = calculateTotal(contact.items as ReceiptItem[]);
           const contactTax = individualTaxes[contact.id] || 0;
-          const contactTotal = contactMealTotal + contactTax;
+          const contactTip = individualTips[contact.id] || 0;
+          const contactTotal = contactMealTotal + contactTax + contactTip;
           
           return (
             <View key={contact.id} style={styles.contactSection}>
@@ -149,6 +189,12 @@ export default function ReviewPage() {
                   <Text style={styles.taxAmount}>${contactTax.toFixed(2)}</Text>
                 </View>
               )}
+              {contactTip > 0 && (
+                <View style={styles.taxRow}>
+                  <Text style={styles.taxLabel}>Tip:</Text>
+                  <Text style={styles.taxAmount}>${contactTip.toFixed(2)}</Text>
+                </View>
+              )}
               <View style={styles.totalRow}>
                 <Text style={styles.totalLabel}>Total:</Text>
                 <Text style={styles.totalAmount}>${contactTotal.toFixed(2)}</Text>
@@ -161,7 +207,8 @@ export default function ReviewPage() {
           (() => {
             const userMealTotal = calculateTotal(receiptData.userItems as ReceiptItem[]);
             const userTax = individualTaxes['user'] || 0;
-            const userTotal = userMealTotal + userTax;
+            const userTip = individualTips['user'] || 0;
+            const userTotal = userMealTotal + userTax + userTip;
             
             return (
               <View style={styles.contactSection}>
@@ -180,6 +227,12 @@ export default function ReviewPage() {
                   <View style={styles.taxRow}>
                     <Text style={styles.taxLabel}>Tax ({(taxPercentage * 100).toFixed(1)}%):</Text>
                     <Text style={styles.taxAmount}>${userTax.toFixed(2)}</Text>
+                  </View>
+                )}
+                {userTip > 0 && (
+                  <View style={styles.taxRow}>
+                    <Text style={styles.taxLabel}>Tip:</Text>
+                    <Text style={styles.taxAmount}>${userTip.toFixed(2)}</Text>
                   </View>
                 )}
                 <View style={styles.totalRow}>
@@ -210,11 +263,17 @@ export default function ReviewPage() {
                   ${Object.values(individualTaxes).reduce((sum, tax) => sum + tax, 0).toFixed(2)}
                 </Text>
               </View>
+              <View style={styles.itemRow}>
+                <Text style={styles.itemName}>Total Tip</Text>
+                <Text style={styles.itemPrice}>
+                  ${Object.values(individualTips).reduce((sum, tip) => sum + tip, 0).toFixed(2)}
+                </Text>
+              </View>
               <View style={styles.totalRow}>
                 <Text style={styles.totalLabel}>Grand Total:</Text>
-                <Text style={styles.totalAmount}>
-                  ${(calculateTotal(allMealItems) + Object.values(individualTaxes).reduce((sum, tax) => sum + tax, 0)).toFixed(2)}
-                </Text>
+                                  <Text style={styles.totalAmount}>
+                    ${receiptData.total ? receiptData.total.toFixed(2) : '0.00'}
+                  </Text>
               </View>
             </View>
           );
