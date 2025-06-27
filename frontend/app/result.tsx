@@ -25,6 +25,9 @@ export default function OCRResults() {
   const [taxInput, setTaxInput] = useState<string>(receiptData && 'tax' in receiptData && receiptData.tax !== undefined ? receiptData.tax.toString() : '');
   const [editingTax, setEditingTax] = useState<boolean>(false);
   const [showTaxDone, setShowTaxDone] = useState<boolean>(false);
+  const [tipInput, setTipInput] = useState<string>(receiptData && 'tip' in receiptData && receiptData.tip !== undefined ? receiptData.tip.toString() : '');
+  const [editingTip, setEditingTip] = useState<boolean>(false);
+  const [showTipDone, setShowTipDone] = useState<boolean>(false);
   
   // Get items from context instead of params
   const items = 'items' in receiptData ? receiptData.items : [];
@@ -111,6 +114,20 @@ export default function OCRResults() {
     }
   }
 
+  function startTipEdit() {
+    setEditingTip(true);
+    setShowTipDone(true);
+  }
+
+  function finishTipEdit() {
+    setEditingTip(false);
+    setShowTipDone(false);
+    const tipValue = parseFloat(tipInput) || 0;
+    if ('items' in receiptData) {
+      updateReceiptData({ ...receiptData, tip: tipValue });
+    }
+  }
+
   const renderRightActions = (id: string, item: ReceiptItem) => {
     return (
       <TouchableOpacity
@@ -175,6 +192,49 @@ export default function OCRResults() {
             </Button>
           )}
         </View>
+
+        {/* Tip input field */}
+        <View style={{ marginBottom: 16 }}>
+          <Text style={{ fontSize: 18, color: '#00838f', fontWeight: 'bold', marginBottom: 4 }}>Tip</Text>
+          {editingTip ? (
+            <TextInput
+              style={{
+                backgroundColor: '#fff',
+                borderColor: '#b2ebf2',
+                borderWidth: 1,
+                borderRadius: 8,
+                padding: 12,
+                fontSize: 16,
+                color: '#006064',
+              }}
+              value={tipInput}
+              onChangeText={setTipInput}
+              keyboardType="decimal-pad"
+              placeholder="Enter tip amount"
+              placeholderTextColor="#80deea"
+              autoFocus
+            />
+          ) : (
+            <Pressable onPress={startTipEdit}>
+              <Text style={{
+                backgroundColor: '#fff',
+                borderColor: '#b2ebf2',
+                borderWidth: 1,
+                borderRadius: 8,
+                padding: 12,
+                fontSize: 16,
+                color: '#006064',
+              }}>
+                {tipInput ? `$${parseFloat(tipInput).toFixed(2)}` : 'Tap to enter tip'}
+              </Text>
+            </Pressable>
+          )}
+          {showTipDone && (
+            <Button mode="contained" onPress={finishTipEdit} style={{ marginTop: 8 }}>
+              Done
+            </Button>
+          )}
+        </View>
         <View style={styles.itemsContainer}>
           {items
             .filter(item => item.name.trim().toLowerCase() !== 'tax')
@@ -220,7 +280,7 @@ export default function OCRResults() {
           <View style={styles.totalContainer}>
             <Text style={styles.totalLabel}>Total:</Text>
             <Text style={styles.totalAmount}>
-              ${(items.reduce((sum, item) => sum + item.price, 0) + (('tax' in receiptData && receiptData.tax) ? receiptData.tax : 0)).toFixed(2)}
+              ${(items.reduce((sum, item) => sum + item.price, 0) + (('tax' in receiptData && receiptData.tax) ? receiptData.tax : 0) + (('tip' in receiptData && receiptData.tip) ? receiptData.tip : 0)).toFixed(2)}
             </Text>
           </View>
         )}

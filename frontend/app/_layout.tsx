@@ -77,10 +77,10 @@ export default function RootLayout() {
 
   return (
     <SessionContext.Provider value={{ session, isLoading }}>
+      <ContactsProvider>
       <ReceiptProvider>
         <ChangeProvider>
           <OCRProvider>
-            <ContactsProvider>
               <GestureHandlerRootView style={{ flex: 1 }}>
                 <PaperProvider>
                   <ThemeProvider
@@ -103,10 +103,10 @@ export default function RootLayout() {
                   </ThemeProvider>
                 </PaperProvider>
               </GestureHandlerRootView>
-            </ContactsProvider>
           </OCRProvider>
         </ChangeProvider>
       </ReceiptProvider>
+      </ContactsProvider>
     </SessionContext.Provider>
   );
 }
