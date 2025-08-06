@@ -4,11 +4,12 @@ import Tesseract from 'tesseract.js';
 import { v4 as uuidv4 } from 'uuid';
 import 'dotenv/config';
 import twilio from 'twilio';
+import OpenAI from 'openai';
 
-console.log('Environment check:');
-console.log('TWILIO_ACCOUNT_SID:', process.env.TWILIO_ACCOUNT_SID ? 'Found' : 'Missing');
-console.log('TWILIO_AUTH_TOKEN:', process.env.TWILIO_AUTH_TOKEN ? 'Found' : 'Missing');
-console.log('TWILIO_PHONE:', process.env.TWILIO_PHONE);
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY
+});
+
 
 
 const app = express();
@@ -104,6 +105,115 @@ app.post('/ocr', async (req, res) => {
   } catch (error) {
     console.error('[OCR] ERROR:', error.message);
     res.status(500).json({ error: 'OCR failed', details: error.message });
+  }
+});
+
+
+// 🚀 NEW: OpenAI Vision OCR endpoint
+app.post('/ocr-vision', async (req, res) => {
+  console.log("Start OpenAI Vision process");
+  const { image } = req.body;
+  
+  if (!image) {
+    console.log("No image provided")
+    return res.status(400).json({ error: 'No image provided' });
+  }
+
+  try {
+    console.log('[OpenAI Vision] Processing receipt image');
+
+    // 🎯 LEARNING POINT: Prompt Engineering
+    // This prompt is carefully crafted to:
+    // 1. Set clear context and role
+    // 2. Specify exact output format
+    // 3. Handle edge cases
+    // 4. Provide examples for consistency
+
+    //#SOHI : This is giving the gpt model a defualt prompt for every receipt.
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o", // Latest vision model
+      messages: [
+        {
+          role: "system",
+          content: `You are an expert receipt parser. Analyze receipt images and extract structured data.
+
+CRITICAL REQUIREMENTS:
+- Return valid JSON only
+- For prices: Use only numbers (e.g., 12.99, not $12.99)
+- For names: Clean text, remove extra characters
+- For tax: Single number representing total tax amount
+- If information is unclear, make best estimate
+
+RESPONSE FORMAT:
+{
+  "items": [
+    {"id": "unique-id", "name": "Item Name", "price": 12.99}
+  ],
+  "tax": 2.50,
+  "tip": 0,
+  "total": 15.49
+}`
+        },
+        {
+          role: "user",
+          content: [
+            {
+              type: "text",
+              text: "Parse this receipt and extract all menu items with their prices, plus tax amount. Return as JSON."
+            },
+            {
+              type: "image_url",
+              image_url: {
+                url: image
+              }
+            }
+          ]
+        }
+      ],
+      max_tokens: 1000,
+      temperature: 0.1, // Low temperature for consistent, factual responses
+      // 🎯 LEARNING POINT: Structured Output
+      // This forces the AI to return valid JSON matching our schema
+      response_format: { type: "json_object" }
+    });
+
+    const result = JSON.parse(response.choices[0].message.content);
+    
+    // 🎯 LEARNING POINT: Data Validation
+    // Always validate AI responses before using them
+    if (!result.items || !Array.isArray(result.items)) {
+      throw new Error('Invalid response format: missing items array');
+    }
+
+    // Ensure all items have required fields and generate IDs if missing
+    const validatedItems = result.items.map((item, index) => ({
+      id: item.id || uuidv4(),
+      name: item.name || `Item ${index + 1}`,
+      price: typeof item.price === 'number' ? item.price : 0
+    }));
+
+    console.log('[OpenAI Vision] Successfully parsed receipt');
+    
+    res.json({
+      items: validatedItems,
+      tax: result.tax || 0,
+      tip: result.tip || 0,
+      total: result.total || 0,
+      source: 'openai-vision' // For debugging/comparison
+    });
+
+  } catch (error) {
+    console.error('[OpenAI Vision] ERROR:', error.message);
+    
+    // 🎯 LEARNING POINT: Graceful Error Handling
+    // Provide specific error messages for different failure types
+    if (error.message.includes('API key')) {
+      res.status(401).json({ error: 'OpenAI API key invalid', details: error.message });
+    } else if (error.message.includes('quota')) {
+      res.status(429).json({ error: 'OpenAI quota exceeded', details: error.message });
+    } else {
+      res.status(500).json({ error: 'Vision OCR failed', details: error.message });
+    }
   }
 });
 
