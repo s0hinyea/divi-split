@@ -2,6 +2,7 @@ import { Alert } from "react-native";
 import { useReceipt, OCRResponse } from "./ReceiptContext";
 import { useOCR } from "@/utils/OCRContext";
 import { Router } from "expo-router";
+import { supabase } from "@/lib/supabase";
 
 import { Config } from "@/constants/Config";
 
@@ -18,11 +19,18 @@ export const handleOCR = async (
 	try {
 		setIsProcessing(true);
 		router.push("/contacts")
+		
+		const { data: { session }} = await supabase.auth.getSession();
+		const token = session?.access_token;
+
 		const data = await fetch(API_URL, {
 			method: "POST",
-			headers: { "Content-Type": "application/json" },
+			headers: {
+				"Content-Type": "application/json",
+				"Authorization": `Bearer ${token}`
+			},
 			body: JSON.stringify({ image: base64DataUrl }),
-		});
+		}); 	
 
 		console.log("Image sent for OCR processing");
 		const extractedData = await data.json();

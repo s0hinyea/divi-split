@@ -21,6 +21,17 @@ import { handleOCR } from "../utils/ocrUtil";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Colors from "../constants/Colors";
 import { BlurView } from "expo-blur";
+import { Config } from "@/constants/Config";
+import { supabase } from "@/lib/supabase";
+
+// Type for receipts from backend
+interface Receipt {
+  id: string;
+  receipt_name: string;
+  total_amount: number;
+  created_at: string;
+  receipt_items: { id: string; item_name: string; item_price: number }[];
+}
 
 export default function MainPage() {
   const router = useRouter();
@@ -29,15 +40,42 @@ export default function MainPage() {
   const { updateReceiptData } = useReceipt();
   const { setIsProcessing } = useOCR();
 
-  // Dummy data for past receipts (replace with real data later)
-  const pastReceipts = [
-    { id: 1, name: "Dinner at Olive Garden", date: "2024-01-15", total: 45.67 },
-    { id: 2, name: "Lunch with Friends", date: "2024-01-14", total: 32.40 },
-    { id: 3, name: "Coffee Shop Receipt", date: "2024-01-13", total: 18.25 },
-    { id: 4, name: "Grocery Store", date: "2024-01-12", total: 78.90 },
-    { id: 5, name: "Restaurant Receipt", date: "2024-01-11", total: 56.30 },
-    { id: 6, name: "Fast Food", date: "2024-01-10", total: 12.99 },
-  ];
+  // Real receipts from backend
+  const [pastReceipts, setPastReceipts] = useState<Receipt[]>([]);
+  const [loadingReceipts, setLoadingReceipts] = useState(true);
+
+  // Fetch receipts on mount
+  useEffect(() => {
+    fetchReceipts();
+  }, []);
+
+  const fetchReceipts = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+
+      if (!token) {
+        setLoadingReceipts(false);
+        return;
+      }
+
+      const response = await fetch(`${Config.BACKEND_URL}/receipts`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setPastReceipts(data.receipts || []);
+      }
+    } catch (error) {
+      console.error('Error fetching receipts:', error);
+    } finally {
+      setLoadingReceipts(false);
+    }
+  };
 
   // Get screen dimensions for responsive positioning
   const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
@@ -115,19 +153,29 @@ export default function MainPage() {
       {/* Body */}
       <View style={styles.body}>
         <ScrollView style={styles.scrollContainer}>
-          {pastReceipts.map((receipt) => (
-            <TouchableOpacity
-              key={receipt.id}
-              style={styles.receiptCard}
-              onPress={() => setShowReceiptsModal(true)}
-            >
-              <View style={styles.receiptInfo}>
-                <Text style={styles.receiptName}>{receipt.name}</Text>
-                <Text style={styles.receiptDate}>{receipt.date}</Text>
-              </View>
-              <Text style={styles.receiptTotal}>${receipt.total.toFixed(2)}</Text>
-            </TouchableOpacity>
-          ))}
+          {loadingReceipts ? (
+            <Text style={styles.receiptDate}>Loading receipts...</Text>
+          ) : pastReceipts.length === 0 ? (
+            <Text style={styles.receiptDate}>No receipts yet. Scan one to get started!</Text>
+          ) : (
+            pastReceipts.map((receipt) => (
+              <TouchableOpacity
+                key={receipt.id}
+                style={styles.receiptCard}
+                onPress={() => setShowReceiptsModal(true)}
+              >
+                <View style={styles.receiptInfo}>
+                  <Text style={styles.receiptName}>{receipt.receipt_name}</Text>
+                  <Text style={styles.receiptDate}>
+                    {new Date(receipt.created_at).toLocaleDateString()}
+                  </Text>
+                </View>
+                <Text style={styles.receiptTotal}>
+                  ${(receipt.total_amount || 0).toFixed(2)}
+                </Text>
+              </TouchableOpacity>
+            ))
+          )}
         </ScrollView>
       </View>
 

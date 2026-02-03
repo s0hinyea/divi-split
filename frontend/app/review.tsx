@@ -5,6 +5,7 @@ import { useContacts } from '../utils/ContactsContext';
 import { useReceipt, ReceiptItem } from '../utils/ReceiptContext';
 import { styles } from '../styles/reviewCss';
 import { Config } from '@/constants/Config';
+import { supabase } from '@/lib/supabase';
 
 export default function ReviewPage() {
   const router = useRouter();
@@ -113,10 +114,15 @@ export default function ReviewPage() {
         };
       });
 
+      // Get auth token for protected endpoint
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+
       const response = await fetch(`${Config.BACKEND_URL}/sms`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
           contacts: contactsData
@@ -147,9 +153,51 @@ export default function ReviewPage() {
     router.push('/expense-splitter');
   };
 
-  // Updated handleFinish to show modal
-  const handleFinish = () => {
-    saveReceipt("Trial");
+  // Save receipt to backend database
+  const saveReceiptToBackend = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+
+      if (!token) {
+        console.log('No auth token, skipping save');
+        return;
+      }
+
+      const allItems = 'items' in receiptData ? receiptData.items : [];
+
+      const response = await fetch(`${Config.BACKEND_URL}/receipts`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          receipt_name: `Split - ${new Date().toLocaleDateString()}`,
+          items: allItems,
+          tax: receiptData.tax || 0,
+          tip: receiptData.tip || 0,
+          total: receiptData.total || 0
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to save receipt');
+      }
+
+      console.log('Receipt saved successfully');
+    } catch (error) {
+      console.error('Error saving receipt:', error);
+      // Don't block the flow if save fails
+    }
+  };
+
+  // Updated handleFinish to save receipt and show modal
+  const handleFinish = async () => {
+    // Save to backend first
+    await saveReceiptToBackend();
+
+    saveReceipt("Trial"); // Local save
 
     if (selected.length > 0) {
       setShowSmsModal(true);
