@@ -19,9 +19,12 @@ export const handleOCR = async (
 	try {
 		setIsProcessing(true);
 		router.push("/contacts")
-		
-		const { data: { session }} = await supabase.auth.getSession();
+
+		const { data: { session } } = await supabase.auth.getSession();
 		const token = session?.access_token;
+
+		console.log('[OCR Debug] Session exists:', !!session);
+		console.log('[OCR Debug] Token exists:', !!token);
 
 		const data = await fetch(API_URL, {
 			method: "POST",
@@ -30,7 +33,7 @@ export const handleOCR = async (
 				"Authorization": `Bearer ${token}`
 			},
 			body: JSON.stringify({ image: base64DataUrl }),
-		}); 	
+		});
 
 		console.log("Image sent for OCR processing");
 		const extractedData = await data.json();

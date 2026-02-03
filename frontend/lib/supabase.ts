@@ -1,9 +1,10 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createClient } from "@supabase/supabase-js";
-import "dotenv/config";
 
+// Expo automatically exposes EXPO_PUBLIC_ prefixed env variables
+// No need for dotenv - it doesn't work in React Native anyway
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
+const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
 export const supabase = createClient(supabaseUrl!, supabaseAnonKey!, {
 	auth: {
