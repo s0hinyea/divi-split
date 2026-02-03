@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { useContacts } from '../utils/ContactsContext';
 import { useReceipt, ReceiptItem } from '../utils/ReceiptContext';
 import { styles } from '../styles/reviewCss';
+import { Config } from '@/constants/Config';
 
 export default function ReviewPage() {
   const router = useRouter();
@@ -20,7 +21,7 @@ export default function ReviewPage() {
       const tax = receiptData.tax || 0;
       const tip = receiptData.tip || 0;
       const grandTotal = subtotal + tax + tip;
-      updateReceiptData({...receiptData, total: grandTotal })
+      updateReceiptData({ ...receiptData, total: grandTotal })
     }
   }, [receiptData.items, receiptData.tax, receiptData.tip, selected]);
 
@@ -38,22 +39,22 @@ export default function ReviewPage() {
 
     // Calculate tax percentage
     const taxPercentage = receiptData.tax / subtotal;
-    
+
     // Calculate individual tax amounts
     const individualTaxes: { [key: string]: number } = {};
-    
+
     // Calculate tax for each contact
     selected.forEach(contact => {
       const contactMealTotal = calculateTotal(contact.items as ReceiptItem[]);
       individualTaxes[contact.id] = contactMealTotal * taxPercentage;
     });
-    
+
     // Calculate tax for user items
     if (receiptData.userItems && receiptData.userItems.length > 0) {
       const userMealTotal = calculateTotal(receiptData.userItems as ReceiptItem[]);
       individualTaxes['user'] = userMealTotal * taxPercentage;
     }
-    
+
     return { taxPercentage, individualTaxes };
   };
 
@@ -74,20 +75,20 @@ export default function ReviewPage() {
 
     // Split tip evenly among all people
     const tipPerPerson = receiptData.tip / totalPeople;
-    
+
     // Calculate individual tip amounts
     const individualTips: { [key: string]: number } = {};
-    
+
     // Assign tip for each contact
     selected.forEach(contact => {
       individualTips[contact.id] = tipPerPerson;
     });
-    
+
     // Assign tip for user if they have items
     if (receiptData.userItems && receiptData.userItems.length > 0) {
       individualTips['user'] = tipPerPerson;
     }
-    
+
     return { tipPerPerson, individualTips };
   };
 
@@ -97,7 +98,7 @@ export default function ReviewPage() {
   // SMS sending function
   const sendSmsToContacts = async () => {
     setSendingSms(true);
-    
+
     try {
       // Format contact data for backend
       const contactsData = selected.map(contact => {
@@ -105,14 +106,14 @@ export default function ReviewPage() {
         const contactTax = individualTaxes[contact.id] || 0;
         const contactTip = individualTips[contact.id] || 0;
         const contactTotal = contactMealTotal + contactTax + contactTip;
-        
+
         return {
           phoneNumber: contact.phoneNumber,
           total: contactTotal
         };
       });
 
-      const response = await fetch("https://divi-backend-7bfd.onrender.com/sms", {
+      const response = await fetch(`${Config.BACKEND_URL}/sms`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -128,7 +129,7 @@ export default function ReviewPage() {
 
       Alert.alert('Success', 'SMS sent to all contacts!');
       proceedToNextScreen();
-      
+
     } catch (error) {
       console.error('SMS Error:', error);
       Alert.alert('Error', 'Failed to send SMS. Please try again.');
@@ -149,7 +150,7 @@ export default function ReviewPage() {
   // Updated handleFinish to show modal
   const handleFinish = () => {
     saveReceipt("Trial");
-    
+
     if (selected.length > 0) {
       setShowSmsModal(true);
     } else {
@@ -169,7 +170,7 @@ export default function ReviewPage() {
           const contactTax = individualTaxes[contact.id] || 0;
           const contactTip = individualTips[contact.id] || 0;
           const contactTotal = contactMealTotal + contactTax + contactTip;
-          
+
           return (
             <View key={contact.id} style={styles.contactSection}>
               <Text style={styles.contactName}>{contact.name}</Text>
@@ -209,7 +210,7 @@ export default function ReviewPage() {
             const userTax = individualTaxes['user'] || 0;
             const userTip = individualTips['user'] || 0;
             const userTotal = userMealTotal + userTax + userTip;
-            
+
             return (
               <View style={styles.contactSection}>
                 <Text style={styles.contactName}>You</Text>
@@ -247,7 +248,7 @@ export default function ReviewPage() {
         {/* Show final total calculation */}
         {(() => {
           const allMealItems = 'items' in receiptData ? receiptData.items : [];
-          
+
           return (
             <View style={styles.contactSection}>
               <Text style={styles.contactName}> Total</Text>
@@ -271,9 +272,9 @@ export default function ReviewPage() {
               </View>
               <View style={styles.totalRow}>
                 <Text style={styles.totalLabel}>Grand Total:</Text>
-                                  <Text style={styles.totalAmount}>
-                    ${receiptData.total ? receiptData.total.toFixed(2) : '0.00'}
-                  </Text>
+                <Text style={styles.totalAmount}>
+                  ${receiptData.total ? receiptData.total.toFixed(2) : '0.00'}
+                </Text>
               </View>
             </View>
           );
@@ -281,7 +282,7 @@ export default function ReviewPage() {
       </ScrollView>
 
       <View style={styles.footer}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.finishButton}
           onPress={handleFinish}
           disabled={sendingSms}
@@ -299,32 +300,32 @@ export default function ReviewPage() {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContainer}>
-                         <Text style={styles.modalTitle}>Do you want to send SMS to receipients?</Text>
-            
+            <Text style={styles.modalTitle}>Do you want to send SMS to receipients?</Text>
+
             {sendingSms ? (
               <View style={styles.loadingContainer}>
                 <ActivityIndicator size="large" color="#007AFF" />
                 <Text style={styles.loadingText}>Sending SMS...</Text>
               </View>
             ) : (
-                             <View style={styles.modalButtonContainer}>
-                 <TouchableOpacity 
-                   style={[styles.modalButton, styles.modalButtonPrimary]}
-                   onPress={sendSmsToContacts}
-                 >
-                   <Text style={styles.modalButtonPrimaryText}>Yes</Text>
-                 </TouchableOpacity>
-                 
-                 <TouchableOpacity 
-                   style={[styles.modalButton, styles.modalButtonSecondary]}
-                   onPress={() => {
-                     setShowSmsModal(false);
-                     proceedToNextScreen();
-                   }}
-                 >
-                   <Text style={styles.modalButtonSecondaryText}>No</Text>
-                 </TouchableOpacity>
-               </View>
+              <View style={styles.modalButtonContainer}>
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.modalButtonPrimary]}
+                  onPress={sendSmsToContacts}
+                >
+                  <Text style={styles.modalButtonPrimaryText}>Yes</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.modalButtonSecondary]}
+                  onPress={() => {
+                    setShowSmsModal(false);
+                    proceedToNextScreen();
+                  }}
+                >
+                  <Text style={styles.modalButtonSecondaryText}>No</Text>
+                </TouchableOpacity>
+              </View>
             )}
           </View>
         </View>

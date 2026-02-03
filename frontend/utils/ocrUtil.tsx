@@ -1,18 +1,20 @@
-import { useRouter } from "expo-router";
 import { Alert } from "react-native";
 import { useReceipt, OCRResponse } from "./ReceiptContext";
 import { useOCR } from "@/utils/OCRContext";
+import { Router } from "expo-router";
+
+import { Config } from "@/constants/Config";
 
 // The URL can be changed based on environment
-const API_URL = "https://divi-backend-7bfd.onrender.com/ocr";
+const API_URL = `${Config.BACKEND_URL}/ocr-vision`;
 
 export const handleOCR = async (
 	base64DataUrl: string,
 	updateReceiptData: (data: OCRResponse) => void,
-	setIsProcessing: (val: boolean) => void
+	setIsProcessing: (val: boolean) => void,
+	router: Router // Now passed in from the calling component
 ) => {
-	const router = useRouter();
-	
+
 	try {
 		setIsProcessing(true);
 		router.push("/contacts")
@@ -25,7 +27,7 @@ export const handleOCR = async (
 		console.log("Image sent for OCR processing");
 		const extractedData = await data.json();
 
-		if ("text" in extractedData) {
+		if ("items" in extractedData) {
 			setIsProcessing(false);
 			// Update the context with the new data
 			updateReceiptData(extractedData);

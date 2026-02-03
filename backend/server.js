@@ -18,7 +18,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Allow frontend requests from any domain (important!)
-app.use(cors()); 
+app.use(cors());  
 
 // Parse incoming JSON with large image payloads
 app.use(express.json({ limit: '10mb' }));
@@ -72,7 +72,7 @@ function parseReceiptText(text) {
   return { items, tax };
 }
 
-// 👇 OCR endpoint
+// OCR endpoint
 app.post('/ocr', async (req, res) => {
   console.log("Start process");
   const { image } = req.body;

@@ -9,6 +9,7 @@ frontend/.expo/
 frontend/dist/
 frontend/web-build/
 frontend/expo-env.d.ts
+frontend/.env
 
 # Native
 *.orig.*

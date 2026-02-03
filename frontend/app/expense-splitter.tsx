@@ -116,8 +116,8 @@ export default function MainPage() {
       <View style={styles.body}>
         <ScrollView style={styles.scrollContainer}>
           {pastReceipts.map((receipt) => (
-            <TouchableOpacity 
-              key={receipt.id} 
+            <TouchableOpacity
+              key={receipt.id}
               style={styles.receiptCard}
               onPress={() => setShowReceiptsModal(true)}
             >
@@ -286,7 +286,8 @@ export default function MainPage() {
                       await handleOCR(
                         ocrTest,
                         updateReceiptData,
-                        setIsProcessing
+                        setIsProcessing,
+                        router
                       );
                     }, 150);
                   }}
@@ -301,7 +302,7 @@ export default function MainPage() {
 
         {/* Receipt Details Modal */}
         <Modal
-          animationType="fade"y  
+          animationType="fade"
           transparent={true}
           visible={showReceiptsModal}
           onRequestClose={() => setShowReceiptsModal(false)}
@@ -310,21 +311,21 @@ export default function MainPage() {
             <View style={styles.receiptModalContainer}>
               <View style={styles.receiptModalHeader}>
                 <Text style={styles.receiptModalTitle}>Receipt Details</Text>
-                <TouchableOpacity 
+                <TouchableOpacity
                   onPress={() => setShowReceiptsModal(false)}
                   style={styles.closeButton}
                 >
                   <Icon source="close" size={24} color="#333" />
                 </TouchableOpacity>
               </View>
-              
+
               <ScrollView style={styles.receiptModalContent}>
                 <Text style={styles.placeholder}>
                   Receipt details will be loaded here...
                 </Text>
                 {/* Receipt details will be populated here later */}
               </ScrollView>
-              
+
               <View style={styles.receiptModalFooter}>
                 <TouchableOpacity style={styles.resendButton}>
                   <Text style={styles.resendButtonText}>Resend SMS</Text>

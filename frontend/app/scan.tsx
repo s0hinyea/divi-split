@@ -9,7 +9,7 @@ import { useReceipt } from '../utils/ReceiptContext';
 import { useOCR } from '../utils/OCRContext';
 
 type OCRResponse = {
-  text: string; 
+  text: string;
 } | {
   error?: string;
 };
@@ -18,7 +18,7 @@ export default function Scan() {
   const router = useRouter();
   const [loading, setLoading] = useState<boolean>(false);
   const cameraActive = useRef<boolean>(false);
-  const { updateReceiptData } = useReceipt(); 
+  const { updateReceiptData } = useReceipt();
   const { setIsProcessing } = useOCR();
 
   const openCamera = async () => {
@@ -26,7 +26,7 @@ export default function Scan() {
       console.log("Camera already active, skipping");
       return;
     }
-    
+
     console.log("Opening camera...");
     cameraActive.current = true;
 
@@ -34,10 +34,10 @@ export default function Scan() {
       const permissionRes = await ImagePicker.requestCameraPermissionsAsync();
       if (!permissionRes.granted) {
         Alert.alert("Camera permission required to scan receipts");
-        cameraActive.current = false;  
-        router.back();  
+        cameraActive.current = false;
+        router.back();
         return;
-      } 
+      }
 
       const res = await ImagePicker.launchCameraAsync({
         quality: 0.8,
@@ -54,9 +54,9 @@ export default function Scan() {
       const asset = res.assets[0];
       const base64DataUrl = `data:image/jpeg;base64,${asset.base64}`;
       console.log("Photo taken successfully");
-      
+
       setLoading(true);
-      await handleOCR(base64DataUrl, updateReceiptData, setIsProcessing);
+      await handleOCR(base64DataUrl, updateReceiptData, setIsProcessing, router);
       setLoading(false);
     } catch (error) {
       console.error("Camera error:", error);
@@ -72,11 +72,11 @@ export default function Scan() {
   useFocusEffect(
     useCallback(() => {
       console.log("Screen focused, camera active:", cameraActive.current);
-      
+
       const timer = setTimeout(() => {
         openCamera();
       }, 1000);
-      
+
       return () => {
         clearTimeout(timer);
         console.log("Screen unfocused, resetting camera state");

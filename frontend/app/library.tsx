@@ -9,11 +9,11 @@ import { useReceipt } from '../utils/ReceiptContext';
 import { useOCR } from '../utils/OCRContext';
 
 
-export default function PickPhoto() {  
+export default function PickPhoto() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const galleryActive = useRef<boolean>(false);
-  const { updateReceiptData } = useReceipt(); 
+  const { updateReceiptData } = useReceipt();
   const { setIsProcessing } = useOCR();
 
 
@@ -22,9 +22,9 @@ export default function PickPhoto() {
       console.log("Gallery picker already active, skipping");
       return;
     }
-    
+
     galleryActive.current = true;
-    
+
     try {
       const permissionRes = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!permissionRes.granted) {
@@ -32,7 +32,7 @@ export default function PickPhoto() {
         router.back();
         return;
       }
-      
+
       const res = await ImagePicker.launchImageLibraryAsync({
         quality: 0.8,
         allowsEditing: false,
@@ -48,9 +48,9 @@ export default function PickPhoto() {
       const asset = res.assets[0];
       const base64DataUrl = `data:image/jpeg;base64,${asset.base64}`;
       console.log("Image selected successfully");
-      
+
       setLoading(true);
-      await handleOCR(base64DataUrl, updateReceiptData, setIsProcessing);
+      await handleOCR(base64DataUrl, updateReceiptData, setIsProcessing, router);
       setLoading(false);
     } catch (error) {
       console.error("Gallery picker error:", error);
@@ -77,11 +77,11 @@ export default function PickPhoto() {
   );
 
   return (
-    <View style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}>
+    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
       {loading ? (
         <>
           <ActivityIndicator size="large" color="blue" />
-          <Text>Processing...</Text>  
+          <Text>Processing...</Text>
         </>
       ) : (
         <Text> </Text>
