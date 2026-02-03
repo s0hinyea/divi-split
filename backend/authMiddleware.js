@@ -19,6 +19,10 @@ export const verifyAuth = (req, res, next) => {
     const token = authHeader.split(' ')[1];
 
     try {
+        // Debug: Decode header to see what algorithm the token uses
+        const decoded = jwt.decode(token, { complete: true });
+        console.log('[Auth Debug] Token algorithm:', decoded?.header?.alg);
+
         // Supabase uses HS256 algorithm for JWTs
         const decodedToken = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] });
 
