@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { supabase } from '../lib/supabase';
-import  { useContacts } from '../utils/ContactsContext'
+import { useContacts } from '../utils/ContactsContext'
 
 // Define our types
 export type ReceiptItem = {
@@ -37,7 +37,7 @@ const ReceiptContext = createContext<ReceiptContextType | undefined>(undefined);
 // Create a provider component
 export function ReceiptProvider({ children }: { children: ReactNode }) {
   // Initialize state with empty data
-  const [receiptData, setReceiptData] = useState<OCRResponse>({ text: '', items: [], tax: 0, total: 0, tip: 0});
+  const [receiptData, setReceiptData] = useState<OCRResponse>({ text: '', items: [], tax: 0, total: 0, tip: 0 });
   const { selected } = useContacts();
 
   // Function to update the entire receipt data
@@ -87,72 +87,45 @@ export function ReceiptProvider({ children }: { children: ReactNode }) {
 
   const saveReceipt = async (receiptName: string) => {
     try {
-      // Get current user
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
+      // Get auth token
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
 
-      // Save main receipt
-      const { data: receipt, error: receiptError } = await supabase
-        .from('receipts')
-        .insert({
-          user_id: user.id,
-          receipt_name: receiptName,
-          total_amount: 'total' in receiptData ? receiptData.total : 0,
-          tax_amount: 'tax' in receiptData ? receiptData.tax : 0,
-          tip_amount: 'tip' in receiptData ? receiptData.tip : 0,
-        })
-        .select()
-        .single();
+      if (!token) {
+        console.error('No auth token available');
+        return false;
+      }
 
-      if (receiptError) throw receiptError;
-
-      const receiptItems = receiptData.items.map((item) => ({
-        receipt_id: receipt.id,
-        item_name: item.name,
-        item_price: item.price,
-        item_id: item.id
+      // Prepare contacts with their assigned items
+      const contactsData = selected.map(contact => ({
+        id: contact.id,
+        name: contact.name,
+        phoneNumber: contact.phoneNumber,
+        items: contact.items  // Items assigned to this contact
       }));
 
-      const { data: insertedItems, error: itemsError } = await supabase
-      .from('receipt_items')
-      .insert(receiptItems)
-      .select();
-
-      if (itemsError) throw itemsError;
-
-      const selectedContacts = selected.map((contact) => ({
-        user_id: user.id,
-        contact_name: contact.name,
-        phone_number: contact.phoneNumber,
-        contact_id: contact.id
-      }))
-
-      const { data: insertedContacts, error: contactsError } = await supabase
-        .from('contacts')
-        .insert(selectedContacts)
-        .select();
-
-      if (contactsError) throw contactsError;
-
-      const assigningItems = selected.flatMap((contact) =>
-        contact.items.map((item) => {
-          // Find the actual database IDs
-          const dbItem = insertedItems?.find(dbItem => dbItem.item_id === item.id);
-          const dbContact = insertedContacts?.find(dbContact => dbContact.contact_id === contact.id);
-          
-          return {
-            item_id: dbItem?.id,      // Use database primary key
-            contact_id: dbContact?.id // Use database primary key
-          };
+      // Call backend API
+      const response = await fetch('https://divi-backend-7bfd.onrender.com/receipts', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          receipt_name: receiptName,
+          items: receiptData.items,
+          contacts: contactsData,
+          tax: receiptData.tax || 0,
+          tip: receiptData.tip || 0,
+          total: receiptData.total || 0
         })
-      );
+      });
 
-      const { error: assignmentError } = await supabase
-        .from('assignments')
-        .insert(assigningItems);
+      if (!response.ok) {
+        throw new Error('Failed to save receipt');
+      }
 
-      if (assignmentError) throw assignmentError;
-
+      console.log('Receipt saved successfully via backend');
       return true;
     } catch (error) {
       console.error('Save receipt error:', error);

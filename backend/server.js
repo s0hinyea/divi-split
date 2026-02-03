@@ -300,11 +300,11 @@ app.get('/receipts', verifyAuth, async (req, res) => {
   }
 });
 
-// POST /receipts - Save a new receipt with items
+// POST /receipts - Save a complete receipt with items, contacts, and assignments
 app.post('/receipts', verifyAuth, async (req, res) => {
   try {
     const userId = req.user.sub;
-    const { receipt_name, items, tax, tip, total } = req.body;
+    const { receipt_name, items, contacts, tax, tip, total } = req.body;
 
     console.log('[Receipts] Saving new receipt for user:', userId);
 
@@ -322,24 +322,74 @@ app.post('/receipts', verifyAuth, async (req, res) => {
       .single();
 
     if (receiptError) throw receiptError;
+    console.log('[Receipts] Created receipt:', receipt.id);
 
     // 2. Insert receipt items
+    let insertedItems = [];
     if (items && items.length > 0) {
       const itemsToInsert = items.map(item => ({
         receipt_id: receipt.id,
         item_name: item.name,
         item_price: item.price,
-        item_id: item.id
+        item_id: item.id  // Original frontend ID for mapping
       }));
 
-      const { error: itemsError } = await supabase
+      const { data: itemsData, error: itemsError } = await supabase
         .from('receipt_items')
-        .insert(itemsToInsert);
+        .insert(itemsToInsert)
+        .select();
 
       if (itemsError) throw itemsError;
+      insertedItems = itemsData || [];
+      console.log('[Receipts] Inserted', insertedItems.length, 'items');
     }
 
-    console.log('[Receipts] Successfully saved receipt:', receipt.id);
+    // 3. Insert contacts and create assignments
+    if (contacts && contacts.length > 0) {
+      for (const contact of contacts) {
+        // Insert or update contact
+        const { data: insertedContact, error: contactError } = await supabase
+          .from('contacts')
+          .insert({
+            user_id: userId,
+            contact_name: contact.name,
+            phone_number: contact.phoneNumber,
+            contact_id: contact.id  // Original frontend ID
+          })
+          .select()
+          .single();
+
+        if (contactError) {
+          console.error('[Receipts] Contact insert error:', contactError.message);
+          continue; // Skip this contact but continue with others
+        }
+
+        // Create assignments for items assigned to this contact
+        if (contact.items && contact.items.length > 0) {
+          const assignments = contact.items.map(item => {
+            // Find the database ID for this item
+            const dbItem = insertedItems.find(i => i.item_id === item.id);
+            return {
+              item_id: dbItem?.id,
+              contact_id: insertedContact.id
+            };
+          }).filter(a => a.item_id); // Only include valid assignments
+
+          if (assignments.length > 0) {
+            const { error: assignmentError } = await supabase
+              .from('assignments')
+              .insert(assignments);
+
+            if (assignmentError) {
+              console.error('[Receipts] Assignment error:', assignmentError.message);
+            }
+          }
+        }
+      }
+      console.log('[Receipts] Processed', contacts.length, 'contacts');
+    }
+
+    console.log('[Receipts] Successfully saved complete receipt:', receipt.id);
     res.json({ success: true, receipt });
 
   } catch (error) {
