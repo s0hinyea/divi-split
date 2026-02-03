@@ -1,12 +1,28 @@
 import jwt from "jsonwebtoken";
+import jwksClient from "jwks-rsa";
 
-const JWT_SECRET = process.env.SUPABASE_JWT_SECRET;
+// JWKS client to fetch public keys from Supabase
+const client = jwksClient({
+    jwksUri: `${process.env.SUPABASE_URL}/auth/v1/.well-known/jwks.json`,
+    cache: true,
+    rateLimit: true,
+    jwksRequestsPerMinute: 5
+});
 
-// Debug: Log if secret exists (not the actual value!)
-console.log('[Auth] JWT_SECRET loaded:', !!JWT_SECRET, 'Length:', JWT_SECRET?.length);
+// Function to get the signing key
+const getKey = (header, callback) => {
+    client.getSigningKey(header.kid, (err, key) => {
+        if (err) {
+            console.error('[Auth] Error fetching signing key:', err.message);
+            callback(err, null);
+        } else {
+            const signingKey = key.getPublicKey();
+            callback(null, signingKey);
+        }
+    });
+};
 
 export const verifyAuth = (req, res, next) => {
-
     const authHeader = req.headers.authorization;
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -18,22 +34,17 @@ export const verifyAuth = (req, res, next) => {
 
     const token = authHeader.split(' ')[1];
 
-    try {
-        // Debug: Decode header to see what algorithm the token uses
-        const decoded = jwt.decode(token, { complete: true });
-        console.log('[Auth Debug] Token algorithm:', decoded?.header?.alg);
+    // Verify using ES256 with public key from JWKS
+    jwt.verify(token, getKey, { algorithms: ['ES256'] }, (err, decoded) => {
+        if (err) {
+            console.error('[Auth] JWT Verification Failed:', err.message);
+            return res.status(401).json({
+                error: 'Unauthorized',
+                message: 'Invalid or expired token'
+            });
+        }
 
-        // Supabase uses HS256 algorithm for JWTs
-        const decodedToken = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] });
-
-        req.user = decodedToken;
-
+        req.user = decoded;
         next();
-    } catch (error) {
-        console.error('JWT Verification Failed:', error.message);
-        return res.status(401).json({
-            error: 'Unauthorized',
-            message: 'Invalid token'
-        });
-    }
+    });
 };
