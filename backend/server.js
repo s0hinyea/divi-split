@@ -278,13 +278,15 @@ app.post('/sms', verifyAuth, async (req, res) => {
 // 📋 RECEIPTS ENDPOINTS
 // ============================================
 
-// GET /receipts - Fetch user's receipts with items
+// GET /receipts - Fetch user's receipts with items (supports pagination)
 app.get('/receipts', verifyAuth, async (req, res) => {
   try {
     const userId = req.user.sub; // User ID from JWT
+    const limit = parseInt(req.query.limit) || 10;
+    const offset = parseInt(req.query.offset) || 0;
 
-    // Fetch receipts for this user, newest first
-    const { data: receipts, error } = await supabase
+    // Fetch receipts for this user, newest first, with pagination
+    const { data: receipts, error, count } = await supabase
       .from('receipts')
       .select(`
         id,
@@ -298,19 +300,64 @@ app.get('/receipts', verifyAuth, async (req, res) => {
           item_name,
           item_price
         )
-      `)
+      `, { count: 'exact' })
       .eq('user_id', userId)
       .order('created_at', { ascending: false })
-      .limit(10);
+      .range(offset, offset + limit - 1);
 
     if (error) throw error;
 
-    console.log(`[Receipts] Fetched ${receipts.length} receipts for user`);
-    res.json({ receipts });
+    console.log(`[Receipts] Fetched ${receipts.length} receipts for user (offset: ${offset})`);
+    res.json({
+      receipts,
+      total: count,
+      hasMore: offset + receipts.length < count
+    });
 
   } catch (error) {
     console.error('[Receipts] Fetch error:', error.message);
     res.status(500).json({ error: 'Failed to fetch receipts', details: error.message });
+  }
+});
+
+// DELETE /receipts/:id - Delete a receipt (cascades to items via FK)
+app.delete('/receipts/:id', verifyAuth, async (req, res) => {
+  try {
+    const userId = req.user.sub;
+    const receiptId = req.params.id;
+
+    // First verify this receipt belongs to the user
+    const { data: receipt, error: fetchError } = await supabase
+      .from('receipts')
+      .select('id')
+      .eq('id', receiptId)
+      .eq('user_id', userId)
+      .single();
+
+    if (fetchError || !receipt) {
+      return res.status(404).json({ error: 'Receipt not found or unauthorized' });
+    }
+
+    // Delete associated items first (if no cascade)
+    await supabase
+      .from('receipt_items')
+      .delete()
+      .eq('receipt_id', receiptId);
+
+    // Delete the receipt
+    const { error: deleteError } = await supabase
+      .from('receipts')
+      .delete()
+      .eq('id', receiptId);
+
+    if (deleteError) throw deleteError;
+
+    console.log(`[Receipts] Deleted receipt ${receiptId}`);
+    res.json({ success: true, message: 'Receipt deleted' });
+
+  } catch (error) {
+    console.error('[Receipts] Delete error:', error.message);
+    res.status(500).json({ error: 'Failed to delete receipt', details: error.message });
   }
 });
 

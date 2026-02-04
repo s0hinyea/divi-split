@@ -43,14 +43,26 @@ export default function MainPage() {
   // Real receipts from backend
   const [pastReceipts, setPastReceipts] = useState<Receipt[]>([]);
   const [loadingReceipts, setLoadingReceipts] = useState(true);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+
+  // Selected receipt for modal
+  const [selectedReceipt, setSelectedReceipt] = useState<Receipt | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   // Fetch receipts on mount
   useEffect(() => {
     fetchReceipts();
   }, []);
 
-  const fetchReceipts = async () => {
+  const fetchReceipts = async (loadMore = false) => {
     try {
+      if (loadMore) {
+        setLoadingMore(true);
+      } else {
+        setLoadingReceipts(true);
+      }
+
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
 
@@ -59,7 +71,8 @@ export default function MainPage() {
         return;
       }
 
-      const response = await fetch(`${Config.BACKEND_URL}/receipts`, {
+      const offset = loadMore ? pastReceipts.length : 0;
+      const response = await fetch(`${Config.BACKEND_URL}/receipts?limit=5&offset=${offset}`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -68,12 +81,47 @@ export default function MainPage() {
 
       if (response.ok) {
         const data = await response.json();
-        setPastReceipts(data.receipts || []);
+        if (loadMore) {
+          setPastReceipts(prev => [...prev, ...(data.receipts || [])]);
+        } else {
+          setPastReceipts(data.receipts || []);
+        }
+        setHasMore(data.hasMore || false);
       }
     } catch (error) {
       console.error('Error fetching receipts:', error);
     } finally {
       setLoadingReceipts(false);
+      setLoadingMore(false);
+    }
+  };
+
+  // Delete a receipt
+  const deleteReceipt = async (receiptId: string) => {
+    try {
+      setDeleting(true);
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+
+      if (!token) return;
+
+      const response = await fetch(`${Config.BACKEND_URL}/receipts/${receiptId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        // Remove from local state
+        setPastReceipts(prev => prev.filter(r => r.id !== receiptId));
+        setShowReceiptsModal(false);
+        setSelectedReceipt(null);
+      }
+    } catch (error) {
+      console.error('Error deleting receipt:', error);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -158,23 +206,45 @@ export default function MainPage() {
           ) : pastReceipts.length === 0 ? (
             <Text style={styles.receiptDate}>No receipts yet. Scan one to get started!</Text>
           ) : (
-            pastReceipts.map((receipt) => (
-              <TouchableOpacity
-                key={receipt.id}
-                style={styles.receiptCard}
-                onPress={() => setShowReceiptsModal(true)}
-              >
-                <View style={styles.receiptInfo}>
-                  <Text style={styles.receiptName}>{receipt.receipt_name}</Text>
-                  <Text style={styles.receiptDate}>
-                    {new Date(receipt.created_at).toLocaleDateString()}
+            <>
+              {pastReceipts.map((receipt) => (
+                <TouchableOpacity
+                  key={receipt.id}
+                  style={styles.receiptCard}
+                  onPress={() => {
+                    setSelectedReceipt(receipt);
+                    setShowReceiptsModal(true);
+                  }}
+                >
+                  <View style={styles.receiptInfo}>
+                    <Text style={styles.receiptName}>{receipt.receipt_name}</Text>
+                    <Text style={styles.receiptDate}>
+                      {new Date(receipt.created_at).toLocaleDateString()}
+                    </Text>
+                  </View>
+                  <Text style={styles.receiptTotal}>
+                    ${(receipt.total_amount || 0).toFixed(2)}
                   </Text>
-                </View>
-                <Text style={styles.receiptTotal}>
-                  ${(receipt.total_amount || 0).toFixed(2)}
-                </Text>
-              </TouchableOpacity>
-            ))
+                </TouchableOpacity>
+              ))}
+
+              {/* Load More Button */}
+              {hasMore && (
+                <TouchableOpacity
+                  style={{
+                    padding: 12,
+                    alignItems: 'center',
+                    marginVertical: 8,
+                  }}
+                  onPress={() => fetchReceipts(true)}
+                  disabled={loadingMore}
+                >
+                  <Text style={{ color: '#007AFF', fontSize: 16 }}>
+                    {loadingMore ? 'Loading...' : 'Load More'}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </>
           )}
         </ScrollView>
       </View>
@@ -353,14 +423,22 @@ export default function MainPage() {
           animationType="fade"
           transparent={true}
           visible={showReceiptsModal}
-          onRequestClose={() => setShowReceiptsModal(false)}
+          onRequestClose={() => {
+            setShowReceiptsModal(false);
+            setSelectedReceipt(null);
+          }}
         >
           <BlurView intensity={50} style={styles.receiptModalOverlay}>
             <View style={styles.receiptModalContainer}>
               <View style={styles.receiptModalHeader}>
-                <Text style={styles.receiptModalTitle}>Receipt Details</Text>
+                <Text style={styles.receiptModalTitle}>
+                  {selectedReceipt?.receipt_name || 'Receipt Details'}
+                </Text>
                 <TouchableOpacity
-                  onPress={() => setShowReceiptsModal(false)}
+                  onPress={() => {
+                    setShowReceiptsModal(false);
+                    setSelectedReceipt(null);
+                  }}
                   style={styles.closeButton}
                 >
                   <Icon source="close" size={24} color="#333" />
@@ -368,15 +446,68 @@ export default function MainPage() {
               </View>
 
               <ScrollView style={styles.receiptModalContent}>
-                <Text style={styles.placeholder}>
-                  Receipt details will be loaded here...
-                </Text>
-                {/* Receipt details will be populated here later */}
+                {selectedReceipt && (
+                  <>
+                    <Text style={{ fontSize: 14, color: '#666', marginBottom: 12 }}>
+                      {new Date(selectedReceipt.created_at).toLocaleDateString('en-US', {
+                        weekday: 'long',
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                      })}
+                    </Text>
+
+                    {selectedReceipt.receipt_items?.map((item) => (
+                      <View key={item.id} style={{
+                        flexDirection: 'row',
+                        justifyContent: 'space-between',
+                        paddingVertical: 8,
+                        borderBottomWidth: 1,
+                        borderBottomColor: '#eee'
+                      }}>
+                        <Text style={{ fontSize: 16 }}>{item.item_name}</Text>
+                        <Text style={{ fontSize: 16, color: '#333' }}>
+                          ${item.item_price.toFixed(2)}
+                        </Text>
+                      </View>
+                    ))}
+
+                    <View style={{
+                      flexDirection: 'row',
+                      justifyContent: 'space-between',
+                      paddingTop: 12,
+                      marginTop: 8,
+                      borderTopWidth: 2,
+                      borderTopColor: '#333'
+                    }}>
+                      <Text style={{ fontSize: 18, fontWeight: 'bold' }}>Total</Text>
+                      <Text style={{ fontSize: 18, fontWeight: 'bold' }}>
+                        ${(selectedReceipt.total_amount || 0).toFixed(2)}
+                      </Text>
+                    </View>
+                  </>
+                )}
               </ScrollView>
 
               <View style={styles.receiptModalFooter}>
-                <TouchableOpacity style={styles.resendButton}>
-                  <Text style={styles.resendButtonText}>Resend SMS</Text>
+                <TouchableOpacity
+                  style={{
+                    backgroundColor: '#ff4444',
+                    padding: 12,
+                    borderRadius: 8,
+                    alignItems: 'center',
+                    flex: 1
+                  }}
+                  onPress={() => {
+                    if (selectedReceipt) {
+                      deleteReceipt(selectedReceipt.id);
+                    }
+                  }}
+                  disabled={deleting}
+                >
+                  <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>
+                    {deleting ? 'Deleting...' : 'Delete Receipt'}
+                  </Text>
                 </TouchableOpacity>
               </View>
             </View>
