@@ -142,18 +142,21 @@ app.post('/ocr-vision', verifyAuth, async (req, res) => {
 CRITICAL REQUIREMENTS:
 - Return valid JSON only
 - For prices: Use only numbers (e.g., 12.99, not $12.99)
-- For names: Clean text, remove extra characters
+- For names: Clean text, remove extra characters and quantity prefixes
+- For quantity: Extract the number of items if shown (e.g., "2 Burgers" = quantity 2)
 - For tax: Single number representing total tax amount
+- If quantity not specified, default to 1
+- Price should be the LINE TOTAL (e.g., "2 Burgers $20.00" means price: 20.00, quantity: 2)
 - If information is unclear, make best estimate
 
 RESPONSE FORMAT:
 {
   "items": [
-    {"id": "unique-id", "name": "Item Name", "price": 12.99}
+    {"id": "unique-id", "name": "Item Name", "price": 20.00, "quantity": 2}
   ],
   "tax": 2.50,
   "tip": 0,
-  "total": 15.49
+  "total": 22.50
 }`
         },
         {
@@ -187,17 +190,28 @@ RESPONSE FORMAT:
       throw new Error('Invalid response format: missing items array');
     }
 
-    // Ensure all items have required fields and generate IDs if missing
-    const validatedItems = result.items.map((item, index) => ({
-      id: item.id || uuidv4(),
-      name: item.name || `Item ${index + 1}`,
-      price: typeof item.price === 'number' ? item.price : 0
-    }));
+    // Expand items based on quantity (e.g., "2 Burgers $20" becomes 2x "Burger $10")
+    const expandedItems = [];
+    result.items.forEach((item, index) => {
+      const quantity = typeof item.quantity === 'number' && item.quantity > 0 ? item.quantity : 1;
+      const lineTotal = typeof item.price === 'number' ? item.price : 0;
+      const unitPrice = quantity > 1 ? lineTotal / quantity : lineTotal;
+      const itemName = item.name || `Item ${index + 1}`;
 
-    console.log('[OpenAI Vision] Successfully parsed receipt');
+      // Create individual items for each quantity
+      for (let i = 0; i < quantity; i++) {
+        expandedItems.push({
+          id: uuidv4(), // Each gets unique ID
+          name: itemName,
+          price: Math.round(unitPrice * 100) / 100 // Round to 2 decimal places
+        });
+      }
+    });
+
+    console.log('[OpenAI Vision] Successfully parsed receipt with', expandedItems.length, 'items');
 
     res.json({
-      items: validatedItems,
+      items: expandedItems,
       tax: result.tax || 0,
       tip: result.tip || 0,
       total: result.total || 0,
