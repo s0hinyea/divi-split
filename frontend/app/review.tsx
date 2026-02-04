@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Modal, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Modal, Alert, ActivityIndicator, TextInput, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useContacts } from '../utils/ContactsContext';
 import { useReceipt, ReceiptItem } from '../utils/ReceiptContext';
 import { styles } from '../styles/reviewCss';
 import { Config } from '@/constants/Config';
 import { supabase } from '@/lib/supabase';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 export default function ReviewPage() {
   const router = useRouter();
@@ -14,6 +15,11 @@ export default function ReviewPage() {
   // Modal and SMS states
   const [showSmsModal, setShowSmsModal] = useState(false);
   const [sendingSms, setSendingSms] = useState(false);
+
+  // Receipt name and date states
+  const [receiptName, setReceiptName] = useState('');
+  const [receiptDate, setReceiptDate] = useState(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   useEffect(() => {
     if ('items' in receiptData) {
@@ -153,9 +159,18 @@ export default function ReviewPage() {
     router.push('/expense-splitter');
   };
 
+  // Handle date picker change
+  const onDateChange = (event: any, selectedDate?: Date) => {
+    setShowDatePicker(Platform.OS === 'ios'); // Keep open on iOS, close on Android
+    if (selectedDate) {
+      setReceiptDate(selectedDate);
+    }
+  };
   // Handle finish - save receipt via ReceiptContext (which calls backend)
   const handleFinish = async () => {
-    await saveReceipt(`Split - ${new Date().toLocaleDateString()}`);
+    // Use custom name or default
+    const name = receiptName.trim() || `Split - ${receiptDate.toLocaleDateString()}`;
+    await saveReceipt(name, receiptDate);
 
     if (selected.length > 0) {
       setShowSmsModal(true);
@@ -168,6 +183,54 @@ export default function ReviewPage() {
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Review Assignments</Text>
+      </View>
+
+      {/* Receipt Name and Date Section */}
+      <View style={{ padding: 16, backgroundColor: '#f5f5f5', borderBottomWidth: 1, borderBottomColor: '#e0e0e0' }}>
+        <Text style={{ fontSize: 14, color: '#666', marginBottom: 4 }}>Receipt Name</Text>
+        <TextInput
+          style={{
+            backgroundColor: '#fff',
+            padding: 12,
+            borderRadius: 8,
+            borderWidth: 1,
+            borderColor: '#ddd',
+            fontSize: 16,
+            marginBottom: 12
+          }}
+          placeholder="e.g., Dinner at Joe's"
+          placeholderTextColor="#999"
+          value={receiptName}
+          onChangeText={setReceiptName}
+        />
+
+        <Text style={{ fontSize: 14, color: '#666', marginBottom: 4 }}>Receipt Date</Text>
+        <TouchableOpacity
+          style={{
+            backgroundColor: '#fff',
+            padding: 12,
+            borderRadius: 8,
+            borderWidth: 1,
+            borderColor: '#ddd',
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center'
+          }}
+          onPress={() => setShowDatePicker(true)}
+        >
+          <Text style={{ fontSize: 16 }}>{receiptDate.toLocaleDateString()}</Text>
+          <Text style={{ color: '#007AFF' }}>Change</Text>
+        </TouchableOpacity>
+
+        {showDatePicker && (
+          <DateTimePicker
+            value={receiptDate}
+            mode="date"
+            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+            onChange={onDateChange}
+            maximumDate={new Date()}
+          />
+        )}
       </View>
 
       <ScrollView style={styles.scrollView}>

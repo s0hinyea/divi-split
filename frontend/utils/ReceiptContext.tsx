@@ -27,7 +27,7 @@ type ReceiptContextType = {
   addItem: (item: ReceiptItem) => void;
   removeItem: (id: string) => void;
   setUserItems: (items: ReceiptItem[]) => void;
-  saveReceipt: (receiptName: string) => void;
+  saveReceipt: (receiptName: string, receiptDate?: Date) => void;
   calculateTotal: (items: any[]) => number;
 };
 
@@ -85,7 +85,7 @@ export function ReceiptProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const saveReceipt = async (receiptName: string) => {
+  const saveReceipt = async (receiptName: string, receiptDate?: Date) => {
     try {
       // Get auth token
       const { data: { session } } = await supabase.auth.getSession();
@@ -113,6 +113,7 @@ export function ReceiptProvider({ children }: { children: ReactNode }) {
         },
         body: JSON.stringify({
           receipt_name: receiptName,
+          receipt_date: receiptDate?.toISOString() || new Date().toISOString(),
           items: receiptData.items,
           contacts: contactsData,
           tax: receiptData.tax || 0,

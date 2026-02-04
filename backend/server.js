@@ -304,7 +304,7 @@ app.get('/receipts', verifyAuth, async (req, res) => {
 app.post('/receipts', verifyAuth, async (req, res) => {
   try {
     const userId = req.user.sub;
-    const { receipt_name, items, contacts, tax, tip, total } = req.body;
+    const { receipt_name, receipt_date, items, contacts, tax, tip, total } = req.body;
 
     console.log('[Receipts] Saving new receipt for user:', userId);
 
@@ -316,7 +316,8 @@ app.post('/receipts', verifyAuth, async (req, res) => {
         receipt_name: receipt_name || 'Untitled Receipt',
         total_amount: total || 0,
         tax_amount: tax || 0,
-        tip_amount: tip || 0
+        tip_amount: tip || 0,
+        created_at: receipt_date || new Date().toISOString()
       })
       .select()
       .single();
@@ -326,12 +327,14 @@ app.post('/receipts', verifyAuth, async (req, res) => {
 
     // 2. Insert receipt items
     let insertedItems = [];
+    let frontendToDbItemMap = {}; // Map frontend item.id -> database item.id
+
     if (items && items.length > 0) {
       const itemsToInsert = items.map(item => ({
         receipt_id: receipt.id,
         item_name: item.name,
-        item_price: item.price,
-        item_id: item.id  // Original frontend ID for mapping
+        item_price: item.price
+        // Note: NOT storing item_id - it's only needed temporarily for assignment mapping
       }));
 
       const { data: itemsData, error: itemsError } = await supabase
@@ -341,6 +344,14 @@ app.post('/receipts', verifyAuth, async (req, res) => {
 
       if (itemsError) throw itemsError;
       insertedItems = itemsData || [];
+
+      // Build a map from frontend ID to database ID (by matching order)
+      items.forEach((item, index) => {
+        if (insertedItems[index]) {
+          frontendToDbItemMap[item.id] = insertedItems[index].id;
+        }
+      });
+
       console.log('[Receipts] Inserted', insertedItems.length, 'items');
     }
 
@@ -367,10 +378,10 @@ app.post('/receipts', verifyAuth, async (req, res) => {
         // Create assignments for items assigned to this contact
         if (contact.items && contact.items.length > 0) {
           const assignments = contact.items.map(item => {
-            // Find the database ID for this item
-            const dbItem = insertedItems.find(i => i.item_id === item.id);
+            // Use the map to find database ID for this frontend item ID
+            const dbItemId = frontendToDbItemMap[item.id];
             return {
-              item_id: dbItem?.id,
+              item_id: dbItemId,
               contact_id: insertedContact.id
             };
           }).filter(a => a.item_id); // Only include valid assignments
