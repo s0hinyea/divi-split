@@ -23,6 +23,8 @@ import Colors from "../constants/Colors";
 import { BlurView } from "expo-blur";
 import { Config } from "@/constants/Config";
 import { supabase } from "@/lib/supabase";
+import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
+import { MaterialIcons } from '@expo/vector-icons';
 
 // Type for receipts from backend
 interface Receipt {
@@ -48,7 +50,6 @@ export default function MainPage() {
 
   // Selected receipt for modal
   const [selectedReceipt, setSelectedReceipt] = useState<Receipt | null>(null);
-  const [deleting, setDeleting] = useState(false);
 
   // Fetch receipts on mount
   useEffect(() => {
@@ -96,14 +97,16 @@ export default function MainPage() {
     }
   };
 
-  // Delete a receipt
+  // Delete a receipt (called from swipe action)
   const deleteReceipt = async (receiptId: string) => {
     try {
-      setDeleting(true);
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
 
       if (!token) return;
+
+      // Optimistically remove from UI first for smooth UX
+      setPastReceipts(prev => prev.filter(r => r.id !== receiptId));
 
       const response = await fetch(`${Config.BACKEND_URL}/receipts/${receiptId}`, {
         method: 'DELETE',
@@ -112,17 +115,34 @@ export default function MainPage() {
         }
       });
 
-      if (response.ok) {
-        // Remove from local state
-        setPastReceipts(prev => prev.filter(r => r.id !== receiptId));
-        setShowReceiptsModal(false);
-        setSelectedReceipt(null);
+      if (!response.ok) {
+        // If delete failed, refetch to restore
+        fetchReceipts();
+        console.error('Failed to delete receipt');
       }
     } catch (error) {
       console.error('Error deleting receipt:', error);
-    } finally {
-      setDeleting(false);
+      fetchReceipts(); // Restore on error
     }
+  };
+
+  // Render right swipe action (trash icon)
+  const renderRightActions = (receipt: Receipt) => {
+    return (
+      <TouchableOpacity
+        style={{
+          backgroundColor: '#ff4444',
+          justifyContent: 'center',
+          alignItems: 'center',
+          width: 80,
+          borderRadius: 12,
+          marginBottom: 10,
+        }}
+        onPress={() => deleteReceipt(receipt.id)}
+      >
+        <MaterialIcons name="delete" size={28} color="white" />
+      </TouchableOpacity>
+    );
   };
 
   // Get screen dimensions for responsive positioning
@@ -207,25 +227,33 @@ export default function MainPage() {
             <Text style={styles.receiptDate}>No receipts yet. Scan one to get started!</Text>
           ) : (
             <>
+              <Text style={{ fontSize: 14, color: '#666', marginBottom: 12, fontStyle: 'italic' }}>
+                Swipe left to delete
+              </Text>
               {pastReceipts.map((receipt) => (
-                <TouchableOpacity
+                <Swipeable
                   key={receipt.id}
-                  style={styles.receiptCard}
-                  onPress={() => {
-                    setSelectedReceipt(receipt);
-                    setShowReceiptsModal(true);
-                  }}
+                  renderRightActions={() => renderRightActions(receipt)}
+                  rightThreshold={40}
                 >
-                  <View style={styles.receiptInfo}>
-                    <Text style={styles.receiptName}>{receipt.receipt_name}</Text>
-                    <Text style={styles.receiptDate}>
-                      {new Date(receipt.created_at).toLocaleDateString()}
+                  <TouchableOpacity
+                    style={styles.receiptCard}
+                    onPress={() => {
+                      setSelectedReceipt(receipt);
+                      setShowReceiptsModal(true);
+                    }}
+                  >
+                    <View style={styles.receiptInfo}>
+                      <Text style={styles.receiptName}>{receipt.receipt_name}</Text>
+                      <Text style={styles.receiptDate}>
+                        {new Date(receipt.created_at).toLocaleDateString()}
+                      </Text>
+                    </View>
+                    <Text style={styles.receiptTotal}>
+                      ${(receipt.total_amount || 0).toFixed(2)}
                     </Text>
-                  </View>
-                  <Text style={styles.receiptTotal}>
-                    ${(receipt.total_amount || 0).toFixed(2)}
-                  </Text>
-                </TouchableOpacity>
+                  </TouchableOpacity>
+                </Swipeable>
               ))}
 
               {/* Load More Button */}
@@ -492,21 +520,21 @@ export default function MainPage() {
               <View style={styles.receiptModalFooter}>
                 <TouchableOpacity
                   style={{
-                    backgroundColor: '#ff4444',
-                    padding: 12,
-                    borderRadius: 8,
+                    backgroundColor: Colors.darkGreen,
+                    paddingVertical: 14,
+                    paddingHorizontal: 20,
+                    borderRadius: 10,
                     alignItems: 'center',
-                    flex: 1
+                    justifyContent: 'center',
                   }}
                   onPress={() => {
-                    if (selectedReceipt) {
-                      deleteReceipt(selectedReceipt.id);
-                    }
+                    setShowReceiptsModal(false);
+                    setSelectedReceipt(null);
                   }}
-                  disabled={deleting}
+                  activeOpacity={0.7}
                 >
-                  <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>
-                    {deleting ? 'Deleting...' : 'Delete Receipt'}
+                  <Text style={{ color: 'white', fontSize: 16, fontWeight: 'bold' }}>
+                    Close
                   </Text>
                 </TouchableOpacity>
               </View>
