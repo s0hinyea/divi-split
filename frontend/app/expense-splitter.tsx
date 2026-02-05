@@ -14,10 +14,7 @@ import { Text, Button, Surface, Icon } from "react-native-paper";
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "expo-router";
 import { styles } from "../styles/expense-splitterCss";
-import { ocrTest } from "../scripts/manual";
 import { useReceipt } from "../utils/ReceiptContext";
-import { useOCR } from "../utils/OCRContext";
-import { handleOCR } from "../utils/ocrUtil";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Colors from "../constants/Colors";
 import { BlurView } from "expo-blur";
@@ -40,7 +37,6 @@ export default function MainPage() {
   const [visible, setVisible] = useState(false);
   const [showReceiptsModal, setShowReceiptsModal] = useState(false);
   const { updateReceiptData } = useReceipt();
-  const { setIsProcessing } = useOCR();
 
   // Real receipts from backend
   const [pastReceipts, setPastReceipts] = useState<Receipt[]>([]);
@@ -155,9 +151,8 @@ export default function MainPage() {
   // Base positions relative to screen bottom
   const baseYPosition = screenHeight - 60; // Position above plus button
 
-  // Animation values for each button
+  // Animation values for each button (2 options: Scan and Pick From Photos)
   const animatedValues = useRef([
-    new Animated.Value(0),
     new Animated.Value(0),
     new Animated.Value(0),
   ]).current;
@@ -389,57 +384,6 @@ export default function MainPage() {
                 >
                   <Icon source="image" size={20} color={Colors.orange} />
                   <Text style={styles.optionText}>Pick From Photos</Text>
-                </TouchableOpacity>
-              </Animated.View>
-
-              {/* Manual Entry Option */}
-              <Animated.View
-                style={[
-                  styles.floatingButton,
-                  {
-                    opacity: animatedValues[2],
-                    transform: [
-                      {
-                        translateY: animatedValues[2].interpolate({
-                          inputRange: [0, 1],
-                          outputRange: [
-                            baseYPosition,
-                            baseYPosition - buttonSpacing * 3,
-                          ],
-                        }),
-                      },
-                      {
-                        translateX: animatedValues[2].interpolate({
-                          inputRange: [0, 1],
-                          outputRange: [screenWidth / 2, -sideMargin],
-                        }),
-                      },
-                      {
-                        scale: animatedValues[2].interpolate({
-                          inputRange: [0, 1],
-                          outputRange: [0, 1],
-                        }),
-                      },
-                    ],
-                  },
-                ]}
-              >
-                <TouchableOpacity
-                  style={styles.optionButton}
-                  onPress={async () => {
-                    hideModal();
-                    setTimeout(async () => {
-                      await handleOCR(
-                        ocrTest,
-                        updateReceiptData,
-                        setIsProcessing,
-                        router
-                      );
-                    }, 150);
-                  }}
-                >
-                  <Icon source="pencil" size={20} color={Colors.orange} />
-                  <Text style={styles.optionText}>Manual</Text>
                 </TouchableOpacity>
               </Animated.View>
             </View>

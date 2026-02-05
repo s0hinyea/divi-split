@@ -4,6 +4,29 @@
 
 ---
 
+## 🎯 Positioning: The Niche
+
+**Divi is NOT Splitwise.** We don't track ongoing balances or manage roommate rent.
+
+**Divi does ONE thing:** Scan → Split → Text. Done in 60 seconds.
+
+### Our Advantages Over Splitwise
+
+| What | Why It Matters |
+|------|----------------|
+| **SMS-First** | Recipients don't need the app. Just a text. |
+| **Free Receipt Scanning** | Splitwise charges $5/mo for this. |
+| **One-Off Focus** | No account needed to receive. No groups to manage. |
+| **Speed** | Dinner ends → everyone knows their share before leaving. |
+
+### What We're NOT Building (For Now)
+- ❌ Ongoing balance tracking
+- ❌ Groups and roommate expenses  
+- ❌ Payment integration (users Venmo separately)
+- ❌ Multi-currency support
+
+---
+
 ## 1. Clean UI/UX
 
 ### User Interface
@@ -138,3 +161,5 @@ Basic analytics — Know if anyone uses it (Mixpanel, Amplitude, PostHog)
 Backend logging — Render logs work, but structured logs are better
 🎯 Priority 5: Beta Testing
 Get 5-10 friends to actually use it
+
+So currently, the app is suposed to tak two other options besides choose from library which is manual (manually input the info) and Scan (live camera). Lets get the easy part done first. Adhering to the current UI
