@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import rateLimit from 'express-rate-limit';
 import Tesseract from 'tesseract.js';
 import { v4 as uuidv4 } from 'uuid';
 import 'dotenv/config';
@@ -19,14 +20,13 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 const allowedOrigins = [
-  'http://localhost:8081',        
-  'http://localhost:19006',   
+  'http://localhost:8081',
+  'http://localhost:19006',
 
 ];
 
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow requests with no origin (mobile apps, Postman, curl, server-to-server)
     if (!origin) return callback(null, true);
 
     if (allowedOrigins.includes(origin)) {
@@ -36,9 +36,29 @@ app.use(cors({
       callback(new Error('Not allowed by CORS'));
     }
   },
-  methods: ['GET', 'POST', 'DELETE'],       // Only methods we actually use
-  allowedHeaders: ['Content-Type', 'Authorization'],  // Only headers we need
+  methods: ['GET', 'POST', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
 }));
+
+// Rate Limiting
+// Global: 100 requests per 15 minutes per IP
+const globalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  standardHeaders: true,  // Returns rate limit info in headers
+  legacyHeaders: false,
+  message: { error: 'Too many requests, please try again later' },
+});
+app.use(globalLimiter);
+
+// Strict: 5 requests per minute (for expensive endpoints)
+const strictLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Rate limit exceeded. Try again in a minute.' },
+});
 
 // Parse incoming JSON with large image payloads
 app.use(express.json({ limit: '10mb' }));
@@ -130,7 +150,7 @@ app.post('/ocr', async (req, res) => {
 
 
 // 🚀 NEW: OpenAI Vision OCR endpoint
-app.post('/ocr-vision', verifyAuth, async (req, res) => {
+app.post('/ocr-vision', strictLimiter, verifyAuth, async (req, res) => {
   console.log("Start OpenAI Vision process");
   const { image } = req.body;
 
@@ -251,7 +271,7 @@ RESPONSE FORMAT:
   }
 });
 
-app.post('/sms', verifyAuth, async (req, res) => {
+app.post('/sms', strictLimiter, verifyAuth, async (req, res) => {
   console.log("Sending SMS");
 
   //Extracts contacts from request body
