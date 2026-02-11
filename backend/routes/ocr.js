@@ -33,7 +33,7 @@ router.post('/ocr-vision', strictLimiter, verifyAuth, async (req, res) => {
         console.log('[OpenAI Vision] Processing receipt image');
 
         const response = await openai.chat.completions.create({
-            model: "gpt-4o",
+            model: "gpt-4o-mini",
             messages: [
                 {
                     role: "system",
