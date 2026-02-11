@@ -41,6 +41,14 @@ app.use(smsRoutes);           // /sms
 app.use('/receipts', receiptRoutes);  // /receipts, /receipts/:id
 
 // --- Health Check ---
+app.get('/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    uptime: Math.round(process.uptime()),
+    timestamp: new Date().toISOString()
+  });
+});
+
 app.get('/', (req, res) => {
   res.send('Divi backend is running 🧠');
 });

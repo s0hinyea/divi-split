@@ -117,11 +117,11 @@ RESPONSE FORMAT:
         console.error('[OpenAI Vision] ERROR:', error.message);
 
         if (error.message.includes('API key')) {
-            res.status(401).json({ error: 'OpenAI API key invalid', details: error.message });
+            res.status(401).json({ error: 'OCR service configuration error' });
         } else if (error.message.includes('quota')) {
-            res.status(429).json({ error: 'OpenAI quota exceeded', details: error.message });
+            res.status(429).json({ error: 'Service temporarily unavailable' });
         } else {
-            res.status(500).json({ error: 'Vision OCR failed', details: error.message });
+            res.status(500).json({ error: 'Failed to process receipt image' });
         }
     }
 });

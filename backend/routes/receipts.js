@@ -41,7 +41,7 @@ router.get('/', verifyAuth, async (req, res) => {
 
     } catch (error) {
         console.error('[Receipts] Fetch error:', error.message);
-        res.status(500).json({ error: 'Failed to fetch receipts', details: error.message });
+        res.status(500).json({ error: 'Failed to fetch receipts' });
     }
 });
 
@@ -89,7 +89,7 @@ router.delete('/:id', verifyAuth, async (req, res) => {
 
     } catch (error) {
         console.error('[Receipts] Delete error:', error.message);
-        res.status(500).json({ error: 'Failed to delete receipt', details: error.message });
+        res.status(500).json({ error: 'Failed to delete receipt' });
     }
 });
 
@@ -220,7 +220,7 @@ router.post('/', verifyAuth, async (req, res) => {
 
     } catch (error) {
         console.error('[Receipts] Save error:', error.message);
-        res.status(500).json({ error: 'Failed to save receipt', details: error.message });
+        res.status(500).json({ error: 'Failed to save receipt' });
     }
 });
 

@@ -59,7 +59,7 @@ router.post('/sms', strictLimiter, verifyAuth, async (req, res) => {
     }
     catch (err) {
         console.error("SMS send failed", err.message);
-        res.status(500).json({ error: "SMS sending failed", details: err.message });
+        res.status(500).json({ error: "SMS sending failed" });
     }
 });
 
