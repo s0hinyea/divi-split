@@ -2,7 +2,7 @@ import { Router } from 'express';
 import Tesseract from 'tesseract.js';
 import { v4 as uuidv4 } from 'uuid';
 import OpenAI from 'openai';
-import { verifyAuth } from '../authMiddleware.js';
+import { verifyAuth } from '../middleware/auth.js';
 import { strictLimiter } from '../middleware/rateLimiter.js';
 
 const router = Router();

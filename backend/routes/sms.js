@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import twilio from 'twilio';
-import { verifyAuth } from '../authMiddleware.js';
+import { verifyAuth } from '../middleware/auth.js';
 import { strictLimiter } from '../middleware/rateLimiter.js';
 
 const router = Router();
