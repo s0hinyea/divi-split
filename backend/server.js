@@ -15,12 +15,30 @@ const openai = new OpenAI({
 
 
 const app = express();
-//create instance of backend, your main application object 
 
 const PORT = process.env.PORT || 3000;
 
-// Allow frontend requests from any domain (important!)
-app.use(cors());
+const allowedOrigins = [
+  'http://localhost:8081',        
+  'http://localhost:19006',   
+
+];
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow requests with no origin (mobile apps, Postman, curl, server-to-server)
+    if (!origin) return callback(null, true);
+
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      console.warn(`[CORS] Blocked request from origin: ${origin}`);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  methods: ['GET', 'POST', 'DELETE'],       // Only methods we actually use
+  allowedHeaders: ['Content-Type', 'Authorization'],  // Only headers we need
+}));
 
 // Parse incoming JSON with large image payloads
 app.use(express.json({ limit: '10mb' }));
