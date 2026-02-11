@@ -1,5 +1,4 @@
 import { Router } from 'express';
-import Tesseract from 'tesseract.js';
 import { v4 as uuidv4 } from 'uuid';
 import OpenAI from 'openai';
 import { verifyAuth } from '../middleware/auth.js';
@@ -9,83 +8,6 @@ const router = Router();
 
 const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY
-});
-
-// Helper function to parse receipt text (used by Tesseract OCR)
-function parseReceiptText(text) {
-    const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
-
-    console.log(lines);
-
-    const items = [];
-    let tax = "";
-    let tip = "";
-
-    const pricePattern = /\$?\d+[.,]\d{2}/;
-
-    const taxPattern = [
-        /\b(?:sales\s*)?tax\b[:\s]*\$?\s*(\d+(?:\.\d{1,2})?)/i,
-        /\btax\b[:\s]*\$?\s*(\d+(?:\.\d{1,2})?)/i,
-        /\btax\b[:\s]*(\d+(?:\.\d{1,2})?)%/i,
-    ];
-
-    lines.forEach(line => {
-        const priceMatch = line.match(pricePattern);
-        let taxMatch = taxPattern.map(pattern => line.match(pattern)).find(match => match !== null);
-
-        if (priceMatch) {
-            const price = priceMatch[0].replace('$', '').replace(',', '.');
-            const itemName = line.substring(0, priceMatch.index).trim();
-
-            if (itemName) {
-                items.push({
-                    name: itemName,
-                    price: parseFloat(price),
-                    id: uuidv4()
-                });
-            }
-        }
-
-        if (taxMatch) {
-            tax = parseFloat(taxMatch[1]);
-        }
-    });
-
-    return { items, tax };
-}
-
-// Tesseract OCR endpoint
-router.post('/ocr', async (req, res) => {
-    console.log("Start process");
-    const { image } = req.body;
-    if (!image) {
-        console.log("Not image")
-        return res.status(400).json({ error: 'No image provided' });
-    }
-
-    try {
-        console.log('[OCR] Got new data');
-
-        const base64Data = image.replace(/^data:image\/\w+;base64,/, '');
-        const imageBuffer = Buffer.from(base64Data, 'base64');
-
-        const result = await Tesseract.recognize(imageBuffer, 'eng');
-        const extractedText = result.data.text;
-
-        const results = parseReceiptText(extractedText);
-        const { items, tax } = results;
-
-        console.log('[OCR] Text extracted and parsed');
-
-        res.json({
-            text: extractedText,
-            items: items,
-            tax: tax
-        });
-    } catch (error) {
-        console.error('[OCR] ERROR:', error.message);
-        res.status(500).json({ error: 'OCR failed', details: error.message });
-    }
 });
 
 // OpenAI Vision OCR endpoint
