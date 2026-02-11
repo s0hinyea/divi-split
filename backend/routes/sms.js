@@ -11,22 +11,40 @@ router.post('/sms', strictLimiter, verifyAuth, async (req, res) => {
     const { contacts, user } = req.body;
     const date = new Date();
 
+    // Input validation
+    if (!contacts || !Array.isArray(contacts) || contacts.length === 0) {
+        return res.status(400).json({ error: 'Contacts must be a non-empty array' });
+    }
+
+    if (contacts.length > 20) {
+        return res.status(400).json({ error: 'Too many contacts (max 20)' });
+    }
+
+    if (!user || typeof user !== 'string') {
+        return res.status(400).json({ error: 'User name is required' });
+    }
+
+    // Validate each contact before sending any messages
+    for (const contact of contacts) {
+        if (!contact.phoneNumber || typeof contact.phoneNumber !== 'string') {
+            return res.status(400).json({ error: 'Each contact must have a phoneNumber string' });
+        }
+        if (!/^\+?[1-9]\d{1,14}$/.test(contact.phoneNumber)) {
+            return res.status(400).json({ error: `Invalid phone number format: ${contact.phoneNumber}` });
+        }
+        if (typeof contact.total !== 'number' || contact.total <= 0) {
+            return res.status(400).json({ error: 'Each contact must have a positive total number' });
+        }
+    }
+
     const client = new twilio(
         process.env.TWILIO_ACCOUNT_SID,
         process.env.TWILIO_AUTH_TOKEN
     );
 
-    if (!contacts) {
-        console.log("No contacts")
-        return res.status(400).json({ error: 'No contacts provided' });
-    }
-
     try {
         const results = await Promise.all(contacts.map(async (contact) => {
-
             const { phoneNumber, total } = contact;
-            if (!phoneNumber) return { success: false, error: 'Missing phone number' };
-            if (!total) return { success: false, error: 'Missing total' };
 
             const message = `Hello! You owe $${total} for the bill created on ${date} by ${user} (from Divi)`;
 

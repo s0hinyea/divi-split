@@ -8,8 +8,8 @@ const router = Router();
 router.get('/', verifyAuth, async (req, res) => {
     try {
         const userId = req.user.sub;
-        const limit = parseInt(req.query.limit) || 10;
-        const offset = parseInt(req.query.offset) || 0;
+        const limit = Math.min(Math.max(parseInt(req.query.limit) || 10, 1), 50);
+        const offset = Math.max(parseInt(req.query.offset) || 0, 0);
 
         const { data: receipts, error, count } = await supabase
             .from('receipts')
@@ -47,9 +47,16 @@ router.get('/', verifyAuth, async (req, res) => {
 
 // DELETE /receipts/:id - Delete a receipt (cascades to items via FK)
 router.delete('/:id', verifyAuth, async (req, res) => {
+    const receiptId = req.params.id;
+
+    // Validate UUID format
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(receiptId)) {
+        return res.status(400).json({ error: 'Invalid receipt ID format' });
+    }
+
     try {
         const userId = req.user.sub;
-        const receiptId = req.params.id;
 
         // First verify this receipt belongs to the user
         const { data: receipt, error: fetchError } = await supabase
@@ -88,9 +95,36 @@ router.delete('/:id', verifyAuth, async (req, res) => {
 
 // POST /receipts - Save a complete receipt with items, contacts, and assignments
 router.post('/', verifyAuth, async (req, res) => {
+    const { receipt_name, receipt_date, items, contacts, tax, tip, total } = req.body;
+
+    // Input validation
+    if (receipt_name && (typeof receipt_name !== 'string' || receipt_name.length > 200)) {
+        return res.status(400).json({ error: 'Receipt name must be a string under 200 characters' });
+    }
+
+    if (!items || !Array.isArray(items) || items.length === 0) {
+        return res.status(400).json({ error: 'Items must be a non-empty array' });
+    }
+
+    if (items.length > 100) {
+        return res.status(400).json({ error: 'Too many items (max 100)' });
+    }
+
+    for (const item of items) {
+        if (!item.name || typeof item.name !== 'string') {
+            return res.status(400).json({ error: 'Each item must have a name string' });
+        }
+        if (typeof item.price !== 'number' || item.price < 0) {
+            return res.status(400).json({ error: 'Each item must have a non-negative price number' });
+        }
+    }
+
+    if (contacts && contacts.length > 20) {
+        return res.status(400).json({ error: 'Too many contacts (max 20)' });
+    }
+
     try {
         const userId = req.user.sub;
-        const { receipt_name, receipt_date, items, contacts, tax, tip, total } = req.body;
 
         console.log('[Receipts] Saving new receipt for user:', userId);
 

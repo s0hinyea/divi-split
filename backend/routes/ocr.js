@@ -15,9 +15,18 @@ router.post('/ocr-vision', strictLimiter, verifyAuth, async (req, res) => {
     console.log("Start OpenAI Vision process");
     const { image } = req.body;
 
-    if (!image) {
-        console.log("No image provided")
-        return res.status(400).json({ error: 'No image provided' });
+    // Input validation
+    if (!image || typeof image !== 'string') {
+        return res.status(400).json({ error: 'Image is required and must be a string' });
+    }
+
+    if (!image.startsWith('data:image/')) {
+        return res.status(400).json({ error: 'Invalid image format. Expected base64-encoded image' });
+    }
+
+    // Reject images over 10MB (base64 is ~33% larger than raw)
+    if (image.length > 10 * 1024 * 1024) {
+        return res.status(400).json({ error: 'Image too large (max 10MB)' });
     }
 
     try {
