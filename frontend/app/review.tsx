@@ -4,17 +4,15 @@ import { useRouter } from 'expo-router';
 import { useContacts } from '../utils/ContactsContext';
 import { useReceipt, ReceiptItem } from '../utils/ReceiptContext';
 import { styles } from '../styles/reviewCss';
-import { Config } from '@/constants/Config';
-import { supabase } from '@/lib/supabase';
+import * as SMS from 'expo-sms';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
 export default function ReviewPage() {
   const router = useRouter();
   const { selected, clearItems, clearSelected } = useContacts();
   const { receiptData, setUserItems, updateReceiptData, calculateTotal, saveReceipt } = useReceipt();
-  // Modal and SMS states
+  // Modal state
   const [showSmsModal, setShowSmsModal] = useState(false);
-  const [sendingSms, setSendingSms] = useState(false);
 
   // Receipt name and date states
   const [receiptName, setReceiptName] = useState('');
@@ -102,51 +100,63 @@ export default function ReviewPage() {
   const { taxPercentage, individualTaxes } = calculateTaxBreakdown();
   const { tipPerPerson, individualTips } = calculateTipBreakdown();
 
-  // SMS sending function
-  const sendSmsToContacts = async () => {
-    setSendingSms(true);
-
+  // Send group summary via native Messages app
+  const sendGroupSummary = async () => {
     try {
-      // Format contact data for backend
-      const contactsData = selected.map(contact => {
+      const isAvailable = await SMS.isAvailableAsync();
+      if (!isAvailable) {
+        Alert.alert('SMS Not Available', 'This device cannot send text messages.');
+        return;
+      }
+
+      // Collect all phone numbers
+      const phoneNumbers = selected
+        .map(c => c.phoneNumber)
+        .filter((num): num is string => !!num);
+
+      if (phoneNumbers.length === 0) {
+        Alert.alert('No Phone Numbers', 'None of the selected contacts have phone numbers.');
+        return;
+      }
+
+      // Build the formatted message
+      const name = receiptName.trim() || 'Split';
+      const dateStr = receiptDate.toLocaleDateString('en-US', {
+        month: 'short', day: 'numeric', year: 'numeric'
+      });
+
+      let message = `🧾 Divi Split — ${name}\n📅 ${dateStr}\n\n`;
+
+      selected.forEach(contact => {
         const contactMealTotal = calculateTotal(contact.items as ReceiptItem[]);
         const contactTax = individualTaxes[contact.id] || 0;
         const contactTip = individualTips[contact.id] || 0;
         const contactTotal = contactMealTotal + contactTax + contactTip;
 
-        return {
-          phoneNumber: contact.phoneNumber,
-          total: contactTotal
-        };
+        message += `• ${contact.name}: $${contactTotal.toFixed(2)}`;
+
+        // Add breakdown details
+        const details: string[] = [];
+        details.push(`meal $${contactMealTotal.toFixed(2)}`);
+        if (contactTax > 0) details.push(`tax $${contactTax.toFixed(2)}`);
+        if (contactTip > 0) details.push(`tip $${contactTip.toFixed(2)}`);
+        message += ` (${details.join(' + ')})\n`;
       });
 
-      // Get auth token for protected endpoint
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
+      const allMealItems = 'items' in receiptData ? receiptData.items : [];
+      const grandTotal = calculateTotal(allMealItems) +
+        Object.values(individualTaxes).reduce((s, t) => s + t, 0) +
+        Object.values(individualTips).reduce((s, t) => s + t, 0);
 
-      const response = await fetch(`${Config.BACKEND_URL}/sms`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          contacts: contactsData
-        })
-      });
+      message += `\nTotal: $${grandTotal.toFixed(2)}`;
 
-      if (!response.ok) {
-        throw new Error('Failed to send SMS');
-      }
-
-      Alert.alert('Success', 'SMS sent to all contacts!');
+      await SMS.sendSMSAsync(phoneNumbers, message);
+      setShowSmsModal(false);
       proceedToNextScreen();
 
     } catch (error) {
       console.error('SMS Error:', error);
-      Alert.alert('Error', 'Failed to send SMS. Please try again.');
-    } finally {
-      setSendingSms(false);
+      Alert.alert('Error', 'Failed to open Messages.');
       setShowSmsModal(false);
     }
   };
@@ -354,13 +364,12 @@ export default function ReviewPage() {
         <TouchableOpacity
           style={styles.finishButton}
           onPress={handleFinish}
-          disabled={sendingSms}
         >
           <Text style={styles.finishButtonText}>Proceed</Text>
         </TouchableOpacity>
       </View>
 
-      {/* SMS Modal */}
+      {/* Group SMS Modal */}
       <Modal
         animationType="slide"
         transparent={true}
@@ -369,33 +378,26 @@ export default function ReviewPage() {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContainer}>
-            <Text style={styles.modalTitle}>Do you want to send SMS to receipients?</Text>
+            <Text style={styles.modalTitle}>Send split summary to group chat?</Text>
 
-            {sendingSms ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color="#007AFF" />
-                <Text style={styles.loadingText}>Sending SMS...</Text>
-              </View>
-            ) : (
-              <View style={styles.modalButtonContainer}>
-                <TouchableOpacity
-                  style={[styles.modalButton, styles.modalButtonPrimary]}
-                  onPress={sendSmsToContacts}
-                >
-                  <Text style={styles.modalButtonPrimaryText}>Yes</Text>
-                </TouchableOpacity>
+            <View style={styles.modalButtonContainer}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalButtonPrimary]}
+                onPress={sendGroupSummary}
+              >
+                <Text style={styles.modalButtonPrimaryText}>Yes</Text>
+              </TouchableOpacity>
 
-                <TouchableOpacity
-                  style={[styles.modalButton, styles.modalButtonSecondary]}
-                  onPress={() => {
-                    setShowSmsModal(false);
-                    proceedToNextScreen();
-                  }}
-                >
-                  <Text style={styles.modalButtonSecondaryText}>No</Text>
-                </TouchableOpacity>
-              </View>
-            )}
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalButtonSecondary]}
+                onPress={() => {
+                  setShowSmsModal(false);
+                  proceedToNextScreen();
+                }}
+              >
+                <Text style={styles.modalButtonSecondaryText}>No</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>

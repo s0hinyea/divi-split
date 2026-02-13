@@ -4,7 +4,6 @@ import 'dotenv/config';
 
 import { globalLimiter } from './middleware/rateLimiter.js';
 import ocrRoutes from './routes/ocr.js';
-import smsRoutes from './routes/sms.js';
 import receiptRoutes from './routes/receipts.js';
 
 const app = express();
@@ -37,7 +36,6 @@ app.use(express.json({ limit: '10mb' }));
 
 // --- Routes ---
 app.use(ocrRoutes);           // /ocr, /ocr-vision
-app.use(smsRoutes);           // /sms
 app.use('/receipts', receiptRoutes);  // /receipts, /receipts/:id
 
 // --- Health Check ---
