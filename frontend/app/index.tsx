@@ -1,17 +1,15 @@
 import { Redirect } from 'expo-router';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { StyleSheet } from 'react-native';
+import { useContext } from 'react';
+import { SessionContext } from './_layout';
 
 export default function Index() {
-  return (
-    <GestureHandlerRootView style={styles.container}>
-      <Redirect href="/home" />
-    </GestureHandlerRootView>
-  );
-}
+  const { session } = useContext(SessionContext);
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-});
+  // If user is already logged in, skip to the main app
+  if (session) {
+    return <Redirect href="/expense-splitter" />;
+  }
+
+  // Otherwise, show the login/signup page
+  return <Redirect href="/home" />;
+}

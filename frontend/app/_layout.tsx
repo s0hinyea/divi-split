@@ -100,8 +100,7 @@ export default function RootLayout() {
                     <Stack
                       screenOptions={{
                         headerShown: false,
-                        animation: "default", // Basic animation
-                        // Options: 'default', 'fade', 'slide_from_right', 'slide_from_left', 'slide_from_bottom', 'none'
+                        animation: "fade",
                       }}
                     >
                       <Stack.Screen name="index" />
