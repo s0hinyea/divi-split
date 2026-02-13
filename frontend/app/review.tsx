@@ -166,7 +166,7 @@ export default function ReviewPage() {
     clearItems();
     clearSelected();
     setUserItems([]);
-    router.push('/expense-splitter');
+    router.push('/(tabs)');
   };
 
   // Handle date picker change

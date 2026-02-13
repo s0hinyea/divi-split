@@ -48,7 +48,7 @@ export default function Auth({ initialMode }: AuthProps) {
 			Alert.alert("Error", error.message);
 		} else {
 			// Successfully signed in, navigate to expense splitter
-			router.replace("/expense-splitter");
+			router.replace("/(tabs)");
 		}
 
 		setLoading(false);
@@ -95,7 +95,7 @@ export default function Auth({ initialMode }: AuthProps) {
 			// Check if email confirmation is required
 			if (user.email_confirmed_at) {
 				// Email is already confirmed, navigate to expense splitter
-				router.replace("/expense-splitter");
+				router.replace("/(tabs)");
 			} else {
 				Alert.alert(
 					"Success",
