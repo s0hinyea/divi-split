@@ -18,6 +18,7 @@ import { OCRProvider } from "@/utils/OCRContext";
 import { ContactsProvider } from "@/utils/ContactsContext";
 import { Session } from "@supabase/supabase-js";
 import { supabase } from "../lib/supabase";
+import AnimatedSplash from "@/components/AnimatedSplash";
 
 // Create a session context
 export const SessionContext = createContext<{
@@ -35,6 +36,7 @@ export default function RootLayout() {
   const colorScheme = useColorScheme();
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [splashComplete, setSplashComplete] = useState(false);
 
   const [loaded] = useFonts({
     SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
@@ -75,12 +77,21 @@ export default function RootLayout() {
     return null;
   }
 
+  if (!splashComplete) {
+    return (
+      <AnimatedSplash
+        appReady={loaded && !isLoading}
+        onComplete={() => setSplashComplete(true)}
+      />
+    );
+  }
+
   return (
     <SessionContext.Provider value={{ session, isLoading }}>
       <ContactsProvider>
-      <ReceiptProvider>
-        <ChangeProvider>
-          <OCRProvider>
+        <ReceiptProvider>
+          <ChangeProvider>
+            <OCRProvider>
               <GestureHandlerRootView style={{ flex: 1 }}>
                 <PaperProvider>
                   <ThemeProvider
@@ -103,9 +114,9 @@ export default function RootLayout() {
                   </ThemeProvider>
                 </PaperProvider>
               </GestureHandlerRootView>
-          </OCRProvider>
-        </ChangeProvider>
-      </ReceiptProvider>
+            </OCRProvider>
+          </ChangeProvider>
+        </ReceiptProvider>
       </ContactsProvider>
     </SessionContext.Provider>
   );
