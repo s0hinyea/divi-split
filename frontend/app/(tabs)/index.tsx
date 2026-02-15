@@ -4,10 +4,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useEffect, useContext } from 'react';
 import { useRouter } from 'expo-router';
 import { colors, fonts, fontSizes, spacing, radii, shadows } from '@/styles/theme';
-import Svg, { Path } from 'react-native-svg';
 import { Config } from '@/constants/Config';
 import { supabase } from '@/lib/supabase';
 import { SessionContext } from '@/app/_layout';
+import ReceiptCard from '@/components/ReceiptCard';
 
 // Receipt type (shared — should move to a types file eventually)
 interface Receipt {
@@ -16,57 +16,6 @@ interface Receipt {
     total_amount: number;
     created_at: string;
     receipt_items: { id: string; item_name: string; item_price: number }[];
-}
-
-
-function ZigzagBorder({ width = 300 }: { width?: number }) {
-    const zigzagHeight = 8;
-    const zigzagWidth = 12;
-    const numZigzags = Math.floor(width / zigzagWidth);
-
-    let path = `M 0 ${zigzagHeight}`;
-    for (let i = 0; i < numZigzags; i++) {
-        const x = i * zigzagWidth;
-        path += ` L ${x + zigzagWidth / 2} 0 L ${x + zigzagWidth} ${zigzagHeight}`;
-    }
-
-    return (
-        <Svg width={width} height={zigzagHeight} style={{ position: 'absolute' }}>
-            <Path d={path} fill={colors.white} stroke={colors.gray200} strokeWidth={1.5} />
-        </Svg>
-    );
-}
-
-function ReceiptCard({ children, style, showTopZigzag = true, showBottomZigzag = true }: {
-    children: React.ReactNode;
-    style?: any;
-    showTopZigzag?: boolean;
-    showBottomZigzag?: boolean;
-}) {
-    const [cardWidth, setCardWidth] = useState(300);
-
-    return (
-        <View
-            style={[styles.receiptCard, style]}
-            onLayout={(e) => setCardWidth(e.nativeEvent.layout.width)}
-        >
-            {showTopZigzag && (
-                <View style={{ position: 'absolute', top: -1, left: 0, right: 0 }}>
-                    <ZigzagBorder width={cardWidth} />
-                </View>
-            )}
-
-            <View style={styles.receiptCardContent}>
-                {children}
-            </View>
-
-            {showBottomZigzag && (
-                <View style={{ position: 'absolute', bottom: -1, left: 0, right: 0, transform: [{ rotate: '180deg' }] }}>
-                    <ZigzagBorder width={cardWidth} />
-                </View>
-            )}
-        </View>
-    );
 }
 
 
@@ -156,14 +105,16 @@ export default function Dashboard() {
 
                     <View style={styles.statSpacer} />
 
-                    <ReceiptCard style={styles.statCard} showTopZigzag={false} showBottomZigzag={true}>
-                        <Text style={styles.statAmount}>{totalScanned}</Text>
-                        <Text style={styles.statLabel}>receipts scanned</Text>
-                        <ReceiptLines />
+                    <ReceiptCard style={[styles.statCard, styles.flippedCard]} showTopZigzag={false} showBottomZigzag={true}>
+                        <View style={styles.flippedContent}>
+                            <Text style={styles.statAmount}>{totalScanned}</Text>
+                            <Text style={styles.statLabel}>receipts scanned</Text>
+                            <ReceiptLines />
+                        </View>
                     </ReceiptCard>
                 </View>
 
-                <ReceiptCard style={styles.recentContainer} showTopZigzag={true} showBottomZigzag={false}>
+                <ReceiptCard style={styles.recentContainer} showTopZigzag={true} showBottomZigzag={true}>
                     <Text style={styles.recentTitle}>Recent Splits</Text>
 
                     {loading ? (
@@ -238,15 +189,7 @@ const styles = StyleSheet.create({
     },
 
 
-    receiptCard: {
-        backgroundColor: colors.white,
-        borderWidth: 1.5,
-        borderColor: colors.black,
-        overflow: 'hidden',
-    },
-    receiptCardContent: {
-        padding: spacing.md,
-    },
+
 
 
 
@@ -260,6 +203,12 @@ const styles = StyleSheet.create({
     },
     statSpacer: {
         width: spacing.md,
+    },
+    flippedCard: {
+        transform: [{ scaleX: -1 }],
+    },
+    flippedContent: {
+        transform: [{ scaleX: -1 }],
     },
     statAmount: {
         fontFamily: fonts.bodySemiBold,
