@@ -39,7 +39,7 @@ export default function AccountPage() {
 const styles = StyleSheet.create({
 	container: {
 		flex: 1,
-		backgroundColor: "#fff0db",
+		backgroundColor: "#FFFFFF",
 	},
 	header: {
 		flexDirection: "row",

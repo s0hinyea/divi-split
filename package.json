@@ -11,7 +11,9 @@
     "install:backend": "cd backend && npm install"
   },
   "devDependencies": {
-    "concurrently": "^8.2.2"
+    "@types/react": "~19.1.10",
+    "concurrently": "^8.2.2",
+    "typescript": "~5.9.2"
   },
   "dependencies": {
     "react": "^19.1.0",
