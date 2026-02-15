@@ -229,7 +229,7 @@ const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.white },
     header: { padding: spacing.lg, paddingBottom: spacing.md },
     title: {
-        fontFamily: fonts.header,
+        fontFamily: fonts.bodyBold,
         fontSize: fontSizes.xxl,
         color: colors.black,
     },
@@ -256,9 +256,9 @@ const styles = StyleSheet.create({
         marginBottom: spacing.sm,
     },
     receiptInfo: { flex: 1 },
-    receiptName: { fontFamily: fonts.body, fontSize: fontSizes.md, color: colors.black, fontWeight: '600' },
+    receiptName: { fontFamily: fonts.bodySemiBold, fontSize: fontSizes.md, color: colors.black },
     receiptDate: { fontFamily: fonts.body, fontSize: fontSizes.xs, color: colors.gray600, marginTop: 2 },
-    receiptTotal: { fontFamily: fonts.header, fontSize: fontSizes.lg, color: colors.green },
+    receiptTotal: { fontFamily: fonts.bodySemiBold, fontSize: fontSizes.lg, color: colors.green },
 
     // Delete action
     deleteAction: {
@@ -289,7 +289,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         marginBottom: spacing.md,
     },
-    modalTitle: { fontFamily: fonts.header, fontSize: fontSizes.xl, color: colors.black, flex: 1 },
+    modalTitle: { fontFamily: fonts.bodyBold, fontSize: fontSizes.xl, color: colors.black, flex: 1 },
     closeButton: { padding: spacing.xs },
     modalContent: { maxHeight: 300 },
     modalDate: { fontSize: fontSizes.sm, color: colors.gray600, marginBottom: spacing.md, fontFamily: fonts.body },
@@ -310,8 +310,8 @@ const styles = StyleSheet.create({
         borderTopWidth: 2,
         borderTopColor: colors.black,
     },
-    modalTotalLabel: { fontFamily: fonts.body, fontSize: fontSizes.lg, fontWeight: 'bold', color: colors.black },
-    modalTotalAmount: { fontFamily: fonts.header, fontSize: fontSizes.lg, fontWeight: 'bold', color: colors.green },
+    modalTotalLabel: { fontFamily: fonts.bodySemiBold, fontSize: fontSizes.lg, color: colors.black },
+    modalTotalAmount: { fontFamily: fonts.bodySemiBold, fontSize: fontSizes.lg, color: colors.green },
     modalCloseButton: {
         backgroundColor: colors.green,
         paddingVertical: 14,
@@ -319,5 +319,5 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         marginTop: spacing.lg,
     },
-    modalCloseText: { color: colors.white, fontSize: fontSizes.md, fontWeight: 'bold', fontFamily: fonts.body },
+    modalCloseText: { color: colors.white, fontSize: fontSizes.md, fontFamily: fonts.bodySemiBold },
 });

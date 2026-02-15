@@ -226,7 +226,7 @@ const styles = StyleSheet.create({
         marginTop: spacing.md,
     },
     userName: {
-        fontFamily: fonts.header,
+        fontFamily: fonts.bodyBold,
         fontSize: fontSizes.xxl,
         color: colors.black,
         marginBottom: spacing.xl,
@@ -271,7 +271,7 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     statAmount: {
-        fontFamily: fonts.header,
+        fontFamily: fonts.bodySemiBold,
         fontSize: fontSizes.xxl,
         color: colors.green,
         marginBottom: spacing.xs,
@@ -313,7 +313,7 @@ const styles = StyleSheet.create({
         width: '100%',
     },
     recentTitle: {
-        fontFamily: fonts.header,
+        fontFamily: fonts.bodyBold,
         fontSize: fontSizes.lg,
         color: colors.black,
         marginBottom: spacing.md,
@@ -332,10 +332,9 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     recentItemName: {
-        fontFamily: fonts.body,
+        fontFamily: fonts.bodySemiBold,
         fontSize: fontSizes.md,
         color: colors.black,
-        fontWeight: '600',
     },
     recentItemDate: {
         fontFamily: fonts.body,
@@ -344,10 +343,9 @@ const styles = StyleSheet.create({
         marginTop: 2,
     },
     recentItemAmount: {
-        fontFamily: fonts.header,
+        fontFamily: fonts.bodySemiBold,
         fontSize: fontSizes.lg,
         color: colors.green,
-        fontWeight: 'bold',
     },
 
     // View all
@@ -356,10 +354,9 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     viewAllText: {
-        fontFamily: fonts.body,
+        fontFamily: fonts.bodySemiBold,
         fontSize: fontSizes.sm,
         color: colors.green,
-        fontWeight: '600',
     },
 
     // Empty state
@@ -368,10 +365,9 @@ const styles = StyleSheet.create({
         paddingVertical: spacing.xl,
     },
     emptyTitle: {
-        fontFamily: fonts.body,
+        fontFamily: fonts.bodySemiBold,
         fontSize: fontSizes.md,
         color: colors.gray600,
-        fontWeight: '600',
     },
     emptySubtitle: {
         fontFamily: fonts.body,

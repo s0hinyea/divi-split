@@ -45,7 +45,7 @@ const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.white },
     header: { padding: spacing.lg, paddingBottom: spacing.md },
     title: {
-        fontFamily: fonts.header,
+        fontFamily: fonts.bodyBold,
         fontSize: fontSizes.xxl,
         color: colors.black,
     },
@@ -81,9 +81,8 @@ const styles = StyleSheet.create({
         borderColor: colors.error,
     },
     signOutText: {
-        fontFamily: fonts.body,
+        fontFamily: fonts.bodySemiBold,
         fontSize: fontSizes.md,
         color: colors.error,
-        fontWeight: '600',
     },
 });
