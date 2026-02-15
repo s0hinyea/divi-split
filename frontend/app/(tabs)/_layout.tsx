@@ -12,7 +12,7 @@ const GRAY = colors.gray400;
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
-// Divi logo as a component
+
 function DiviLogo({ size = 36 }: { size?: number }) {
     const scale = size / 160;
     return (
@@ -29,7 +29,7 @@ export default function TabsLayout() {
     const router = useRouter();
     const [scanModalVisible, setScanModalVisible] = useState(false);
 
-    // Animation values for scan/photo options
+
     const animatedValues = useRef([
         new Animated.Value(0),
         new Animated.Value(0),
@@ -102,19 +102,10 @@ export default function TabsLayout() {
                 <Tabs.Screen
                     name="index"
                     options={{
-                        title: '',
-                        tabBarIcon: () => (
-                            <View style={styles.centerButton}>
-                                <DiviLogo size={44} />
-                            </View>
+                        title: 'Home',
+                        tabBarIcon: ({ color, size }) => (
+                            <MaterialIcons name="home" size={size} color={color} />
                         ),
-                        tabBarLabel: () => null,
-                    }}
-                    listeners={{
-                        tabPress: (e) => {
-                            // On the home tab, long press would open scan
-                            // Regular tap navigates to home
-                        },
                     }}
                 />
                 <Tabs.Screen
@@ -128,7 +119,16 @@ export default function TabsLayout() {
                 />
             </Tabs>
 
-            {/* Scan/Photo Modal — shared across all tabs */}
+
+            <TouchableOpacity
+                style={styles.floatingAddButton}
+                onPress={showScanModal}
+                activeOpacity={0.8}
+            >
+                <MaterialIcons name="add" size={32} color={colors.white} />
+            </TouchableOpacity>
+
+
             <Modal
                 animationType="fade"
                 transparent={true}
@@ -137,7 +137,7 @@ export default function TabsLayout() {
             >
                 <TouchableWithoutFeedback onPress={hideScanModal}>
                     <View style={styles.modalContainer}>
-                        {/* Scan Receipt Option */}
+
                         <Animated.View
                             style={[
                                 styles.floatingButton,
@@ -178,7 +178,7 @@ export default function TabsLayout() {
                             </TouchableOpacity>
                         </Animated.View>
 
-                        {/* Pick From Photos Option */}
+
                         <Animated.View
                             style={[
                                 styles.floatingButton,
@@ -238,23 +238,22 @@ const styles = StyleSheet.create({
         fontFamily: fonts.body,
         fontSize: 11,
     },
-    centerButton: {
-        width: 60,
-        height: 60,
-        borderRadius: 30,
-        backgroundColor: colors.white,
+    floatingAddButton: {
+        position: 'absolute',
+        bottom: 100,
+        left: '50%',
+        marginLeft: -28, // Half of width to center
+        width: 56,
+        height: 56,
+        borderRadius: 28,
+        backgroundColor: colors.black,
         justifyContent: 'center',
         alignItems: 'center',
-        marginBottom: 20,
-        borderWidth: 2,
-        borderColor: colors.gray200,
-        ...({
-            shadowColor: colors.black,
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.1,
-            shadowRadius: 4,
-            elevation: 4,
-        }),
+        shadowColor: colors.black,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+        elevation: 8,
     },
     modalContainer: {
         flex: 1,
@@ -280,9 +279,8 @@ const styles = StyleSheet.create({
         }),
     },
     optionText: {
-        fontFamily: fonts.body,
+        fontFamily: fonts.bodySemiBold,
         fontSize: 16,
         color: colors.black,
-        fontWeight: '600',
     },
 });

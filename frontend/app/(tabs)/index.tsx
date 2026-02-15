@@ -17,23 +17,23 @@ interface Receipt {
     receipt_items: { id: string; item_name: string; item_price: number }[];
 }
 
-// ─── Receipt-shaped card with torn/zig-zag edges ───
+
 function ReceiptCard({ children, style }: { children: React.ReactNode; style?: any }) {
     return (
         <View style={[styles.receiptCard, style]}>
-            {/* Top zig-zag edge */}
+
             <View style={styles.zigzagRow}>
                 {Array.from({ length: 12 }).map((_, i) => (
                     <View key={`top-${i}`} style={styles.zigzagTriangle} />
                 ))}
             </View>
 
-            {/* Card content */}
+
             <View style={styles.receiptCardContent}>
                 {children}
             </View>
 
-            {/* Bottom zig-zag edge */}
+
             <View style={[styles.zigzagRow, styles.zigzagBottom]}>
                 {Array.from({ length: 12 }).map((_, i) => (
                     <View key={`bot-${i}`} style={styles.zigzagTriangle} />
@@ -43,7 +43,7 @@ function ReceiptCard({ children, style }: { children: React.ReactNode; style?: a
     );
 }
 
-// ─── Decorative lines inside receipt card ───
+
 function ReceiptLines() {
     return (
         <View style={styles.receiptLines}>
@@ -54,7 +54,7 @@ function ReceiptLines() {
     );
 }
 
-// ─── Star connector decoration ───
+
 function StarConnector() {
     return (
         <Text style={styles.star}>✦</Text>
@@ -67,7 +67,7 @@ export default function Dashboard() {
     const [receipts, setReceipts] = useState<Receipt[]>([]);
     const [loading, setLoading] = useState(true);
 
-    // Get time-based greeting
+
     const getGreeting = () => {
         const hour = new Date().getHours();
         if (hour < 12) return 'Good morning';
@@ -75,15 +75,15 @@ export default function Dashboard() {
         return 'Good evening';
     };
 
-    // Get user's first name from email
+
     const getUserName = () => {
         const email = session?.user?.email || '';
         const name = email.split('@')[0];
-        // Capitalize first letter
+
         return name.charAt(0).toUpperCase() + name.slice(1);
     };
 
-    // Fetch recent receipts
+
     useEffect(() => {
         fetchReceipts();
     }, []);
@@ -111,7 +111,7 @@ export default function Dashboard() {
         }
     };
 
-    // Compute stats
+
     const now = new Date();
     const monthlyReceipts = receipts.filter(r => {
         const d = new Date(r.created_at);
@@ -218,7 +218,7 @@ const styles = StyleSheet.create({
         paddingBottom: spacing.xxxl,
     },
 
-    // Greeting
+
     greeting: {
         fontFamily: fonts.body,
         fontSize: fontSizes.lg,
@@ -232,7 +232,7 @@ const styles = StyleSheet.create({
         marginBottom: spacing.xl,
     },
 
-    // Receipt card shape
+
     receiptCard: {
         backgroundColor: colors.white,
         borderWidth: 1.5,
@@ -261,7 +261,7 @@ const styles = StyleSheet.create({
         borderBottomColor: colors.gray200,
     },
 
-    // Stat cards
+
     statRow: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -283,7 +283,7 @@ const styles = StyleSheet.create({
         marginBottom: spacing.sm,
     },
 
-    // Decorative receipt lines
+
     receiptLines: {
         gap: 6,
         marginTop: spacing.sm,
@@ -294,7 +294,7 @@ const styles = StyleSheet.create({
         borderRadius: 1,
     },
 
-    // Star connectors
+
     starColumn: {
         alignItems: 'center',
         paddingHorizontal: spacing.sm,
@@ -308,7 +308,7 @@ const styles = StyleSheet.create({
         marginBottom: spacing.sm,
     },
 
-    // Recent receipts
+
     recentContainer: {
         width: '100%',
     },
@@ -348,7 +348,7 @@ const styles = StyleSheet.create({
         color: colors.green,
     },
 
-    // View all
+
     viewAllButton: {
         marginTop: spacing.md,
         alignItems: 'center',
@@ -359,7 +359,7 @@ const styles = StyleSheet.create({
         color: colors.green,
     },
 
-    // Empty state
+
     emptyState: {
         alignItems: 'center',
         paddingVertical: spacing.xl,
@@ -376,7 +376,7 @@ const styles = StyleSheet.create({
         marginTop: spacing.xs,
     },
 
-    // Loading
+
     loadingText: {
         fontFamily: fonts.body,
         fontSize: fontSizes.sm,

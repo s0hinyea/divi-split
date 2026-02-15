@@ -79,7 +79,7 @@ export default function History() {
             const token = session?.access_token;
             if (!token) return;
 
-            // Optimistic remove
+
             setPastReceipts(prev => prev.filter(r => r.id !== receiptId));
 
             const response = await fetch(`${Config.BACKEND_URL}/receipts/${receiptId}`, {
@@ -236,16 +236,16 @@ const styles = StyleSheet.create({
     scrollContainer: { flex: 1 },
     scrollContent: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxxl },
 
-    // Empty state
+
     emptyState: { alignItems: 'center', paddingVertical: spacing.xxl },
     emptyTitle: { fontFamily: fonts.body, fontSize: fontSizes.md, color: colors.gray600, fontWeight: '600' },
     emptySubtitle: { fontFamily: fonts.body, fontSize: fontSizes.sm, color: colors.gray400, marginTop: spacing.xs },
 
-    // Status
+
     statusText: { fontFamily: fonts.body, fontSize: fontSizes.sm, color: colors.gray400, textAlign: 'center', paddingVertical: spacing.xl },
     swipeHint: { fontSize: fontSizes.sm, color: colors.gray400, marginBottom: spacing.md, fontStyle: 'italic', fontFamily: fonts.body },
 
-    // Receipt card
+
     receiptCard: {
         flexDirection: 'row',
         justifyContent: 'space-between',
@@ -260,7 +260,7 @@ const styles = StyleSheet.create({
     receiptDate: { fontFamily: fonts.body, fontSize: fontSizes.xs, color: colors.gray600, marginTop: 2 },
     receiptTotal: { fontFamily: fonts.bodySemiBold, fontSize: fontSizes.lg, color: colors.green },
 
-    // Delete action
+
     deleteAction: {
         backgroundColor: colors.error,
         justifyContent: 'center',
@@ -270,11 +270,11 @@ const styles = StyleSheet.create({
         marginBottom: spacing.sm,
     },
 
-    // Load more
+
     loadMoreButton: { padding: spacing.md, alignItems: 'center', marginVertical: spacing.sm },
     loadMoreText: { color: colors.green, fontSize: fontSizes.md, fontFamily: fonts.body },
 
-    // Modal
+
     modalOverlay: { flex: 1, justifyContent: 'center', alignItems: 'center' },
     modalContainer: {
         backgroundColor: colors.white,

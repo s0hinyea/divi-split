@@ -20,7 +20,7 @@ import { Session } from "@supabase/supabase-js";
 import { supabase } from "../lib/supabase";
 import AnimatedSplash from "@/components/AnimatedSplash";
 
-// Create a session context
+
 export const SessionContext = createContext<{
   session: Session | null;
   isLoading: boolean;
@@ -57,7 +57,7 @@ export default function RootLayout() {
   });
 
   useEffect(() => {
-    // Get initial session
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setIsLoading(false);
