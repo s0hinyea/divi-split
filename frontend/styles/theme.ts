@@ -32,13 +32,16 @@ export const colors = {
 
 // ─── Typography ────────────────────────────────────────────
 export const fonts = {
-    // Display / Headers
-    header: 'TanMeringue',
+    // Primary UI font (Inter - modern, clean, readable)
+    body: 'Inter-Regular',
+    bodyMedium: 'Inter-Medium',
+    bodySemiBold: 'Inter-SemiBold',
+    bodyBold: 'Inter-Bold',
 
-    // Body / UI
-    body: 'OptimaRoman',
+    // Display/headers (use Inter Bold for consistency)
+    display: 'Inter-Bold',
 
-    // Weights (Work Sans family for when needed)
+    // Legacy fallbacks (keep for gradual migration)
     sans: 'WorkSans',
     sansRegular: 'WorkSans-Regular',
     sansMedium: 'WorkSans-Medium',
