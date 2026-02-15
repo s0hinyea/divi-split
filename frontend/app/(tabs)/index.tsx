@@ -167,7 +167,7 @@ export default function Dashboard() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: colors.white,
+        backgroundColor: colors.gray100,
     },
     scrollContent: {
         padding: spacing.lg,

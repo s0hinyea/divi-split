@@ -42,7 +42,7 @@ export default function Profile() {
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: colors.white },
+    container: { flex: 1, backgroundColor: colors.gray100 },
     header: { padding: spacing.lg, paddingBottom: spacing.md },
     title: {
         fontFamily: fonts.bodyBold,

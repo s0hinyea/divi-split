@@ -226,7 +226,7 @@ export default function History() {
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: colors.white },
+    container: { flex: 1, backgroundColor: colors.gray100 },
     header: { padding: spacing.lg, paddingBottom: spacing.md },
     title: {
         fontFamily: fonts.bodyBold,
@@ -250,7 +250,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        backgroundColor: colors.gray100,
+        backgroundColor: colors.white,
         padding: spacing.md,
         borderRadius: radii.md,
         marginBottom: spacing.sm,
