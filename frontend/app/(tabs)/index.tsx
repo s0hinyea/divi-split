@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useEffect, useContext } from 'react';
 import { useRouter } from 'expo-router';
 import { colors, fonts, fontSizes, spacing, radii, shadows } from '@/styles/theme';
+import Svg, { Path } from 'react-native-svg';
 import { Config } from '@/constants/Config';
 import { supabase } from '@/lib/supabase';
 import { SessionContext } from '@/app/_layout';
@@ -18,27 +19,52 @@ interface Receipt {
 }
 
 
-function ReceiptCard({ children, style }: { children: React.ReactNode; style?: any }) {
+function ZigzagBorder({ width = 300 }: { width?: number }) {
+    const zigzagHeight = 8;
+    const zigzagWidth = 12;
+    const numZigzags = Math.floor(width / zigzagWidth);
+
+    let path = `M 0 ${zigzagHeight}`;
+    for (let i = 0; i < numZigzags; i++) {
+        const x = i * zigzagWidth;
+        path += ` L ${x + zigzagWidth / 2} 0 L ${x + zigzagWidth} ${zigzagHeight}`;
+    }
+
     return (
-        <View style={[styles.receiptCard, style]}>
+        <Svg width={width} height={zigzagHeight} style={{ position: 'absolute' }}>
+            <Path d={path} fill={colors.white} stroke={colors.gray200} strokeWidth={1.5} />
+        </Svg>
+    );
+}
 
-            <View style={styles.zigzagRow}>
-                {Array.from({ length: 12 }).map((_, i) => (
-                    <View key={`top-${i}`} style={styles.zigzagTriangle} />
-                ))}
-            </View>
+function ReceiptCard({ children, style, showTopZigzag = true, showBottomZigzag = true }: {
+    children: React.ReactNode;
+    style?: any;
+    showTopZigzag?: boolean;
+    showBottomZigzag?: boolean;
+}) {
+    const [cardWidth, setCardWidth] = useState(300);
 
+    return (
+        <View
+            style={[styles.receiptCard, style]}
+            onLayout={(e) => setCardWidth(e.nativeEvent.layout.width)}
+        >
+            {showTopZigzag && (
+                <View style={{ position: 'absolute', top: -1, left: 0, right: 0 }}>
+                    <ZigzagBorder width={cardWidth} />
+                </View>
+            )}
 
             <View style={styles.receiptCardContent}>
                 {children}
             </View>
 
-
-            <View style={[styles.zigzagRow, styles.zigzagBottom]}>
-                {Array.from({ length: 12 }).map((_, i) => (
-                    <View key={`bot-${i}`} style={styles.zigzagTriangle} />
-                ))}
-            </View>
+            {showBottomZigzag && (
+                <View style={{ position: 'absolute', bottom: -1, left: 0, right: 0, transform: [{ rotate: '180deg' }] }}>
+                    <ZigzagBorder width={cardWidth} />
+                </View>
+            )}
         </View>
     );
 }
@@ -51,13 +77,6 @@ function ReceiptLines() {
             <View style={[styles.receiptLine, { width: '50%' }]} />
             <View style={[styles.receiptLine, { width: '60%' }]} />
         </View>
-    );
-}
-
-
-function StarConnector() {
-    return (
-        <Text style={styles.star}>✦</Text>
     );
 }
 
@@ -128,37 +147,23 @@ export default function Dashboard() {
                 <Text style={styles.greeting}>{getGreeting()},</Text>
                 <Text style={styles.userName}>{getUserName()}.</Text>
 
-                {/* Stat cards row */}
                 <View style={styles.statRow}>
-                    {/* Left stat: $ split this month */}
-                    <ReceiptCard style={styles.statCard}>
+                    <ReceiptCard style={styles.statCard} showTopZigzag={false} showBottomZigzag={true}>
                         <Text style={styles.statAmount}>${monthlyTotal.toFixed(0)}</Text>
                         <Text style={styles.statLabel}>split this month</Text>
                         <ReceiptLines />
                     </ReceiptCard>
 
-                    {/* Star connector — staggered */}
-                    <View style={styles.starColumn}>
-                        <StarConnector />
-                        <View style={{ height: spacing.lg }} />
-                        <StarConnector />
-                    </View>
+                    <View style={styles.statSpacer} />
 
-                    {/* Right stat: receipts scanned */}
-                    <ReceiptCard style={[styles.statCard, { marginTop: spacing.lg }]}>
+                    <ReceiptCard style={styles.statCard} showTopZigzag={false} showBottomZigzag={true}>
                         <Text style={styles.statAmount}>{totalScanned}</Text>
                         <Text style={styles.statLabel}>receipts scanned</Text>
                         <ReceiptLines />
                     </ReceiptCard>
                 </View>
 
-                {/* Star between stat row and recent receipts */}
-                <View style={styles.centerStar}>
-                    <StarConnector />
-                </View>
-
-                {/* Recent receipts container */}
-                <ReceiptCard style={styles.recentContainer}>
+                <ReceiptCard style={styles.recentContainer} showTopZigzag={true} showBottomZigzag={false}>
                     <Text style={styles.recentTitle}>Recent Splits</Text>
 
                     {loading ? (
@@ -242,24 +247,7 @@ const styles = StyleSheet.create({
     receiptCardContent: {
         padding: spacing.md,
     },
-    zigzagRow: {
-        flexDirection: 'row',
-        overflow: 'hidden',
-        height: 10,
-    },
-    zigzagBottom: {
-        transform: [{ rotate: '180deg' }],
-    },
-    zigzagTriangle: {
-        width: 0,
-        height: 0,
-        borderLeftWidth: 7,
-        borderRightWidth: 7,
-        borderBottomWidth: 10,
-        borderLeftColor: 'transparent',
-        borderRightColor: 'transparent',
-        borderBottomColor: colors.gray200,
-    },
+
 
 
     statRow: {
@@ -269,6 +257,9 @@ const styles = StyleSheet.create({
     },
     statCard: {
         flex: 1,
+    },
+    statSpacer: {
+        width: spacing.md,
     },
     statAmount: {
         fontFamily: fonts.bodySemiBold,
@@ -295,18 +286,7 @@ const styles = StyleSheet.create({
     },
 
 
-    starColumn: {
-        alignItems: 'center',
-        paddingHorizontal: spacing.sm,
-    },
-    star: {
-        fontSize: 14,
-        color: colors.gray400,
-    },
-    centerStar: {
-        alignItems: 'center',
-        marginBottom: spacing.sm,
-    },
+
 
 
     recentContainer: {
