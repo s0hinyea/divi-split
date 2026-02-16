@@ -79,7 +79,7 @@ export default function History() {
             const token = session?.access_token;
             if (!token) return;
 
-            // Optimistic remove
+
             setPastReceipts(prev => prev.filter(r => r.id !== receiptId));
 
             const response = await fetch(`${Config.BACKEND_URL}/receipts/${receiptId}`, {
@@ -226,41 +226,41 @@ export default function History() {
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: colors.white },
+    container: { flex: 1, backgroundColor: colors.gray100 },
     header: { padding: spacing.lg, paddingBottom: spacing.md },
     title: {
-        fontFamily: fonts.header,
+        fontFamily: fonts.bodyBold,
         fontSize: fontSizes.xxl,
         color: colors.black,
     },
     scrollContainer: { flex: 1 },
     scrollContent: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxxl },
 
-    // Empty state
+
     emptyState: { alignItems: 'center', paddingVertical: spacing.xxl },
     emptyTitle: { fontFamily: fonts.body, fontSize: fontSizes.md, color: colors.gray600, fontWeight: '600' },
     emptySubtitle: { fontFamily: fonts.body, fontSize: fontSizes.sm, color: colors.gray400, marginTop: spacing.xs },
 
-    // Status
+
     statusText: { fontFamily: fonts.body, fontSize: fontSizes.sm, color: colors.gray400, textAlign: 'center', paddingVertical: spacing.xl },
     swipeHint: { fontSize: fontSizes.sm, color: colors.gray400, marginBottom: spacing.md, fontStyle: 'italic', fontFamily: fonts.body },
 
-    // Receipt card
+
     receiptCard: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        backgroundColor: colors.gray100,
+        backgroundColor: colors.white,
         padding: spacing.md,
         borderRadius: radii.md,
         marginBottom: spacing.sm,
     },
     receiptInfo: { flex: 1 },
-    receiptName: { fontFamily: fonts.body, fontSize: fontSizes.md, color: colors.black, fontWeight: '600' },
+    receiptName: { fontFamily: fonts.bodySemiBold, fontSize: fontSizes.md, color: colors.black },
     receiptDate: { fontFamily: fonts.body, fontSize: fontSizes.xs, color: colors.gray600, marginTop: 2 },
-    receiptTotal: { fontFamily: fonts.header, fontSize: fontSizes.lg, color: colors.green },
+    receiptTotal: { fontFamily: fonts.bodySemiBold, fontSize: fontSizes.lg, color: colors.green },
 
-    // Delete action
+
     deleteAction: {
         backgroundColor: colors.error,
         justifyContent: 'center',
@@ -270,11 +270,11 @@ const styles = StyleSheet.create({
         marginBottom: spacing.sm,
     },
 
-    // Load more
+
     loadMoreButton: { padding: spacing.md, alignItems: 'center', marginVertical: spacing.sm },
     loadMoreText: { color: colors.green, fontSize: fontSizes.md, fontFamily: fonts.body },
 
-    // Modal
+
     modalOverlay: { flex: 1, justifyContent: 'center', alignItems: 'center' },
     modalContainer: {
         backgroundColor: colors.white,
@@ -289,7 +289,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         marginBottom: spacing.md,
     },
-    modalTitle: { fontFamily: fonts.header, fontSize: fontSizes.xl, color: colors.black, flex: 1 },
+    modalTitle: { fontFamily: fonts.bodyBold, fontSize: fontSizes.xl, color: colors.black, flex: 1 },
     closeButton: { padding: spacing.xs },
     modalContent: { maxHeight: 300 },
     modalDate: { fontSize: fontSizes.sm, color: colors.gray600, marginBottom: spacing.md, fontFamily: fonts.body },
@@ -310,8 +310,8 @@ const styles = StyleSheet.create({
         borderTopWidth: 2,
         borderTopColor: colors.black,
     },
-    modalTotalLabel: { fontFamily: fonts.body, fontSize: fontSizes.lg, fontWeight: 'bold', color: colors.black },
-    modalTotalAmount: { fontFamily: fonts.header, fontSize: fontSizes.lg, fontWeight: 'bold', color: colors.green },
+    modalTotalLabel: { fontFamily: fonts.bodySemiBold, fontSize: fontSizes.lg, color: colors.black },
+    modalTotalAmount: { fontFamily: fonts.bodySemiBold, fontSize: fontSizes.lg, color: colors.green },
     modalCloseButton: {
         backgroundColor: colors.green,
         paddingVertical: 14,
@@ -319,5 +319,5 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         marginTop: spacing.lg,
     },
-    modalCloseText: { color: colors.white, fontSize: fontSizes.md, fontWeight: 'bold', fontFamily: fonts.body },
+    modalCloseText: { color: colors.white, fontSize: fontSizes.md, fontFamily: fonts.bodySemiBold },
 });

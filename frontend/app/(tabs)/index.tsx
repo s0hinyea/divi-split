@@ -7,6 +7,7 @@ import { colors, fonts, fontSizes, spacing, radii, shadows } from '@/styles/them
 import { Config } from '@/constants/Config';
 import { supabase } from '@/lib/supabase';
 import { SessionContext } from '@/app/_layout';
+import ReceiptCard from '@/components/ReceiptCard';
 
 // Receipt type (shared — should move to a types file eventually)
 interface Receipt {
@@ -17,33 +18,7 @@ interface Receipt {
     receipt_items: { id: string; item_name: string; item_price: number }[];
 }
 
-// ─── Receipt-shaped card with torn/zig-zag edges ───
-function ReceiptCard({ children, style }: { children: React.ReactNode; style?: any }) {
-    return (
-        <View style={[styles.receiptCard, style]}>
-            {/* Top zig-zag edge */}
-            <View style={styles.zigzagRow}>
-                {Array.from({ length: 12 }).map((_, i) => (
-                    <View key={`top-${i}`} style={styles.zigzagTriangle} />
-                ))}
-            </View>
 
-            {/* Card content */}
-            <View style={styles.receiptCardContent}>
-                {children}
-            </View>
-
-            {/* Bottom zig-zag edge */}
-            <View style={[styles.zigzagRow, styles.zigzagBottom]}>
-                {Array.from({ length: 12 }).map((_, i) => (
-                    <View key={`bot-${i}`} style={styles.zigzagTriangle} />
-                ))}
-            </View>
-        </View>
-    );
-}
-
-// ─── Decorative lines inside receipt card ───
 function ReceiptLines() {
     return (
         <View style={styles.receiptLines}>
@@ -54,20 +29,13 @@ function ReceiptLines() {
     );
 }
 
-// ─── Star connector decoration ───
-function StarConnector() {
-    return (
-        <Text style={styles.star}>✦</Text>
-    );
-}
-
 export default function Dashboard() {
     const router = useRouter();
     const { session } = useContext(SessionContext);
     const [receipts, setReceipts] = useState<Receipt[]>([]);
     const [loading, setLoading] = useState(true);
 
-    // Get time-based greeting
+
     const getGreeting = () => {
         const hour = new Date().getHours();
         if (hour < 12) return 'Good morning';
@@ -75,15 +43,15 @@ export default function Dashboard() {
         return 'Good evening';
     };
 
-    // Get user's first name from email
+
     const getUserName = () => {
         const email = session?.user?.email || '';
         const name = email.split('@')[0];
-        // Capitalize first letter
+
         return name.charAt(0).toUpperCase() + name.slice(1);
     };
 
-    // Fetch recent receipts
+
     useEffect(() => {
         fetchReceipts();
     }, []);
@@ -111,7 +79,7 @@ export default function Dashboard() {
         }
     };
 
-    // Compute stats
+
     const now = new Date();
     const monthlyReceipts = receipts.filter(r => {
         const d = new Date(r.created_at);
@@ -128,37 +96,25 @@ export default function Dashboard() {
                 <Text style={styles.greeting}>{getGreeting()},</Text>
                 <Text style={styles.userName}>{getUserName()}.</Text>
 
-                {/* Stat cards row */}
                 <View style={styles.statRow}>
-                    {/* Left stat: $ split this month */}
-                    <ReceiptCard style={styles.statCard}>
+                    <ReceiptCard style={styles.statCard} showTopZigzag={false} showBottomZigzag={true}>
                         <Text style={styles.statAmount}>${monthlyTotal.toFixed(0)}</Text>
                         <Text style={styles.statLabel}>split this month</Text>
                         <ReceiptLines />
                     </ReceiptCard>
 
-                    {/* Star connector — staggered */}
-                    <View style={styles.starColumn}>
-                        <StarConnector />
-                        <View style={{ height: spacing.lg }} />
-                        <StarConnector />
-                    </View>
+                    <View style={styles.statSpacer} />
 
-                    {/* Right stat: receipts scanned */}
-                    <ReceiptCard style={[styles.statCard, { marginTop: spacing.lg }]}>
-                        <Text style={styles.statAmount}>{totalScanned}</Text>
-                        <Text style={styles.statLabel}>receipts scanned</Text>
-                        <ReceiptLines />
+                    <ReceiptCard style={[styles.statCard, styles.flippedCard]} showTopZigzag={false} showBottomZigzag={true}>
+                        <View style={styles.flippedContent}>
+                            <Text style={styles.statAmount}>{totalScanned}</Text>
+                            <Text style={styles.statLabel}>receipts scanned</Text>
+                            <ReceiptLines />
+                        </View>
                     </ReceiptCard>
                 </View>
 
-                {/* Star between stat row and recent receipts */}
-                <View style={styles.centerStar}>
-                    <StarConnector />
-                </View>
-
-                {/* Recent receipts container */}
-                <ReceiptCard style={styles.recentContainer}>
+                <ReceiptCard style={styles.recentContainer} showTopZigzag={true} showBottomZigzag={true}>
                     <Text style={styles.recentTitle}>Recent Splits</Text>
 
                     {loading ? (
@@ -211,14 +167,14 @@ export default function Dashboard() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: colors.white,
+        backgroundColor: colors.gray100,
     },
     scrollContent: {
         padding: spacing.lg,
         paddingBottom: spacing.xxxl,
     },
 
-    // Greeting
+
     greeting: {
         fontFamily: fonts.body,
         fontSize: fontSizes.lg,
@@ -226,42 +182,17 @@ const styles = StyleSheet.create({
         marginTop: spacing.md,
     },
     userName: {
-        fontFamily: fonts.header,
+        fontFamily: fonts.bodyBold,
         fontSize: fontSizes.xxl,
         color: colors.black,
         marginBottom: spacing.xl,
     },
 
-    // Receipt card shape
-    receiptCard: {
-        backgroundColor: colors.white,
-        borderWidth: 1.5,
-        borderColor: colors.black,
-        overflow: 'hidden',
-    },
-    receiptCardContent: {
-        padding: spacing.md,
-    },
-    zigzagRow: {
-        flexDirection: 'row',
-        overflow: 'hidden',
-        height: 10,
-    },
-    zigzagBottom: {
-        transform: [{ rotate: '180deg' }],
-    },
-    zigzagTriangle: {
-        width: 0,
-        height: 0,
-        borderLeftWidth: 7,
-        borderRightWidth: 7,
-        borderBottomWidth: 10,
-        borderLeftColor: 'transparent',
-        borderRightColor: 'transparent',
-        borderBottomColor: colors.gray200,
-    },
 
-    // Stat cards
+
+
+
+
     statRow: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -270,8 +201,17 @@ const styles = StyleSheet.create({
     statCard: {
         flex: 1,
     },
+    statSpacer: {
+        width: spacing.md,
+    },
+    flippedCard: {
+        transform: [{ scaleX: -1 }],
+    },
+    flippedContent: {
+        transform: [{ scaleX: -1 }],
+    },
     statAmount: {
-        fontFamily: fonts.header,
+        fontFamily: fonts.bodySemiBold,
         fontSize: fontSizes.xxl,
         color: colors.green,
         marginBottom: spacing.xs,
@@ -283,7 +223,7 @@ const styles = StyleSheet.create({
         marginBottom: spacing.sm,
     },
 
-    // Decorative receipt lines
+
     receiptLines: {
         gap: 6,
         marginTop: spacing.sm,
@@ -294,26 +234,15 @@ const styles = StyleSheet.create({
         borderRadius: 1,
     },
 
-    // Star connectors
-    starColumn: {
-        alignItems: 'center',
-        paddingHorizontal: spacing.sm,
-    },
-    star: {
-        fontSize: 14,
-        color: colors.gray400,
-    },
-    centerStar: {
-        alignItems: 'center',
-        marginBottom: spacing.sm,
-    },
 
-    // Recent receipts
+
+
+
     recentContainer: {
         width: '100%',
     },
     recentTitle: {
-        fontFamily: fonts.header,
+        fontFamily: fonts.bodyBold,
         fontSize: fontSizes.lg,
         color: colors.black,
         marginBottom: spacing.md,
@@ -332,10 +261,9 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     recentItemName: {
-        fontFamily: fonts.body,
+        fontFamily: fonts.bodySemiBold,
         fontSize: fontSizes.md,
         color: colors.black,
-        fontWeight: '600',
     },
     recentItemDate: {
         fontFamily: fonts.body,
@@ -344,34 +272,31 @@ const styles = StyleSheet.create({
         marginTop: 2,
     },
     recentItemAmount: {
-        fontFamily: fonts.header,
+        fontFamily: fonts.bodySemiBold,
         fontSize: fontSizes.lg,
         color: colors.green,
-        fontWeight: 'bold',
     },
 
-    // View all
+
     viewAllButton: {
         marginTop: spacing.md,
         alignItems: 'center',
     },
     viewAllText: {
-        fontFamily: fonts.body,
+        fontFamily: fonts.bodySemiBold,
         fontSize: fontSizes.sm,
         color: colors.green,
-        fontWeight: '600',
     },
 
-    // Empty state
+
     emptyState: {
         alignItems: 'center',
         paddingVertical: spacing.xl,
     },
     emptyTitle: {
-        fontFamily: fonts.body,
+        fontFamily: fonts.bodySemiBold,
         fontSize: fontSizes.md,
         color: colors.gray600,
-        fontWeight: '600',
     },
     emptySubtitle: {
         fontFamily: fonts.body,
@@ -380,7 +305,7 @@ const styles = StyleSheet.create({
         marginTop: spacing.xs,
     },
 
-    // Loading
+
     loadingText: {
         fontFamily: fonts.body,
         fontSize: fontSizes.sm,

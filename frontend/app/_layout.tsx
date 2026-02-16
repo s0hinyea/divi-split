@@ -20,7 +20,7 @@ import { Session } from "@supabase/supabase-js";
 import { supabase } from "../lib/supabase";
 import AnimatedSplash from "@/components/AnimatedSplash";
 
-// Create a session context
+
 export const SessionContext = createContext<{
   session: Session | null;
   isLoading: boolean;
@@ -40,6 +40,12 @@ export default function RootLayout() {
 
   const [loaded] = useFonts({
     SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
+    // Inter - modern UI font
+    'Inter-Regular': require("../assets/fonts/Inter-Regular.otf"),
+    'Inter-Medium': require("../assets/fonts/Inter-Medium.otf"),
+    'Inter-SemiBold': require("../assets/fonts/Inter-SemiBold.otf"),
+    'Inter-Bold': require("../assets/fonts/Inter-Bold.otf"),
+    // Legacy fonts (keeping for gradual migration)
     TanMeringue: require("../assets/fonts/TanMeringue.otf"),
     OptimaRoman: require("../assets/fonts/OptimaRoman.otf"),
     Outfit: require("../assets/fonts/Outfit-VariableFont_wght.ttf"),
@@ -51,7 +57,7 @@ export default function RootLayout() {
   });
 
   useEffect(() => {
-    // Get initial session
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setIsLoading(false);
