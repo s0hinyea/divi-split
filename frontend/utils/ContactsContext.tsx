@@ -5,7 +5,8 @@ import { ReceiptItem } from "../utils/ReceiptContext"
 export type Contact = {
   id: string;
   name: string;
-  phoneNumber: string | undefined; 
+  phoneNumber: string | undefined;
+  image?: { uri: string } | undefined;
   items: ReceiptItem[];
 };
 
@@ -26,9 +27,9 @@ export function ContactsProvider({ children }: { children: ReactNode }) {
   const [selected, setSelectedContacts] = useState<Contact[]>([]);
 
   const manageContacts = (newContact: Contact) => {
-    if (selected.some(contact => contact.id === newContact.id)){
-       let newSelected = selected.filter((contact) => contact.id !== newContact.id);
-       setSelectedContacts((prevSelected) => newSelected);
+    if (selected.some(contact => contact.id === newContact.id)) {
+      let newSelected = selected.filter((contact) => contact.id !== newContact.id);
+      setSelectedContacts((prevSelected) => newSelected);
     }
     else {
       setSelectedContacts((prevSelected) => [...prevSelected, newContact]);
@@ -36,7 +37,7 @@ export function ContactsProvider({ children }: { children: ReactNode }) {
   }
 
   const manageItems = (newItem: ReceiptItem, currentContact: Contact) => {
-    setSelectedContacts(prevSelected => 
+    setSelectedContacts(prevSelected =>
       prevSelected.map(contact => {
         if (contact.id === currentContact.id) {
           // If item exists, remove it
@@ -55,20 +56,20 @@ export function ContactsProvider({ children }: { children: ReactNode }) {
         return contact;
       })
     );
-    }
+  }
 
-    const clearSelected = () => {
-      setSelectedContacts([]);
-    }
+  const clearSelected = () => {
+    setSelectedContacts([]);
+  }
 
-    const clearItems = () => {
-      setSelectedContacts(prev => 
-        prev.map(contact => ({
-          ...contact,
-          items: []
-        }))
-      )
-    }
+  const clearItems = () => {
+    setSelectedContacts(prev =>
+      prev.map(contact => ({
+        ...contact,
+        items: []
+      }))
+    )
+  }
 
   useEffect(() => {
   }, [selected]);
@@ -76,13 +77,13 @@ export function ContactsProvider({ children }: { children: ReactNode }) {
   const value = {
     selected,
     manageContacts,
-    manageItems, 
+    manageItems,
     clearItems,
     clearSelected
   }
 
   return (
-    <ContactsContext.Provider value={ value }>
+    <ContactsContext.Provider value={value}>
       {children}
     </ContactsContext.Provider>
   );

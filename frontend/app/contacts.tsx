@@ -7,16 +7,15 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   StyleSheet,
-  Image,
   TextInput,
+  Image,
 } from "react-native";
 import * as Contacts from "expo-contacts";
 import { useOCR } from "../utils/OCRContext";
-import { styles } from "../styles/contactsCss";
 import { useContacts, Contact } from "../utils/ContactsContext";
 import { SafeAreaView } from "react-native-safe-area-context";
-import Colors from "../constants/Colors";
 import { Icon } from "react-native-paper";
+import { colors, fonts, fontSizes, spacing, radii, shadows } from '@/styles/theme';
 
 export default function ChooseContacts() {
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -45,7 +44,12 @@ export default function ChooseContacts() {
       const { status } = await Contacts.requestPermissionsAsync();
       if (status === "granted") {
         const { data } = await Contacts.getContactsAsync({
-          fields: [Contacts.Fields.PhoneNumbers, Contacts.Fields.Name],
+          fields: [
+            Contacts.Fields.PhoneNumbers,
+            Contacts.Fields.Name,
+            Contacts.Fields.Image,
+            Contacts.Fields.ImageAvailable
+          ],
         });
 
         const newData = data.map((contact) => ({
@@ -54,6 +58,7 @@ export default function ChooseContacts() {
           phoneNumber: contact.phoneNumbers
             ? contact.phoneNumbers[0].number
             : undefined,
+          image: contact.imageAvailable ? contact.image : undefined,
           items: [],
         })) as Contact[];
 
@@ -74,75 +79,251 @@ export default function ChooseContacts() {
 
   if (loading) {
     return (
-      <View style={styles.container}>
-        <ActivityIndicator size="large" color={Colors.orange} />
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color={colors.green} />
       </View>
     );
   }
 
-  // Clarify intent with named variables
   const noContactsSelected = selected.length === 0;
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Choose the Recipients</Text>
+        <Text style={styles.headerTitle}>
+          <Text style={{ color: colors.black }}>Choose </Text>
+          <Text style={{ color: colors.green }}>Recipients</Text>
+        </Text>
+        <Text style={styles.headerSubtitle}>Select who to split this with</Text>
       </View>
 
-      <TextInput
-        style={styles.searchInput}
-        value={searchQuery}
-        onChangeText={setSearchQuery}
-        placeholder="Search Name"
-      />
+      <View style={styles.searchContainer}>
+        <Icon source="magnify" size={20} color={colors.gray400} />
+        <TextInput
+          style={styles.searchInput}
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          placeholder="Search name"
+          placeholderTextColor={colors.gray400}
+        />
+      </View>
 
       <FlatList
         data={filteredContacts}
         keyExtractor={(item) => item.id!}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={[
-              styles.contactItem,
-              selected.some((contact) => contact.id === item.id) &&
-              styles.selectedContact,
-            ]}
-            onPress={() => toggleContact(item)}
-          >
-            <Text style={styles.contactName}>{item.name}</Text>
-          </TouchableOpacity>
-        )}
+        contentContainerStyle={styles.listContent}
+        showsVerticalScrollIndicator={false}
+        renderItem={({ item }) => {
+          const isSelected = selected.some((contact) => contact.id === item.id);
+          return (
+            <TouchableOpacity
+              style={[
+                styles.contactItem,
+                isSelected && styles.selectedContact,
+              ]}
+              onPress={() => toggleContact(item)}
+              activeOpacity={0.7}
+            >
+              <View style={styles.avatarContainer}>
+                {item.image ? (
+                  <Image source={{ uri: item.image.uri }} style={styles.avatarImage} />
+                ) : (
+                  <Text style={styles.avatarText}>
+                    {item.name ? item.name.charAt(0).toUpperCase() : '?'}
+                  </Text>
+                )}
+              </View>
+              <View style={styles.contactInfo}>
+                <Text style={styles.contactName}>{item.name}</Text>
+                {item.phoneNumber && (
+                  <Text style={styles.phoneNumber}>{item.phoneNumber}</Text>
+                )}
+              </View>
+              <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
+                {isSelected && <Icon source="check" size={16} color={colors.white} />}
+              </View>
+            </TouchableOpacity>
+          );
+        }}
       />
 
-      {(isProcessing || noContactsSelected) ? (
-        <View style={styles.loadingContainer}>
-          {isProcessing ? (
-            <View style={styles.statusContainer}>
-              <ActivityIndicator size="small" color={Colors.orange} />
-              <Text style={styles.statusText}>Processing</Text>
-            </View>
-          ) : (
-            <View style={styles.statusContainer}>
-              <Icon
-                source="check-circle-outline"
-                size={24}
-                color={Colors.orange}
-              />
-              <Text style={styles.statusText}>Done</Text>
-            </View>
-          )}
-        </View>
-      ) : (
-        <View>
+      <View style={styles.footer}>
+        {(isProcessing || noContactsSelected) ? (
+          <View style={styles.statusContainer}>
+            {isProcessing ? (
+              <>
+                <ActivityIndicator size="small" color={colors.green} />
+                <Text style={styles.statusText}>Processing receipt...</Text>
+              </>
+            ) : (
+              <Text style={styles.statusText}>Select at least one person</Text>
+            )}
+          </View>
+        ) : (
           <TouchableOpacity
             style={styles.continueButton}
             onPress={() => {
               router.push("/result");
             }}
+            activeOpacity={0.8}
           >
             <Text style={styles.buttonText}>Continue</Text>
+            <Icon source="arrow-right" size={20} color={colors.white} />
           </TouchableOpacity>
-        </View>
-      )}
+        )}
+      </View>
     </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.gray100,
+  },
+  header: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.md,
+  },
+  headerTitle: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 28,
+    color: colors.green, // Changed to green
+  },
+  headerSubtitle: {
+    fontFamily: fonts.body,
+    fontSize: fontSizes.md,
+    color: colors.gray600,
+    marginTop: 4,
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.white,
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.md,
+    paddingHorizontal: spacing.md,
+    height: 48,
+    borderRadius: radii.xl,
+    borderWidth: 1,
+    borderColor: colors.gray200,
+  },
+  searchInput: {
+    flex: 1,
+    marginLeft: spacing.sm,
+    fontFamily: fonts.body,
+    fontSize: fontSizes.md,
+    color: colors.black,
+  },
+  listContent: {
+    paddingHorizontal: spacing.lg,
+    paddingBottom: 100, // Space for footer
+    gap: spacing.sm,
+  },
+  contactItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: spacing.md,
+    backgroundColor: colors.white,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: 'transparent',
+    shadowColor: colors.black,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  selectedContact: {
+    backgroundColor: `${colors.green}10`, // 10% opacity green
+    borderColor: colors.green,
+  },
+  avatarContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.gray200,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: spacing.md,
+    overflow: 'hidden', // Ensure image stays within circle
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+  },
+  avatarText: {
+    fontFamily: fonts.bodyBold,
+    fontSize: fontSizes.md,
+    color: colors.gray600,
+  },
+  contactInfo: {
+    flex: 1,
+  },
+  contactName: {
+    fontFamily: fonts.bodySemiBold,
+    fontSize: fontSizes.md,
+    color: colors.black,
+  },
+  phoneNumber: {
+    fontFamily: fonts.body,
+    fontSize: fontSizes.xs,
+    color: colors.gray500,
+    marginTop: 2,
+  },
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: colors.gray300,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  checkboxSelected: {
+    backgroundColor: colors.green,
+    borderColor: colors.green,
+  },
+  footer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: spacing.lg,
+    backgroundColor: colors.gray100, // Or white with top border
+    borderTopWidth: 1,
+    borderTopColor: colors.gray200,
+  },
+  statusContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: spacing.md,
+    gap: spacing.sm,
+  },
+  statusText: {
+    fontFamily: fonts.body,
+    fontSize: fontSizes.sm,
+    color: colors.gray500,
+  },
+  continueButton: {
+    flexDirection: 'row',
+    backgroundColor: colors.black,
+    height: 56,
+    borderRadius: radii.xl,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: spacing.sm,
+    shadowColor: colors.green,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  buttonText: {
+    fontFamily: fonts.bodySemiBold,
+    fontSize: fontSizes.lg,
+    color: colors.white,
+  },
+});
