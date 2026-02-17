@@ -4,6 +4,7 @@ import { Text } from "react-native-paper";
 import { LinearGradient } from "expo-linear-gradient";
 import { useContext } from "react";
 import { SessionContext } from "./_layout";
+import { colors, fonts, fontSizes } from '@/styles/theme';
 import Svg, { Circle, Rect } from "react-native-svg";
 import Animated, {
 	useSharedValue,
@@ -14,8 +15,8 @@ import Animated, {
 
 const { width: SCREEN_W } = Dimensions.get("window");
 
-const GREEN = "#228B22";
-const BLACK = "#000000";
+const GREEN = colors.green;
+const BLACK = colors.black;
 
 // Render the Divi logo as inline SVG (scalable, no image file needed)
 function DiviLogo({ size = 80 }: { size?: number }) {
@@ -189,14 +190,13 @@ const styles = StyleSheet.create({
 	},
 	title: {
 		fontSize: 48,
-		fontWeight: "bold",
-		fontFamily: "TanMeringue",
+		fontFamily: fonts.bodyBold,
 		letterSpacing: 4,
 	},
 	subtitle: {
-		fontSize: 24,
-		color: "#101010",
-		fontFamily: "OptimaRoman",
+		fontSize: fontSizes.lg,
+		color: colors.gray600,
+		fontFamily: fonts.body,
 	},
 	button: {
 		padding: 15,
@@ -209,9 +209,8 @@ const styles = StyleSheet.create({
 		borderColor: BLACK,
 	},
 	buttonText: {
-		fontSize: 20,
-		fontFamily: "OptimaRoman",
-		fontWeight: "bold",
+		fontSize: fontSizes.lg,
+		fontFamily: fonts.bodySemiBold,
 	},
 	loginContainer: {
 		flexDirection: "row",
@@ -220,15 +219,14 @@ const styles = StyleSheet.create({
 		marginTop: 20,
 	},
 	smallText: {
-		fontSize: 16,
-		color: BLACK,
-		fontFamily: "OptimaRoman",
+		fontSize: fontSizes.md,
+		color: colors.black,
+		fontFamily: fonts.body,
 		textAlign: "center",
 	},
 	loginText: {
-		color: GREEN,
-		fontWeight: "bold",
-		fontFamily: "OptimaRoman",
-		fontSize: 16,
+		color: colors.green,
+		fontFamily: fonts.bodySemiBold,
+		fontSize: fontSizes.md,
 	},
 });

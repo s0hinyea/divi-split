@@ -1,109 +1,242 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Image } from 'react-native';
-import { useRouter } from 'expo-router';
+import { View, Text, ScrollView, TouchableOpacity, Image, StyleSheet, ActivityIndicator } from 'react-native';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useContacts } from '../utils/ContactsContext';
 import { useReceipt, ReceiptItem } from '../utils/ReceiptContext';
-import { styles } from '../styles/assignCss';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { colors, fonts, fontSizes, spacing, radii, shadows } from '@/styles/theme';
+import { MaterialIcons } from '@expo/vector-icons';
 
 export default function AssignAmounts() {
   const router = useRouter();
+  const params = useLocalSearchParams();
   const { selected, manageItems } = useContacts();
   const { receiptData, setUserItems } = useReceipt();
-  const [currentContactIndex, setCurrentContactIndex] = useState(0);
-  const [assigned, setAssigned] = useState<ReceiptItem[]>([]);
 
-  useEffect(() => {
-    return () => {
-      setAssigned([]);
-    };
-  }, []);
-  
+  // Initialize index from params if available, otherwise 0
+  const [currentContactIndex, setCurrentContactIndex] = useState(() => {
+    if (params.initialIndex) {
+      const idx = Number(params.initialIndex);
+      return isNaN(idx) ? 0 : idx;
+    }
+    return 0;
+  });
 
   const currentContact = selected[currentContactIndex];
   const items = 'items' in receiptData ? receiptData.items.filter(item => !/tax/i.test(item.name)) : [];
 
-  const available = items.filter(item => !assigned.some(assigned => assigned.id === item.id));
+  // Calculate items assigned to *other* people
+  const assignedToOthers = selected
+    .filter(c => c.id !== currentContact?.id)
+    .flatMap(c => c.items);
+
+  // Available items are those NOT assigned to others
+  const available = items.filter(item => !assignedToOthers.some(assigned => assigned.id === item.id));
 
   const toggleItem = (item: ReceiptItem) => {
     if (currentContact) {
       manageItems(item, currentContact);
     }
   }
-  
-  const getItemStyle = (item: ReceiptItem) => {
-    if (!currentContact) return styles.itemPill;
-    return [
-      styles.itemPill,
-      currentContact.items?.some(it => it.id === item.id) && styles.selectedItemPill
-    ];
-  }
+
+  const isSelected = (item: ReceiptItem) => {
+    return currentContact?.items?.some(it => it.id === item.id);
+  };
 
   const nextContact = async () => {
-    if(currentContact?.items){
-      await setAssigned(prev => [...prev, ...currentContact.items]);
-    }
-    
-    if(currentContactIndex + 1 === selected.length) {
-      const allAssignedItems = [
-        ...assigned,
-        ...(currentContact?.items || [])
-      ];
-      
-      const remainingItems = items.filter(item => 
+    if (currentContactIndex + 1 === selected.length) {
+      // Calculate remaining items for the user (items not assigned to ANYONE)
+      const allAssignedItems = selected.flatMap(c => c.items);
+
+      const remainingItems = items.filter(item =>
         !allAssignedItems.some(assigned => assigned.id === item.id)
       );
-      
+
       if (remainingItems.length > 0) {
-        await setUserItems(remainingItems);
+        setUserItems(remainingItems);
+      } else {
+        setUserItems([]);
       }
       router.push("/review");
+    } else {
+      setCurrentContactIndex(currentContactIndex + 1);
     }
-    
-    setCurrentContactIndex(currentContactIndex + 1);
   }
 
+  const handleBack = () => {
+    if (currentContactIndex > 0) {
+      setCurrentContactIndex(currentContactIndex - 1);
+    } else {
+      router.back();
+    }
+  };
 
-
-  return currentContactIndex == selected.length ? (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>DONE</Text>
+  if (currentContactIndex === selected.length) {
+    // Done state logic/redirect handled in nextContact, but just in case
+    return (
+      <View style={styles.container}>
+        <ActivityIndicator size="large" color={colors.green} />
       </View>
-    </View>
-  ) : currentContact ? (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Assign Items to <Text style={styles.contactName}>{currentContact?.name}</Text></Text>
+    )
+  }
+
+  return (
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <View style={styles.headerContainer}>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <TouchableOpacity onPress={handleBack} style={{ marginRight: spacing.sm }}>
+            <MaterialIcons name="arrow-back" size={28} color={colors.black} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>
+            <Text style={{ color: colors.black }}>Assign Items to </Text>
+            <Text style={{ color: colors.green }}>{currentContact?.name}</Text>
+          </Text>
+        </View>
       </View>
 
-      <ScrollView style={styles.scrollView}>
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         <View style={styles.itemsContainer}>
-          {available.map(item => (
-            <TouchableOpacity
-              key={item.id}
-              style={getItemStyle(item)}
-              onPress={() => toggleItem(item)}
-            >
-              <Text style={styles.itemName}>{item.name}</Text>
-              <Text style={styles.itemPrice}>${item.price.toFixed(2)}</Text>
-            </TouchableOpacity>
-          ))}
+          {available.length === 0 ? (
+            <Text style={styles.emptyText}>No more items to assign.</Text>
+          ) : (
+            available.map(item => {
+              const selected = isSelected(item);
+              return (
+                <TouchableOpacity
+                  key={item.id}
+                  style={[styles.itemCard, selected && styles.selectedItemCard]}
+                  onPress={() => toggleItem(item)}
+                  activeOpacity={0.8}
+                >
+                  <View style={styles.itemInfo}>
+                    <Text style={[styles.itemName, selected && styles.selectedItemText]}>{item.name}</Text>
+                    <Text style={[styles.itemPrice, selected && styles.selectedItemText]}>${item.price.toFixed(2)}</Text>
+                  </View>
+                  <View style={[styles.checkbox, selected && styles.checkedBox]}>
+                    {selected && <MaterialIcons name="check" size={16} color={colors.white} />}
+                  </View>
+                </TouchableOpacity>
+              );
+            })
+          )}
         </View>
       </ScrollView>
 
       <View style={styles.footer}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.continueButton}
           onPress={nextContact}>
-          <Image 
-            source={require('../assets/images/check.png')} 
-            style={styles.continueIcon} 
-          />
+          <MaterialIcons name="check" size={32} color={colors.white} />
         </TouchableOpacity>
       </View>
-    </View>
-  ) : null;
+    </SafeAreaView>
+  );
 }
-    
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.gray100,
+  },
+  headerContainer: {
+    padding: spacing.lg,
+    paddingBottom: spacing.md,
+  },
+  headerTitle: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 28,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    padding: spacing.lg,
+    paddingBottom: 100, // Space for footer
+  },
+  itemsContainer: {
+    gap: spacing.md,
+  },
+  itemCard: {
+    backgroundColor: colors.white,
+    borderRadius: radii.md,
+    padding: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    shadowColor: colors.black,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  selectedItemCard: {
+    borderColor: colors.green,
+    backgroundColor: colors.white, // Keep white bg but emphasize border
+  },
+  itemInfo: {
+    flex: 1,
+  },
+  itemName: {
+    fontFamily: fonts.body,
+    fontSize: fontSizes.md,
+    color: colors.black,
+    marginBottom: 4,
+  },
+  itemPrice: {
+    fontFamily: fonts.bodyBold,
+    fontSize: fontSizes.md,
+    color: colors.green,
+  },
+  selectedItemText: {
+    // Optional: change text color when selected? keeping it standard for now looks cleaner
+  },
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderRadius: radii.full,
+    borderWidth: 2,
+    borderColor: colors.gray300,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: spacing.md,
+  },
+  checkedBox: {
+    backgroundColor: colors.green,
+    borderColor: colors.green,
+  },
+  footer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: spacing.xl,
+    backgroundColor: 'transparent', // Let content scroll behind? Or white bg?
+    // Let's make it a gradient or just transparent with floating button
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  continueButton: {
+    width: 72,
+    height: 72,
+    borderRadius: radii.full,
+    backgroundColor: colors.black,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: colors.green,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  emptyText: {
+    textAlign: 'center',
+    fontFamily: fonts.body,
+    color: colors.gray500,
+    marginTop: spacing.xl,
+  }
+});
+
 
 

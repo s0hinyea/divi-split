@@ -16,7 +16,9 @@ export const colors = {
     // Neutrals
     gray100: '#F5F5F5',   // backgrounds, cards
     gray200: '#E5E5E5',   // borders, dividers
+    gray300: '#D4D4D4',   // disabled states, subtle borders
     gray400: '#A0A0A0',   // placeholder text
+    gray500: '#737373',   // secondary text (darker)
     gray600: '#6B6B6B',   // secondary text
     gray800: '#2A2A2A',   // near-black text
 

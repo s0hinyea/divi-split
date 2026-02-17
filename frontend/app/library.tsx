@@ -9,6 +9,8 @@ import { useReceipt } from '../utils/ReceiptContext';
 import { useOCR } from '../utils/OCRContext';
 
 
+import { colors } from '@/styles/theme';
+
 export default function PickPhoto() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -80,7 +82,7 @@ export default function PickPhoto() {
     <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
       {loading ? (
         <>
-          <ActivityIndicator size="large" color="blue" />
+          <ActivityIndicator size="large" color={colors.green} />
           <Text>Processing...</Text>
         </>
       ) : (

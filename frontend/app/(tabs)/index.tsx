@@ -196,7 +196,7 @@ const styles = StyleSheet.create({
     statRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: spacing.sm,
+        marginBottom: spacing.lg,
     },
     statCard: {
         flex: 1,
@@ -280,6 +280,7 @@ const styles = StyleSheet.create({
 
     viewAllButton: {
         marginTop: spacing.md,
+        marginBottom: spacing.md,
         alignItems: 'center',
     },
     viewAllText: {
