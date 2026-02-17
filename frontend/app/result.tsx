@@ -152,10 +152,15 @@ export default function OCRResults() {
       {/* Fixed Header Section */}
       <View style={styles.headerContainer}>
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>
-            <Text style={{ color: colors.black }}>Modify </Text>
-            <Text style={{ color: colors.green }}>Receipt</Text>
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.sm }}>
+            <TouchableOpacity onPress={() => router.push('/contacts')} style={{ marginRight: spacing.sm }}>
+              <MaterialIcons name="arrow-back" size={28} color={colors.black} />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>
+              <Text style={{ color: colors.black }}>Modify </Text>
+              <Text style={{ color: colors.green }}>Receipt</Text>
+            </Text>
+          </View>
           <Text style={styles.headerSubtitle}>Tap to edit, swipe to delete</Text>
         </View>
 
@@ -287,17 +292,17 @@ export default function OCRResults() {
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.footerButton}
-              onPress={() => { isAdding(true) }}>
-              <MaterialIcons name="add" size={28} color={colors.black} />
-            </TouchableOpacity>
-
-            <TouchableOpacity
               style={styles.continueButton}
               onPress={() => { router.push("/assign") }}
               activeOpacity={0.8}
             >
               <MaterialIcons name="check" size={28} color={colors.white} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.footerButton}
+              onPress={() => { isAdding(true) }}>
+              <MaterialIcons name="add" size={28} color={colors.black} />
             </TouchableOpacity>
           </View>
         )}

@@ -4,6 +4,7 @@ import { SessionContext } from "./_layout";
 import Auth from "../components/Auth";
 import { Button, Icon, Text } from "react-native-paper";
 import { useRouter, useLocalSearchParams } from "expo-router";
+import { colors, fonts, fontSizes } from '@/styles/theme';
 
 export default function AccountPage() {
 	const { session } = useContext(SessionContext);
@@ -50,10 +51,9 @@ const styles = StyleSheet.create({
 		marginRight: 20,
 	},
 	headerTitle: {
-		fontSize: 20,
-		fontWeight: "bold",
-		fontFamily: "OptimaRoman",
-		color: "#101010",
+		fontSize: fontSizes.lg,
+		fontFamily: fonts.bodyBold,
+		color: colors.black,
 	},
 	content: {
 		flex: 1,

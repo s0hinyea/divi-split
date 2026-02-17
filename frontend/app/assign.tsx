@@ -60,6 +60,14 @@ export default function AssignAmounts() {
     setCurrentContactIndex(currentContactIndex + 1);
   }
 
+  const handleBack = () => {
+    if (currentContactIndex > 0) {
+      setCurrentContactIndex(currentContactIndex - 1);
+    } else {
+      router.back();
+    }
+  };
+
   if (currentContactIndex === selected.length) {
     // Done state logic/redirect handled in nextContact, but just in case
     return (
@@ -72,10 +80,15 @@ export default function AssignAmounts() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.headerContainer}>
-        <Text style={styles.headerTitle}>
-          <Text style={{ color: colors.black }}>Assign Items to </Text>
-          <Text style={{ color: colors.green }}>{currentContact?.name}</Text>
-        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <TouchableOpacity onPress={handleBack} style={{ marginRight: spacing.sm }}>
+            <MaterialIcons name="arrow-back" size={28} color={colors.black} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>
+            <Text style={{ color: colors.black }}>Assign Items to </Text>
+            <Text style={{ color: colors.green }}>{currentContact?.name}</Text>
+          </Text>
+        </View>
       </View>
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>

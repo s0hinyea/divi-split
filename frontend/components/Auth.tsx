@@ -11,6 +11,7 @@ import {
 import { supabase } from "../lib/supabase";
 import { useRouter } from "expo-router";
 import Colors from "../constants/Colors";
+import { colors, fonts, fontSizes } from '@/styles/theme';
 
 // Tells Supabase Auth to continuously refresh the session automatically if
 // the app is in the foreground. When this is added, you will continue to receive
@@ -180,22 +181,21 @@ const styles = StyleSheet.create({
 		alignSelf: "stretch",
 	},
 	label: {
-		fontSize: 16,
-		fontFamily: "OptimaRoman",
-		color: "#000000",
+		fontSize: fontSizes.md,
+		fontFamily: fonts.bodySemiBold,
+		color: colors.black,
 		marginBottom: 8,
-		fontWeight: "bold",
 		marginTop: 10,
 	},
 	input: {
-		backgroundColor: "#FFFFFF",
+		backgroundColor: colors.white,
 		borderRadius: 12,
 		borderWidth: 2,
-		borderColor: "#000000",
+		borderColor: colors.black,
 		padding: 16,
-		fontSize: 16,
-		fontFamily: "OptimaRoman",
-		color: "#000000",
+		fontSize: fontSizes.md,
+		fontFamily: fonts.body,
+		color: colors.black,
 	},
 	button: {
 		marginTop: 40,
@@ -203,15 +203,14 @@ const styles = StyleSheet.create({
 		height: 50,
 		justifyContent: "center",
 		alignItems: "center",
-		backgroundColor: "#FFFFFF",
+		backgroundColor: colors.white,
 		borderRadius: 15,
 		borderWidth: 2,
-		borderColor: "#000000",
+		borderColor: colors.black,
 	},
 	buttonText: {
-		color: "#000000",
-		fontSize: 20,
-		fontFamily: "OptimaRoman",
-		fontWeight: "bold",
+		color: colors.black,
+		fontSize: fontSizes.lg,
+		fontFamily: fonts.bodySemiBold,
 	},
 });

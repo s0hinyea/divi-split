@@ -111,14 +111,28 @@ export default function RootLayout() {
                     >
                       <Stack.Screen name="index" />
                       <Stack.Screen name="home" />
-                      <Stack.Screen name="(tabs)" />
+                      <Stack.Screen
+                        name="(tabs)"
+                        options={{
+                          gestureEnabled: false,
+                        }}
+                      />
                       <Stack.Screen name="auth" />
                       <Stack.Screen name="scan" />
                       <Stack.Screen name="library" />
-                      <Stack.Screen name="result" />
-                      <Stack.Screen name="assign" />
+                      <Stack.Screen
+                        name="result"
+                        options={{ gestureEnabled: false }}
+                      />
+                      <Stack.Screen
+                        name="assign"
+                        options={{ gestureEnabled: false }}
+                      />
                       <Stack.Screen name="contacts" />
-                      <Stack.Screen name="review" />
+                      <Stack.Screen
+                        name="review"
+                        options={{ gestureEnabled: false }}
+                      />
                       <Stack.Screen name="+not-found" />
                     </Stack>
                     <StatusBar style="dark" />
