@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Modal, Alert, ActivityIndicator, TextInput, Platform } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Modal, Alert, ActivityIndicator, TextInput, Platform, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useContacts } from '../utils/ContactsContext';
 import { useReceipt, ReceiptItem } from '../utils/ReceiptContext';
-import { styles } from '../styles/reviewCss';
 import * as SMS from 'expo-sms';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { colors, fonts, fontSizes, spacing, radii, shadows } from '@/styles/theme';
+import { MaterialIcons } from '@expo/vector-icons';
+import { BlurView } from 'expo-blur';
 
 export default function ReviewPage() {
   const router = useRouter();
@@ -190,60 +193,48 @@ export default function ReviewPage() {
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Review Assignments</Text>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <View style={styles.headerContainer}>
+        <Text style={styles.headerTitle}>
+          <Text style={{ color: colors.black }}>Review </Text>
+          <Text style={{ color: colors.green }}>Split</Text>
+        </Text>
       </View>
 
-      {/* Receipt Name and Date Section */}
-      <View style={{ padding: 16, backgroundColor: '#f5f5f5', borderBottomWidth: 1, borderBottomColor: '#e0e0e0' }}>
-        <Text style={{ fontSize: 14, color: '#666', marginBottom: 4 }}>Receipt Name</Text>
-        <TextInput
-          style={{
-            backgroundColor: '#fff',
-            padding: 12,
-            borderRadius: 8,
-            borderWidth: 1,
-            borderColor: '#ddd',
-            fontSize: 16,
-            marginBottom: 12
-          }}
-          placeholder="e.g., Dinner at Joe's"
-          placeholderTextColor="#999"
-          value={receiptName}
-          onChangeText={setReceiptName}
-        />
-
-        <Text style={{ fontSize: 14, color: '#666', marginBottom: 4 }}>Receipt Date</Text>
-        <TouchableOpacity
-          style={{
-            backgroundColor: '#fff',
-            padding: 12,
-            borderRadius: 8,
-            borderWidth: 1,
-            borderColor: '#ddd',
-            flexDirection: 'row',
-            justifyContent: 'space-between',
-            alignItems: 'center'
-          }}
-          onPress={() => setShowDatePicker(true)}
-        >
-          <Text style={{ fontSize: 16 }}>{receiptDate.toLocaleDateString()}</Text>
-          <Text style={{ color: '#007AFF' }}>Change</Text>
-        </TouchableOpacity>
-
-        {showDatePicker && (
-          <DateTimePicker
-            value={receiptDate}
-            mode="date"
-            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-            onChange={onDateChange}
-            maximumDate={new Date()}
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+        {/* Receipt Name and Date Section */}
+        <View style={styles.detailsCard}>
+          <Text style={styles.inputLabel}>Receipt Name</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="e.g., Dinner at Joe's"
+            placeholderTextColor={colors.gray400}
+            value={receiptName}
+            onChangeText={setReceiptName}
           />
-        )}
-      </View>
 
-      <ScrollView style={styles.scrollView}>
+          <Text style={styles.inputLabel}>Receipt Date</Text>
+          <TouchableOpacity
+            style={styles.dateButton}
+            onPress={() => setShowDatePicker(true)}
+          >
+            <Text style={styles.dateText}>{receiptDate.toLocaleDateString()}</Text>
+            <Text style={styles.changeDateText}>Change</Text>
+          </TouchableOpacity>
+
+          {showDatePicker && (
+            <DateTimePicker
+              value={receiptDate}
+              mode="date"
+              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+              onChange={onDateChange}
+              maximumDate={new Date()}
+            />
+          )}
+        </View>
+
+        <Text style={styles.sectionTitle}>Breakdown</Text>
+
         {selected.map((contact) => {
           const contactMealTotal = calculateTotal(contact.items as ReceiptItem[]);
           const contactTax = individualTaxes[contact.id] || 0;
@@ -251,32 +242,38 @@ export default function ReviewPage() {
           const contactTotal = contactMealTotal + contactTax + contactTip;
 
           return (
-            <View key={contact.id} style={styles.contactSection}>
-              <Text style={styles.contactName}>{contact.name}</Text>
+            <View key={contact.id} style={styles.card}>
+              <Text style={styles.cardTitle}>{contact.name}</Text>
+              <View style={styles.cardDivider} />
+
               {contact.items.map((item: ReceiptItem) => (
                 <View key={item.id} style={styles.itemRow}>
                   <Text style={styles.itemName}>{item.name}</Text>
                   <Text style={styles.itemPrice}>${item.price.toFixed(2)}</Text>
                 </View>
               ))}
-              <View style={styles.subtotalRow}>
-                <Text style={styles.subtotalLabel}>Subtotal:</Text>
-                <Text style={styles.subtotalAmount}>${contactMealTotal.toFixed(2)}</Text>
+
+              <View style={styles.cardDivider} />
+
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Subtotal</Text>
+                <Text style={styles.summaryValue}>${contactMealTotal.toFixed(2)}</Text>
               </View>
               {contactTax > 0 && (
-                <View style={styles.taxRow}>
-                  <Text style={styles.taxLabel}>Tax ({(taxPercentage * 100).toFixed(1)}%):</Text>
-                  <Text style={styles.taxAmount}>${contactTax.toFixed(2)}</Text>
+                <View style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}>Tax</Text>
+                  <Text style={styles.summaryValue}>${contactTax.toFixed(2)}</Text>
                 </View>
               )}
               {contactTip > 0 && (
-                <View style={styles.taxRow}>
-                  <Text style={styles.taxLabel}>Tip:</Text>
-                  <Text style={styles.taxAmount}>${contactTip.toFixed(2)}</Text>
+                <View style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}>Tip</Text>
+                  <Text style={styles.summaryValue}>${contactTip.toFixed(2)}</Text>
                 </View>
               )}
+
               <View style={styles.totalRow}>
-                <Text style={styles.totalLabel}>Total:</Text>
+                <Text style={styles.totalLabel}>Total</Text>
                 <Text style={styles.totalAmount}>${contactTotal.toFixed(2)}</Text>
               </View>
             </View>
@@ -291,32 +288,37 @@ export default function ReviewPage() {
             const userTotal = userMealTotal + userTax + userTip;
 
             return (
-              <View style={styles.contactSection}>
-                <Text style={styles.contactName}>You</Text>
+              <View style={styles.card}>
+                <Text style={styles.cardTitle}>You</Text>
+                <View style={styles.cardDivider} />
+
                 {receiptData.userItems.map((item: ReceiptItem) => (
                   <View key={item.id} style={styles.itemRow}>
                     <Text style={styles.itemName}>{item.name}</Text>
                     <Text style={styles.itemPrice}>${item.price.toFixed(2)}</Text>
                   </View>
                 ))}
-                <View style={styles.subtotalRow}>
-                  <Text style={styles.subtotalLabel}>Subtotal:</Text>
-                  <Text style={styles.subtotalAmount}>${userMealTotal.toFixed(2)}</Text>
+
+                <View style={styles.cardDivider} />
+
+                <View style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}>Subtotal</Text>
+                  <Text style={styles.summaryValue}>${userMealTotal.toFixed(2)}</Text>
                 </View>
                 {userTax > 0 && (
-                  <View style={styles.taxRow}>
-                    <Text style={styles.taxLabel}>Tax ({(taxPercentage * 100).toFixed(1)}%):</Text>
-                    <Text style={styles.taxAmount}>${userTax.toFixed(2)}</Text>
+                  <View style={styles.summaryRow}>
+                    <Text style={styles.summaryLabel}>Tax</Text>
+                    <Text style={styles.summaryValue}>${userTax.toFixed(2)}</Text>
                   </View>
                 )}
                 {userTip > 0 && (
-                  <View style={styles.taxRow}>
-                    <Text style={styles.taxLabel}>Tip:</Text>
-                    <Text style={styles.taxAmount}>${userTip.toFixed(2)}</Text>
+                  <View style={styles.summaryRow}>
+                    <Text style={styles.summaryLabel}>Tip</Text>
+                    <Text style={styles.summaryValue}>${userTip.toFixed(2)}</Text>
                   </View>
                 )}
                 <View style={styles.totalRow}>
-                  <Text style={styles.totalLabel}>Your Total:</Text>
+                  <Text style={styles.totalLabel}>Your Total</Text>
                   <Text style={styles.totalAmount}>${userTotal.toFixed(2)}</Text>
                 </View>
               </View>
@@ -329,28 +331,33 @@ export default function ReviewPage() {
           const allMealItems = 'items' in receiptData ? receiptData.items : [];
 
           return (
-            <View style={styles.contactSection}>
-              <Text style={styles.contactName}> Total</Text>
-              <View style={styles.itemRow}>
+            <View style={[styles.card, styles.totalCard]}>
+              <Text style={styles.cardTitle}>Grand Total</Text>
+              <View style={styles.cardDivider} />
+
+              <View style={styles.summaryRow}>
                 <Text style={styles.itemName}>Subtotal (all meals)</Text>
                 <Text style={styles.itemPrice}>
                   ${(calculateTotal(allMealItems)).toFixed(2)}
                 </Text>
               </View>
-              <View style={styles.itemRow}>
+              <View style={styles.summaryRow}>
                 <Text style={styles.itemName}>Total Tax</Text>
                 <Text style={styles.itemPrice}>
                   ${Object.values(individualTaxes).reduce((sum, tax) => sum + tax, 0).toFixed(2)}
                 </Text>
               </View>
-              <View style={styles.itemRow}>
+              <View style={styles.summaryRow}>
                 <Text style={styles.itemName}>Total Tip</Text>
                 <Text style={styles.itemPrice}>
                   ${Object.values(individualTips).reduce((sum, tip) => sum + tip, 0).toFixed(2)}
                 </Text>
               </View>
+
+              <View style={styles.cardDivider} />
+
               <View style={styles.totalRow}>
-                <Text style={styles.totalLabel}>Grand Total:</Text>
+                <Text style={styles.totalLabel}>Final Amount</Text>
                 <Text style={styles.totalAmount}>
                   ${receiptData.total ? receiptData.total.toFixed(2) : '0.00'}
                 </Text>
@@ -371,13 +378,13 @@ export default function ReviewPage() {
 
       {/* Group SMS Modal */}
       <Modal
-        animationType="slide"
+        animationType="fade"
         transparent={true}
         visible={showSmsModal}
         onRequestClose={() => setShowSmsModal(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContainer}>
+        <BlurView intensity={20} style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Send split summary to group chat?</Text>
 
             <View style={styles.modalButtonContainer}>
@@ -385,7 +392,7 @@ export default function ReviewPage() {
                 style={[styles.modalButton, styles.modalButtonPrimary]}
                 onPress={sendGroupSummary}
               >
-                <Text style={styles.modalButtonPrimaryText}>Yes</Text>
+                <Text style={styles.modalButtonPrimaryText}>Yes, Send</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -395,12 +402,228 @@ export default function ReviewPage() {
                   proceedToNextScreen();
                 }}
               >
-                <Text style={styles.modalButtonSecondaryText}>No</Text>
+                <Text style={styles.modalButtonSecondaryText}>No, Skip</Text>
               </TouchableOpacity>
             </View>
           </View>
-        </View>
+        </BlurView>
       </Modal>
-    </View>
+    </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.gray100,
+  },
+  headerContainer: {
+    padding: spacing.lg,
+    paddingBottom: spacing.sm,
+  },
+  headerTitle: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 28,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    padding: spacing.lg,
+    paddingBottom: 100,
+  },
+  sectionTitle: {
+    fontFamily: fonts.bodyBold,
+    fontSize: fontSizes.lg,
+    color: colors.black,
+    marginTop: spacing.lg,
+    marginBottom: spacing.md,
+  },
+  detailsCard: {
+    backgroundColor: colors.white,
+    borderRadius: radii.md,
+    padding: spacing.md,
+    shadowColor: colors.black,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  inputLabel: {
+    fontFamily: fonts.bodySemiBold,
+    fontSize: fontSizes.sm,
+    color: colors.gray600,
+    marginBottom: spacing.xs,
+    marginTop: spacing.sm,
+  },
+  input: {
+    backgroundColor: colors.gray100,
+    borderRadius: radii.md,
+    padding: spacing.md,
+    fontFamily: fonts.body,
+    fontSize: fontSizes.md,
+    color: colors.black,
+  },
+  dateButton: {
+    backgroundColor: colors.gray100,
+    borderRadius: radii.md,
+    padding: spacing.md,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  dateText: {
+    fontFamily: fonts.body,
+    fontSize: fontSizes.md,
+    color: colors.black,
+  },
+  changeDateText: {
+    fontFamily: fonts.bodySemiBold,
+    fontSize: fontSizes.sm,
+    color: colors.green,
+  },
+  card: {
+    backgroundColor: colors.white,
+    borderRadius: radii.md,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+    shadowColor: colors.black,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  totalCard: {
+    marginTop: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.green,
+  },
+  cardTitle: {
+    fontFamily: fonts.bodyBold,
+    fontSize: fontSizes.lg,
+    color: colors.black,
+    marginBottom: spacing.sm,
+  },
+  cardDivider: {
+    height: 1,
+    backgroundColor: colors.gray200,
+    marginVertical: spacing.sm,
+  },
+  itemRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: spacing.xs,
+  },
+  itemName: {
+    fontFamily: fonts.body,
+    fontSize: fontSizes.md,
+    color: colors.gray600,
+    flex: 1,
+  },
+  itemPrice: {
+    fontFamily: fonts.body,
+    fontSize: fontSizes.md,
+    color: colors.black,
+  },
+  summaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: spacing.xs,
+  },
+  summaryLabel: {
+    fontFamily: fonts.body,
+    fontSize: fontSizes.sm,
+    color: colors.gray500,
+  },
+  summaryValue: {
+    fontFamily: fonts.bodySemiBold,
+    fontSize: fontSizes.sm,
+    color: colors.black,
+  },
+  totalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: spacing.sm,
+    paddingTop: spacing.sm,
+  },
+  totalLabel: {
+    fontFamily: fonts.bodyBold,
+    fontSize: fontSizes.md,
+    color: colors.black,
+  },
+  totalAmount: {
+    fontFamily: fonts.bodyBold,
+    fontSize: fontSizes.lg,
+    color: colors.green,
+  },
+  footer: {
+    padding: spacing.lg,
+    backgroundColor: colors.white,
+    borderTopWidth: 1,
+    borderTopColor: colors.gray200,
+  },
+  finishButton: {
+    backgroundColor: colors.black,
+    borderRadius: radii.full,
+    paddingVertical: spacing.md,
+    alignItems: 'center',
+    shadowColor: colors.green,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  finishButtonText: {
+    fontFamily: fonts.bodyBold,
+    fontSize: fontSizes.md,
+    color: colors.white,
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.3)',
+  },
+  modalContent: {
+    width: '85%',
+    backgroundColor: colors.white,
+    borderRadius: radii.xl,
+    padding: spacing.xl,
+    shadowColor: colors.black,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    elevation: 10,
+  },
+  modalTitle: {
+    fontFamily: fonts.bodyBold,
+    fontSize: fontSizes.xl,
+    color: colors.black,
+    marginBottom: spacing.lg,
+    textAlign: 'center',
+  },
+  modalButtonContainer: {
+    gap: spacing.md,
+  },
+  modalButton: {
+    paddingVertical: spacing.md,
+    borderRadius: radii.lg,
+    alignItems: 'center',
+  },
+  modalButtonPrimary: {
+    backgroundColor: colors.black,
+  },
+  modalButtonSecondary: {
+    backgroundColor: colors.gray200,
+  },
+  modalButtonPrimaryText: {
+    fontFamily: fonts.bodyBold,
+    fontSize: fontSizes.md,
+    color: colors.white,
+  },
+  modalButtonSecondaryText: {
+    fontFamily: fonts.bodyBold,
+    fontSize: fontSizes.md,
+    color: colors.black,
+  }
+});
