@@ -195,10 +195,18 @@ export default function ReviewPage() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.headerContainer}>
-        <Text style={styles.headerTitle}>
-          <Text style={{ color: colors.black }}>Review </Text>
-          <Text style={{ color: colors.green }}>Split</Text>
-        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <TouchableOpacity
+            onPress={() => router.push({ pathname: '/assign', params: { initialIndex: selected.length - 1 } })}
+            style={{ marginRight: spacing.sm }}
+          >
+            <MaterialIcons name="arrow-back" size={28} color={colors.black} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>
+            <Text style={{ color: colors.black }}>Review </Text>
+            <Text style={{ color: colors.green }}>Split</Text>
+          </Text>
+        </View>
       </View>
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>

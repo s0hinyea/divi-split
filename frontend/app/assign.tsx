@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Image, StyleSheet, ActivityIndicator } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useContacts } from '../utils/ContactsContext';
 import { useReceipt, ReceiptItem } from '../utils/ReceiptContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -9,22 +9,29 @@ import { MaterialIcons } from '@expo/vector-icons';
 
 export default function AssignAmounts() {
   const router = useRouter();
+  const params = useLocalSearchParams();
   const { selected, manageItems } = useContacts();
   const { receiptData, setUserItems } = useReceipt();
-  const [currentContactIndex, setCurrentContactIndex] = useState(0);
-  const [assigned, setAssigned] = useState<ReceiptItem[]>([]);
 
-  useEffect(() => {
-    return () => {
-      setAssigned([]);
-    };
-  }, []);
-
+  // Initialize index from params if available, otherwise 0
+  const [currentContactIndex, setCurrentContactIndex] = useState(() => {
+    if (params.initialIndex) {
+      const idx = Number(params.initialIndex);
+      return isNaN(idx) ? 0 : idx;
+    }
+    return 0;
+  });
 
   const currentContact = selected[currentContactIndex];
   const items = 'items' in receiptData ? receiptData.items.filter(item => !/tax/i.test(item.name)) : [];
 
-  const available = items.filter(item => !assigned.some(assigned => assigned.id === item.id));
+  // Calculate items assigned to *other* people
+  const assignedToOthers = selected
+    .filter(c => c.id !== currentContact?.id)
+    .flatMap(c => c.items);
+
+  // Available items are those NOT assigned to others
+  const available = items.filter(item => !assignedToOthers.some(assigned => assigned.id === item.id));
 
   const toggleItem = (item: ReceiptItem) => {
     if (currentContact) {
@@ -37,27 +44,23 @@ export default function AssignAmounts() {
   };
 
   const nextContact = async () => {
-    if (currentContact?.items) {
-      await setAssigned(prev => [...prev, ...currentContact.items]);
-    }
-
     if (currentContactIndex + 1 === selected.length) {
-      const allAssignedItems = [
-        ...assigned,
-        ...(currentContact?.items || [])
-      ];
+      // Calculate remaining items for the user (items not assigned to ANYONE)
+      const allAssignedItems = selected.flatMap(c => c.items);
 
       const remainingItems = items.filter(item =>
         !allAssignedItems.some(assigned => assigned.id === item.id)
       );
 
       if (remainingItems.length > 0) {
-        await setUserItems(remainingItems);
+        setUserItems(remainingItems);
+      } else {
+        setUserItems([]);
       }
       router.push("/review");
+    } else {
+      setCurrentContactIndex(currentContactIndex + 1);
     }
-
-    setCurrentContactIndex(currentContactIndex + 1);
   }
 
   const handleBack = () => {
