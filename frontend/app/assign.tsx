@@ -13,7 +13,6 @@ export default function AssignAmounts() {
   const { selected, manageItems } = useContacts();
   const { receiptData, setUserItems } = useReceipt();
 
-  // Initialize index from params if available, otherwise 0
   const [currentContactIndex, setCurrentContactIndex] = useState(() => {
     if (params.initialIndex) {
       const idx = Number(params.initialIndex);
@@ -69,7 +68,6 @@ export default function AssignAmounts() {
   };
 
   if (currentContactIndex === selected.length) {
-    // Done state logic/redirect handled in nextContact, but just in case
     return (
       <View style={styles.container}>
         <ActivityIndicator size="large" color={colors.green} />
