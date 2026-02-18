@@ -1,23 +1,12 @@
 import { View, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useState, useEffect, useContext } from 'react';
+import { useContext } from 'react';
 import { useRouter } from 'expo-router';
-import { colors, fonts, fontSizes, spacing, radii, shadows } from '@/styles/theme';
-import { Config } from '@/constants/Config';
-import { supabase } from '@/lib/supabase';
+import { colors, fonts, fontSizes, spacing } from '@/styles/theme';
 import { SessionContext } from '@/app/_layout';
 import ReceiptCard from '@/components/ReceiptCard';
-
-// Receipt type (shared — should move to a types file eventually)
-interface Receipt {
-    id: string;
-    receipt_name: string;
-    total_amount: number;
-    created_at: string;
-    receipt_items: { id: string; item_name: string; item_price: number }[];
-}
-
+import { useHistory } from '@/utils/HistoryContext';
 
 function ReceiptLines() {
     return (
@@ -32,9 +21,7 @@ function ReceiptLines() {
 export default function Dashboard() {
     const router = useRouter();
     const { session } = useContext(SessionContext);
-    const [receipts, setReceipts] = useState<Receipt[]>([]);
-    const [loading, setLoading] = useState(true);
-
+    const { receipts, loading } = useHistory();
 
     const getGreeting = () => {
         const hour = new Date().getHours();
@@ -42,7 +29,6 @@ export default function Dashboard() {
         if (hour < 17) return 'Good afternoon';
         return 'Good evening';
     };
-
 
     const getUserName = () => {
         const email = session?.user?.email || '';
@@ -52,42 +38,19 @@ export default function Dashboard() {
     };
 
 
-    useEffect(() => {
-        fetchReceipts();
-    }, []);
-
-    const fetchReceipts = async () => {
-        try {
-            setLoading(true);
-            const { data: { session: currentSession } } = await supabase.auth.getSession();
-            const token = currentSession?.access_token;
-            if (!token) return;
-
-            const response = await fetch(`${Config.BACKEND_URL}/receipts?limit=5&offset=0`, {
-                method: 'GET',
-                headers: { 'Authorization': `Bearer ${token}` },
-            });
-
-            if (response.ok) {
-                const data = await response.json();
-                setReceipts(data.receipts || []);
-            }
-        } catch (error) {
-            console.error('Error fetching receipts:', error);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-
     const now = new Date();
     const monthlyReceipts = receipts.filter(r => {
         const d = new Date(r.created_at);
         return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
     });
+
     const monthlyTotal = monthlyReceipts.reduce((sum, r) => sum + (r.total_amount || 0), 0);
     const totalScanned = receipts.length;
     const recentTwo = receipts.slice(0, 2);
+
+    // Dynamic sizing
+    const totalString = monthlyTotal.toFixed(0);
+    const totalFontSize = totalString.length > 5 ? fontSizes.lg : fontSizes.xxl;
 
     return (
         <SafeAreaView style={styles.container}>
@@ -98,7 +61,7 @@ export default function Dashboard() {
 
                 <View style={styles.statRow}>
                     <ReceiptCard style={styles.statCard} showTopZigzag={false} showBottomZigzag={true}>
-                        <Text style={styles.statAmount}>${monthlyTotal.toFixed(0)}</Text>
+                        <Text style={[styles.statAmount, { fontSize: totalFontSize }]}>${totalString}</Text>
                         <Text style={styles.statLabel}>split this month</Text>
                         <ReceiptLines />
                     </ReceiptCard>

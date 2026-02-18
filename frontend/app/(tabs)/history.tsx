@@ -15,92 +15,33 @@ import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import { MaterialIcons } from '@expo/vector-icons';
 import { colors, fonts, fontSizes, spacing, radii } from '@/styles/theme';
 
-interface Receipt {
-    id: string;
-    receipt_name: string;
-    total_amount: number;
-    created_at: string;
-    receipt_items: { id: string; item_name: string; item_price: number }[];
-}
+import { useHistory, Receipt } from '@/utils/HistoryContext';
 
 export default function History() {
-    const [pastReceipts, setPastReceipts] = useState<Receipt[]>([]);
-    const [loadingReceipts, setLoadingReceipts] = useState(true);
-    const [hasMore, setHasMore] = useState(false);
-    const [loadingMore, setLoadingMore] = useState(false);
+    const { receipts, loading, hasMore, fetchReceipts, deleteReceipt: contextDeleteReceipt } = useHistory();
     const [selectedReceipt, setSelectedReceipt] = useState<Receipt | null>(null);
+    const [loadingMore, setLoadingMore] = useState(false);
     const [showModal, setShowModal] = useState(false);
 
-    useEffect(() => {
-        fetchReceipts();
-    }, []);
-
-    const fetchReceipts = async (loadMore = false) => {
-        try {
-            if (loadMore) {
-                setLoadingMore(true);
-            } else {
-                setLoadingReceipts(true);
-            }
-
-            const { data: { session } } = await supabase.auth.getSession();
-            const token = session?.access_token;
-            if (!token) {
-                setLoadingReceipts(false);
-                return;
-            }
-
-            const offset = loadMore ? pastReceipts.length : 0;
-            const response = await fetch(`${Config.BACKEND_URL}/receipts?limit=10&offset=${offset}`, {
-                method: 'GET',
-                headers: { 'Authorization': `Bearer ${token}` },
-            });
-
-            if (response.ok) {
-                const data = await response.json();
-                if (loadMore) {
-                    setPastReceipts(prev => [...prev, ...(data.receipts || [])]);
-                } else {
-                    setPastReceipts(data.receipts || []);
-                }
-                setHasMore(data.hasMore || false);
-            }
-        } catch (error) {
-            console.error('Error fetching receipts:', error);
-        } finally {
-            setLoadingReceipts(false);
-            setLoadingMore(false);
-        }
+    const handleLoadMore = async () => {
+        if (!hasMore || loadingMore) return;
+        setLoadingMore(true);
+        await fetchReceipts(true);
+        setLoadingMore(false);
     };
 
-    const deleteReceipt = async (receiptId: string) => {
+    const handleDelete = async (receiptId: string) => {
         try {
-            const { data: { session } } = await supabase.auth.getSession();
-            const token = session?.access_token;
-            if (!token) return;
-
-
-            setPastReceipts(prev => prev.filter(r => r.id !== receiptId));
-
-            const response = await fetch(`${Config.BACKEND_URL}/receipts/${receiptId}`, {
-                method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${token}` },
-            });
-
-            if (!response.ok) {
-                fetchReceipts();
-                console.error('Failed to delete receipt');
-            }
+            await contextDeleteReceipt(receiptId);
         } catch (error) {
             console.error('Error deleting receipt:', error);
-            fetchReceipts();
         }
     };
 
     const renderRightActions = (receipt: Receipt) => (
         <TouchableOpacity
             style={styles.deleteAction}
-            onPress={() => deleteReceipt(receipt.id)}
+            onPress={() => handleDelete(receipt.id)}
         >
             <MaterialIcons name="delete" size={28} color={colors.white} />
         </TouchableOpacity>
@@ -113,9 +54,9 @@ export default function History() {
             </View>
 
             <ScrollView style={styles.scrollContainer} contentContainerStyle={styles.scrollContent}>
-                {loadingReceipts ? (
+                {loading ? (
                     <Text style={styles.statusText}>Loading receipts...</Text>
-                ) : pastReceipts.length === 0 ? (
+                ) : receipts.length === 0 ? (
                     <View style={styles.emptyState}>
                         <Text style={styles.emptyTitle}>No receipts yet</Text>
                         <Text style={styles.emptySubtitle}>Tap the logo to scan your first one!</Text>
@@ -123,7 +64,7 @@ export default function History() {
                 ) : (
                     <>
                         <Text style={styles.swipeHint}>Swipe left to delete</Text>
-                        {pastReceipts.map((receipt) => (
+                        {receipts.map((receipt) => (
                             <Swipeable
                                 key={receipt.id}
                                 renderRightActions={() => renderRightActions(receipt)}
@@ -152,7 +93,7 @@ export default function History() {
                         {hasMore && (
                             <TouchableOpacity
                                 style={styles.loadMoreButton}
-                                onPress={() => fetchReceipts(true)}
+                                onPress={handleLoadMore}
                                 disabled={loadingMore}
                             >
                                 <Text style={styles.loadMoreText}>

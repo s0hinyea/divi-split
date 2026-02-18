@@ -27,7 +27,7 @@ type ReceiptContextType = {
   addItem: (item: ReceiptItem) => void;
   removeItem: (id: string) => void;
   setUserItems: (items: ReceiptItem[]) => void;
-  saveReceipt: (receiptName: string, receiptDate?: Date) => void;
+  saveReceipt: (receiptName: string, receiptDate?: Date) => Promise<boolean>;
   calculateTotal: (items: any[]) => number;
 };
 
