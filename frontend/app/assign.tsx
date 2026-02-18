@@ -25,12 +25,10 @@ export default function AssignAmounts() {
   const currentContact = selected[currentContactIndex];
   const items = 'items' in receiptData ? receiptData.items.filter(item => !/tax/i.test(item.name)) : [];
 
-  // Calculate items assigned to *other* people
   const assignedToOthers = selected
     .filter(c => c.id !== currentContact?.id)
     .flatMap(c => c.items);
 
-  // Available items are those NOT assigned to others
   const available = items.filter(item => !assignedToOthers.some(assigned => assigned.id === item.id));
 
   const toggleItem = (item: ReceiptItem) => {
@@ -45,7 +43,6 @@ export default function AssignAmounts() {
 
   const nextContact = async () => {
     if (currentContactIndex + 1 === selected.length) {
-      // Calculate remaining items for the user (items not assigned to ANYONE)
       const allAssignedItems = selected.flatMap(c => c.items);
 
       const remainingItems = items.filter(item =>
