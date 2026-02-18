@@ -3,6 +3,7 @@ import { View, Text, ScrollView, TouchableOpacity, Modal, Alert, ActivityIndicat
 import { useRouter } from 'expo-router';
 import { useContacts } from '../utils/ContactsContext';
 import { useReceipt, ReceiptItem } from '../utils/ReceiptContext';
+import { useHistory } from '../utils/HistoryContext';
 import * as SMS from 'expo-sms';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -14,6 +15,7 @@ export default function ReviewPage() {
   const router = useRouter();
   const { selected, clearItems, clearSelected } = useContacts();
   const { receiptData, setUserItems, updateReceiptData, calculateTotal, saveReceipt } = useReceipt();
+  const { refreshReceipts } = useHistory();
   // Modal state
   const [showSmsModal, setShowSmsModal] = useState(false);
 
@@ -183,7 +185,11 @@ export default function ReviewPage() {
   const handleFinish = async () => {
     // Use custom name or default
     const name = receiptName.trim() || `Split - ${receiptDate.toLocaleDateString()}`;
-    await saveReceipt(name, receiptDate);
+    const success = await saveReceipt(name, receiptDate);
+
+    if (success) {
+      await refreshReceipts();
+    }
 
     if (selected.length > 0) {
       setShowSmsModal(true);

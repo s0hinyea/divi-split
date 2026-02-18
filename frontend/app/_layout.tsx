@@ -16,6 +16,8 @@ import { ReceiptProvider } from "../utils/ReceiptContext";
 import { ChangeProvider } from "@/utils/ChangesContext";
 import { OCRProvider } from "@/utils/OCRContext";
 import { ContactsProvider } from "@/utils/ContactsContext";
+import { ProfileProvider } from "@/utils/ProfileContext";
+import { HistoryProvider } from "@/utils/HistoryContext";
 import { Session } from "@supabase/supabase-js";
 import { supabase } from "../lib/supabase";
 import AnimatedSplash from "@/components/AnimatedSplash";
@@ -98,47 +100,51 @@ export default function RootLayout() {
         <ReceiptProvider>
           <ChangeProvider>
             <OCRProvider>
-              <GestureHandlerRootView style={{ flex: 1 }}>
-                <PaperProvider>
-                  <ThemeProvider
-                    value={colorScheme === "dark" ? DarkTheme : DefaultTheme}
-                  >
-                    <Stack
-                      screenOptions={{
-                        headerShown: false,
-                        animation: "fade",
-                      }}
-                    >
-                      <Stack.Screen name="index" />
-                      <Stack.Screen name="home" />
-                      <Stack.Screen
-                        name="(tabs)"
-                        options={{
-                          gestureEnabled: false,
-                        }}
-                      />
-                      <Stack.Screen name="auth" />
-                      <Stack.Screen name="scan" />
-                      <Stack.Screen name="library" />
-                      <Stack.Screen
-                        name="result"
-                        options={{ gestureEnabled: false }}
-                      />
-                      <Stack.Screen
-                        name="assign"
-                        options={{ gestureEnabled: false }}
-                      />
-                      <Stack.Screen name="contacts" />
-                      <Stack.Screen
-                        name="review"
-                        options={{ gestureEnabled: false }}
-                      />
-                      <Stack.Screen name="+not-found" />
-                    </Stack>
-                    <StatusBar style="dark" />
-                  </ThemeProvider>
-                </PaperProvider>
-              </GestureHandlerRootView>
+              <HistoryProvider>
+                <ProfileProvider>
+                  <GestureHandlerRootView style={{ flex: 1 }}>
+                    <PaperProvider>
+                      <ThemeProvider
+                        value={colorScheme === "dark" ? DarkTheme : DefaultTheme}
+                      >
+                        <Stack
+                          screenOptions={{
+                            headerShown: false,
+                            animation: "fade",
+                          }}
+                        >
+                          <Stack.Screen name="index" />
+                          <Stack.Screen name="home" />
+                          <Stack.Screen
+                            name="(tabs)"
+                            options={{
+                              gestureEnabled: false,
+                            }}
+                          />
+                          <Stack.Screen name="auth" />
+                          <Stack.Screen name="scan" />
+                          <Stack.Screen name="library" />
+                          <Stack.Screen
+                            name="result"
+                            options={{ gestureEnabled: false }}
+                          />
+                          <Stack.Screen
+                            name="assign"
+                            options={{ gestureEnabled: false }}
+                          />
+                          <Stack.Screen name="contacts" />
+                          <Stack.Screen
+                            name="review"
+                            options={{ gestureEnabled: false }}
+                          />
+                          <Stack.Screen name="+not-found" />
+                        </Stack>
+                        <StatusBar style="dark" />
+                      </ThemeProvider>
+                    </PaperProvider>
+                  </GestureHandlerRootView>
+                </ProfileProvider>
+              </HistoryProvider>
             </OCRProvider>
           </ChangeProvider>
         </ReceiptProvider>

@@ -13,7 +13,6 @@ export default function AssignAmounts() {
   const { selected, manageItems } = useContacts();
   const { receiptData, setUserItems } = useReceipt();
 
-  // Initialize index from params if available, otherwise 0
   const [currentContactIndex, setCurrentContactIndex] = useState(() => {
     if (params.initialIndex) {
       const idx = Number(params.initialIndex);
@@ -25,12 +24,10 @@ export default function AssignAmounts() {
   const currentContact = selected[currentContactIndex];
   const items = 'items' in receiptData ? receiptData.items.filter(item => !/tax/i.test(item.name)) : [];
 
-  // Calculate items assigned to *other* people
   const assignedToOthers = selected
     .filter(c => c.id !== currentContact?.id)
     .flatMap(c => c.items);
 
-  // Available items are those NOT assigned to others
   const available = items.filter(item => !assignedToOthers.some(assigned => assigned.id === item.id));
 
   const toggleItem = (item: ReceiptItem) => {
@@ -45,7 +42,6 @@ export default function AssignAmounts() {
 
   const nextContact = async () => {
     if (currentContactIndex + 1 === selected.length) {
-      // Calculate remaining items for the user (items not assigned to ANYONE)
       const allAssignedItems = selected.flatMap(c => c.items);
 
       const remainingItems = items.filter(item =>
@@ -72,7 +68,6 @@ export default function AssignAmounts() {
   };
 
   if (currentContactIndex === selected.length) {
-    // Done state logic/redirect handled in nextContact, but just in case
     return (
       <View style={styles.container}>
         <ActivityIndicator size="large" color={colors.green} />
