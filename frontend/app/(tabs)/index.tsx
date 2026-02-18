@@ -7,6 +7,7 @@ import { colors, fonts, fontSizes, spacing } from '@/styles/theme';
 import { SessionContext } from '@/app/_layout';
 import ReceiptCard from '@/components/ReceiptCard';
 import { useHistory } from '@/utils/HistoryContext';
+import { useProfile } from '@/utils/ProfileContext';
 
 function ReceiptLines() {
     return (
@@ -22,6 +23,7 @@ export default function Dashboard() {
     const router = useRouter();
     const { session } = useContext(SessionContext);
     const { receipts, loading } = useHistory();
+    const { profile } = useProfile();
 
     const getGreeting = () => {
         const hour = new Date().getHours();
@@ -31,6 +33,9 @@ export default function Dashboard() {
     };
 
     const getUserName = () => {
+        if (profile?.username) return profile.username;
+        if (profile?.full_name) return profile.full_name.split(' ')[0]; // Use first name if full name exists
+
         const email = session?.user?.email || '';
         const name = email.split('@')[0];
 

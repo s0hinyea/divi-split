@@ -1,4 +1,4 @@
-import { Tabs, useRouter } from 'expo-router';
+import { Tabs, useRouter, usePathname } from 'expo-router';
 import { View, TouchableOpacity, StyleSheet, Modal, Animated, Dimensions, TouchableWithoutFeedback } from 'react-native';
 import { Text, Icon } from 'react-native-paper';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -105,13 +105,15 @@ export default function TabsLayout() {
                 />
             </Tabs>
 
-            <TouchableOpacity
-                style={styles.floatingAddButton}
-                onPress={showScanModal}
-                activeOpacity={0.8}
-            >
-                <MaterialIcons name="add" size={32} color={colors.white} />
-            </TouchableOpacity>
+            {usePathname() === '/' && (
+                <TouchableOpacity
+                    style={styles.floatingAddButton}
+                    onPress={showScanModal}
+                    activeOpacity={0.8}
+                >
+                    <MaterialIcons name="add" size={32} color={colors.white} />
+                </TouchableOpacity>
+            )}
 
             <Modal
                 animationType="fade"
