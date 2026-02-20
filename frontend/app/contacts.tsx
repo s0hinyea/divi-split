@@ -21,7 +21,7 @@ export default function ChooseContacts() {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const { selected, manageContacts } = useContacts();
   const [loading, setLoading] = useState(true);
-  const { isProcessing } = useOCR();
+  const { isProcessing, status } = useOCR();
   const [searchQuery, setSearchQuery] = useState("");
   const router = useRouter();
 
@@ -153,7 +153,7 @@ export default function ChooseContacts() {
             {isProcessing ? (
               <>
                 <ActivityIndicator size="small" color={colors.green} />
-                <Text style={styles.statusText}>Processing receipt...</Text>
+                <Text style={styles.statusText}>{status || "Processing receipt..."}</Text>
               </>
             ) : (
               <Text style={styles.statusText}>Select at least one person</Text>
