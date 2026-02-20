@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { useContacts } from '../utils/ContactsContext';
 import { useReceipt, ReceiptItem } from '../utils/ReceiptContext';
 import { useHistory } from '../utils/HistoryContext';
+import { useProfile } from '../utils/ProfileContext';
 import * as SMS from 'expo-sms';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -16,6 +17,7 @@ export default function ReviewPage() {
   const { selected, clearItems, clearSelected } = useContacts();
   const { receiptData, setUserItems, updateReceiptData, calculateTotal, saveReceipt } = useReceipt();
   const { refreshReceipts } = useHistory();
+  const { profile } = useProfile();
   // Modal state
   const [showSmsModal, setShowSmsModal] = useState(false);
 
@@ -154,6 +156,28 @@ export default function ReviewPage() {
         Object.values(individualTips).reduce((s, t) => s + t, 0);
 
       message += `\nTotal: $${grandTotal.toFixed(2)}`;
+
+      // Append Venmo Link if handle exists
+      if (profile?.venmo_handle) {
+        const handle = profile.venmo_handle.replace('@', '');
+        const note = encodeURIComponent(`Divi Split - ${name}`);
+        // Deep link format: venmo://paycharge?txn=pay&recipients=HANDLE&note=NOTE
+        // Web fallback: https://venmo.com/u/HANDLE
+        const venmoLink = `https://venmo.com/u/${handle}`;
+        message += `\n\nPay me on Venmo:\n${venmoLink}`;
+      }
+
+      // Append CashApp Link if handle exists
+      if (profile?.cashapp_handle) {
+        const handle = profile.cashapp_handle.replace('$', '');
+        const cashLink = `https://cash.app/$${handle}`;
+        message += `\n\nPay me on Cash App:\n${cashLink}`;
+      }
+
+      // Append Zelle Info if number exists
+      if (profile?.zelle_number) {
+        message += `\n\nPay me on Zelle:\n${profile.zelle_number}`;
+      }
 
       await SMS.sendSMSAsync(phoneNumbers, message);
       setShowSmsModal(false);
