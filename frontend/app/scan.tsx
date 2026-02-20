@@ -29,7 +29,7 @@ export default function Scan() {
   const [capturing, setCapturing] = useState(false);
   const [cameraReady, setCameraReady] = useState(false);
   const { updateReceiptData } = useReceipt();
-  const { setIsProcessing } = useOCR();
+  const { setIsProcessing, setStatus } = useOCR();
 
   // Cycle flash: off → on → auto → off
   const cycleFlash = () => {
@@ -48,14 +48,12 @@ export default function Scan() {
     setCapturing(true);
     try {
       const photo = await cameraRef.current.takePictureAsync({
-        base64: true,
-        quality: 0.8,
+        quality: 1, // Capture at high quality, compress later
       });
 
-      if (photo?.base64) {
-        const base64DataUrl = `data:image/jpeg;base64,${photo.base64}`;
+      if (photo?.uri) {
         console.log('Photo captured successfully');
-        await handleOCR(base64DataUrl, updateReceiptData, setIsProcessing, router);
+        await handleOCR(photo.uri, updateReceiptData, setIsProcessing, setStatus, router);
       }
     } catch (error) {
       console.error('Capture error:', error);

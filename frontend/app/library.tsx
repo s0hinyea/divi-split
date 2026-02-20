@@ -16,7 +16,7 @@ export default function PickPhoto() {
   const [loading, setLoading] = useState(false);
   const galleryActive = useRef<boolean>(false);
   const { updateReceiptData } = useReceipt();
-  const { setIsProcessing } = useOCR();
+  const { setIsProcessing, setStatus } = useOCR();
 
 
   const pickFromGallery = async () => {
@@ -39,7 +39,6 @@ export default function PickPhoto() {
         quality: 0.8,
         allowsEditing: false,
         mediaTypes: ["images"],
-        base64: true
       });
 
       if (res.canceled) {
@@ -48,11 +47,10 @@ export default function PickPhoto() {
       }
 
       const asset = res.assets[0];
-      const base64DataUrl = `data:image/jpeg;base64,${asset.base64}`;
       console.log("Image selected successfully");
 
       setLoading(true);
-      await handleOCR(base64DataUrl, updateReceiptData, setIsProcessing, router);
+      await handleOCR(asset.uri, updateReceiptData, setIsProcessing, setStatus, router);
       setLoading(false);
     } catch (error) {
       console.error("Gallery picker error:", error);
