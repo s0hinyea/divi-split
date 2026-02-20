@@ -39,25 +39,24 @@ export const handleOCR = async (
 
 		// 2. Sending
 		setStatus("Sending it over...");
-		const data = await fetch(API_URL, {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-				"Authorization": `Bearer ${token}`
-			},
-			body: JSON.stringify({ image: base64DataUrl }),
+		const { data: extractedData, error } = await supabase.functions.invoke('ocr-vision', {
+			body: { image: base64DataUrl },
 		});
+
+		if (error) {
+			console.error("Supabase Edge Function error:", error);
+			throw error;
+		}
 
 		console.log("Image sent for OCR processing");
 
 		// 3. Extracting
 		setStatus("Extracting text...");
-		const extractedData = await data.json();
 
-		if ("items" in extractedData) {
+		if (extractedData && "items" in extractedData) {
 			// Update the context with the new data
 			updateReceiptData(extractedData);
-		} else if ("error" in extractedData) {
+		} else if (extractedData && "error" in extractedData) {
 			console.error("OCR error:", extractedData.error);
 			Alert.alert("Error", "There was a problem processing the image");
 		}
