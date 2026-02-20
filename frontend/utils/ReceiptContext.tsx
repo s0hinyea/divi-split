@@ -87,46 +87,87 @@ export function ReceiptProvider({ children }: { children: ReactNode }) {
 
   const saveReceipt = async (receiptName: string, receiptDate?: Date) => {
     try {
-      // Get auth token
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
-
-      if (!token) {
-        console.error('No auth token available');
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        console.error('No authenticated user');
         return false;
       }
 
-      // Prepare contacts with their assigned items
-      const contactsData = selected.map(contact => ({
-        id: contact.id,
-        name: contact.name,
-        phoneNumber: contact.phoneNumber,
-        items: contact.items  // Items assigned to this contact
-      }));
-
-      // Call backend API
-      const response = await fetch('https://divi-backend-7bfd.onrender.com/receipts', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          receipt_name: receiptName,
-          receipt_date: receiptDate?.toISOString() || new Date().toISOString(),
-          items: receiptData.items,
-          contacts: contactsData,
-          tax: receiptData.tax || 0,
-          tip: receiptData.tip || 0,
-          total: receiptData.total || 0
+      // 1. Insert the receipt — RLS auto-scopes to the logged-in user
+      const { data: receipt, error: receiptError } = await supabase
+        .from('receipts')
+        .insert({
+          user_id: user.id,
+          receipt_name: receiptName || 'Untitled Receipt',
+          total_amount: receiptData.total || 0,
+          tax_amount: receiptData.tax || 0,
+          tip_amount: receiptData.tip || 0,
+          created_at: receiptDate?.toISOString() || new Date().toISOString(),
         })
-      });
+        .select()
+        .single();
 
-      if (!response.ok) {
-        throw new Error('Failed to save receipt');
+      if (receiptError) throw receiptError;
+
+      // 2. Insert receipt items
+      let frontendToDbItemMap: Record<string, string> = {};
+      if (receiptData.items && receiptData.items.length > 0) {
+        const itemsToInsert = receiptData.items.map(item => ({
+          receipt_id: receipt.id,
+          item_name: item.name,
+          item_price: item.price,
+        }));
+
+        const { data: insertedItems, error: itemsError } = await supabase
+          .from('receipt_items')
+          .insert(itemsToInsert)
+          .select();
+
+        if (itemsError) throw itemsError;
+
+        // Map frontend item IDs to the new DB IDs for assignments
+        receiptData.items.forEach((item, index) => {
+          if (insertedItems?.[index]) {
+            frontendToDbItemMap[item.id] = insertedItems[index].id;
+          }
+        });
       }
 
-      console.log('Receipt saved successfully via backend');
+      // 3. Insert contacts and their item assignments
+      if (selected && selected.length > 0) {
+        for (const contact of selected) {
+          const { data: insertedContact, error: contactError } = await supabase
+            .from('contacts')
+            .insert({
+              user_id: user.id,
+              contact_name: contact.name,
+              phone_number: contact.phoneNumber,
+              contact_id: contact.id,
+            })
+            .select()
+            .single();
+
+          if (contactError) {
+            console.error('Contact insert error:', contactError.message);
+            continue;
+          }
+
+          if (contact.items && contact.items.length > 0) {
+            const assignments = contact.items
+              .map(item => ({ item_id: frontendToDbItemMap[item.id], contact_id: insertedContact.id }))
+              .filter(a => a.item_id);
+
+            if (assignments.length > 0) {
+              const { error: assignmentError } = await supabase
+                .from('assignments')
+                .insert(assignments);
+              if (assignmentError) console.error('Assignment error:', assignmentError.message);
+            }
+          }
+        }
+      }
+
+      console.log('Receipt saved successfully via Supabase client');
       return true;
     } catch (error) {
       console.error('Save receipt error:', error);

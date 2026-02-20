@@ -1,7 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase } from '../lib/supabase';
 import { SessionContext } from '../app/_layout';
-import { Config } from '@/constants/Config';
 
 export interface Receipt {
     id: string;
@@ -23,6 +22,8 @@ type HistoryContextType = {
 
 const HistoryContext = createContext<HistoryContextType | undefined>(undefined);
 
+const PAGE_LIMIT = 50;
+
 export function HistoryProvider({ children }: { children: ReactNode }) {
     const { session } = useContext(SessionContext);
     const [receipts, setReceipts] = useState<Receipt[]>([]);
@@ -30,38 +31,45 @@ export function HistoryProvider({ children }: { children: ReactNode }) {
     const [hasMore, setHasMore] = useState(true);
 
     const fetchReceipts = async (loadMore = false) => {
-        if (!session?.access_token) return;
+        if (!session?.user) return;
 
         try {
             if (!loadMore) setLoading(true);
 
             const offset = loadMore ? receipts.length : 0;
-            // Fetch a good chunk initially (50) to make stats reasonably accurate
-            // History screen can load more as user scrolls
-            const limit = 50;
 
-            const response = await fetch(`${Config.BACKEND_URL}/receipts?limit=${limit}&offset=${offset}`, {
-                method: 'GET',
-                headers: { 'Authorization': `Bearer ${session.access_token}` },
-            });
+            // Query directly via Supabase JS client — RLS ensures user only sees their own data
+            const { data, error, count } = await supabase
+                .from('receipts')
+                .select(`
+                    id,
+                    receipt_name,
+                    total_amount,
+                    created_at,
+                    receipt_items (
+                        id,
+                        item_name,
+                        item_price
+                    )
+                `, { count: 'exact' })
+                .order('created_at', { ascending: false })
+                .range(offset, offset + PAGE_LIMIT - 1);
 
-            if (response.ok) {
-                const data = await response.json();
-                const newReceipts = data.receipts || [];
+            if (error) throw error;
 
-                if (loadMore) {
-                    // Filter out duplicates just in case
-                    setReceipts(prev => {
-                        const existingIds = new Set(prev.map(r => r.id));
-                        const uniqueNew = newReceipts.filter((r: Receipt) => !existingIds.has(r.id));
-                        return [...prev, ...uniqueNew];
-                    });
-                } else {
-                    setReceipts(newReceipts);
-                }
+            const newReceipts = (data as Receipt[]) || [];
 
-                setHasMore(data.hasMore || newReceipts.length === limit);
+            if (loadMore) {
+                setReceipts(prev => {
+                    const existingIds = new Set(prev.map(r => r.id));
+                    const uniqueNew = newReceipts.filter(r => !existingIds.has(r.id));
+                    return [...prev, ...uniqueNew];
+                });
+            } else {
+                setReceipts(newReceipts);
             }
+
+            setHasMore(newReceipts.length === PAGE_LIMIT);
         } catch (error) {
             console.error('Error fetching receipts:', error);
         } finally {
@@ -75,7 +83,6 @@ export function HistoryProvider({ children }: { children: ReactNode }) {
 
     const addReceipt = (newReceipt: Receipt) => {
         setReceipts(prev => [newReceipt, ...prev]);
-        // Ideally we would also verify with backend or re-fetch, but optimistic update is faster
     };
 
     const deleteReceipt = async (id: string) => {
@@ -84,16 +91,22 @@ export function HistoryProvider({ children }: { children: ReactNode }) {
         setReceipts(prev => prev.filter(r => r.id !== id));
 
         try {
-            if (!session?.access_token) throw new Error("No session");
+            if (!session?.user) throw new Error("No session");
 
-            const response = await fetch(`${Config.BACKEND_URL}/receipts/${id}`, {
-                method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${session.access_token}` },
-            });
+            // Delete items first (in case no cascade is set up)
+            await supabase
+                .from('receipt_items')
+                .delete()
+                .eq('receipt_id', id);
 
-            if (!response.ok) {
-                throw new Error("Failed to delete");
-            }
+            // Delete the receipt — RLS ensures user can only delete their own
+            const { error } = await supabase
+                .from('receipts')
+                .delete()
+                .eq('id', id);
+
+            if (error) throw error;
+
         } catch (error) {
             console.error("Error deleting receipt:", error);
             // Revert on error

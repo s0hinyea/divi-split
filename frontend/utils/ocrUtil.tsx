@@ -5,10 +5,8 @@ import { Router } from "expo-router";
 import { supabase } from "@/lib/supabase";
 import * as ImageManipulator from 'expo-image-manipulator';
 
-import { Config } from "@/constants/Config";
 
-// The URL can be changed based on environment
-const API_URL = `${Config.BACKEND_URL}/ocr-vision`;
+
 
 export const handleOCR = async (
 	imageUri: string, // Changed from base64DataUrl to imageUri
