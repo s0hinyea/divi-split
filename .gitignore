@@ -47,3 +47,6 @@ backend/node_modules/
 
 # Agent workflows
 .agent/
+
+# Personal
+resume.md
