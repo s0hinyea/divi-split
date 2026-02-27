@@ -39,10 +39,6 @@ export const handleOCR = async (
 		setStatus("Sending it over...");
 		const { data: extractedData, error } = await supabase.functions.invoke('ocr-vision', {
 			body: { image: base64DataUrl },
-			headers: {
-				// Explicitly pass the user JWT so the Edge Function can verify auth
-				Authorization: `Bearer ${token}`,
-			},
 		});
 
 		if (error) {
