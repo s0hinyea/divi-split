@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, ReactNode } from "react";
-import { ReceiptItem } from "./ReceiptContext";
-import { useReceipt } from "./ReceiptContext";
+import { ReceiptItem, useSplitStore } from "../stores/splitStore";
 
 export type Change = {
 	type: string;
@@ -19,7 +18,10 @@ const ChangeContext = createContext<ChangeContextType | undefined>(undefined);
 
 export function ChangeProvider({ children }: { children: ReactNode }) {
 	const [changes, setChanges] = useState<Change[]>([]);
-	const { updateItem, removeItem, addItem, receiptData } = useReceipt();
+	const updateItem = useSplitStore((state) => state.updateItem);
+	const removeItem = useSplitStore((state) => state.removeItem);
+	const addItem = useSplitStore((state) => state.addItem);
+	const receiptData = useSplitStore((state) => state.receiptData);
 
 	const addChange = (change: Change) => {
 		setChanges((prevChanges) => [...prevChanges, change]);
