@@ -29,11 +29,14 @@ export const handleOCR = async (
 		);
 		const base64DataUrl = `data:image/jpeg;base64,${manipulatedImage.base64}`;
 
-		const { data: { session } } = await supabase.auth.getSession();
-		const token = session?.access_token;
+		// Refresh the session to ensure we have a valid (non-expired) JWT
+		const { data: { session }, error: refreshError } = await supabase.auth.refreshSession();
+		if (refreshError || !session) {
+			console.error('[OCR] Session refresh failed:', refreshError?.message);
+			throw new Error('Your session has expired. Please sign in again.');
+		}
 
-		console.log('[OCR Debug] Session exists:', !!session);
-		console.log('[OCR Debug] Token exists:', !!token);
+		console.log('[OCR Debug] Session refreshed, token valid');
 
 		// 2. Sending
 		setStatus("Sending it over...");
