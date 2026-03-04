@@ -251,6 +251,14 @@ export default function Profile() {
                             trackColor={{ false: colors.gray300, true: colors.black }}
                         />
                     </View>
+                    <View style={styles.divider} />
+                    <TouchableOpacity style={styles.row} onPress={() => router.push('/help')} activeOpacity={0.7}>
+                        <View style={styles.iconContainer}>
+                            <MaterialIcons name="help-outline" size={22} color={colors.black} />
+                        </View>
+                        <Text style={styles.settingLabel}>Help & FAQ</Text>
+                        <MaterialIcons name="chevron-right" size={24} color={colors.gray400} />
+                    </TouchableOpacity>
                 </View>
 
                 {/* 4. Footer Actions */}
