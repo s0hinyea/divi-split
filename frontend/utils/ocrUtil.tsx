@@ -42,8 +42,19 @@ export const handleOCR = async (
 		});
 
 		if (error) {
-			console.error("Supabase Edge Function error:", error);
-			throw error;
+			// Extract real error message from Edge Function response body
+			let errorMessage = error.message;
+			try {
+				if (error.context && typeof error.context.json === 'function') {
+					const errorBody = await error.context.json();
+					console.error("Edge Function error body:", JSON.stringify(errorBody));
+					errorMessage = errorBody?.error || errorMessage;
+				}
+			} catch (_) {
+				// context might not be parseable
+			}
+			console.error("Supabase Edge Function error:", errorMessage);
+			throw new Error(errorMessage);
 		}
 
 		console.log("Image sent for OCR processing");
