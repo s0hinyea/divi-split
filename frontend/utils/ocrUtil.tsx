@@ -1,5 +1,5 @@
 import { Alert } from "react-native";
-import { useReceipt, OCRResponse } from "./ReceiptContext";
+import { OCRResponse } from "../stores/splitStore";
 import { useOCR } from "@/utils/OCRContext";
 import { Router } from "expo-router";
 import { supabase } from "@/lib/supabase";

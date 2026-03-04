@@ -14,7 +14,7 @@ import { Text, Button, Surface, Icon } from "react-native-paper";
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "expo-router";
 import { styles } from "../styles/expense-splitterCss";
-import { useReceipt } from "../utils/ReceiptContext";
+import { useSplitStore } from '../stores/splitStore';
 import { SafeAreaView } from "react-native-safe-area-context";
 import Colors from "../constants/Colors";
 import { BlurView } from "expo-blur";
@@ -36,7 +36,7 @@ export default function MainPage() {
   const router = useRouter();
   const [visible, setVisible] = useState(false);
   const [showReceiptsModal, setShowReceiptsModal] = useState(false);
-  const { updateReceiptData } = useReceipt();
+  const updateReceiptData = useSplitStore((state) => state.updateReceiptData);
 
   // Real receipts from backend
   const [pastReceipts, setPastReceipts] = useState<Receipt[]>([]);

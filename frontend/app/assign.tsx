@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Image, StyleSheet, ActivityIndicator } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { useContacts } from '../utils/ContactsContext';
-import { useReceipt, ReceiptItem } from '../utils/ReceiptContext';
+import { useSplitStore, ReceiptItem } from '../stores/splitStore';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, fonts, fontSizes, spacing, radii, shadows } from '@/styles/theme';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -10,8 +9,10 @@ import { MaterialIcons } from '@expo/vector-icons';
 export default function AssignAmounts() {
   const router = useRouter();
   const params = useLocalSearchParams();
-  const { selected, manageItems } = useContacts();
-  const { receiptData, setUserItems } = useReceipt();
+  const selected = useSplitStore((state) => state.selected);
+  const manageItems = useSplitStore((state) => state.manageItems);
+  const receiptData = useSplitStore((state) => state.receiptData);
+  const setUserItems = useSplitStore((state) => state.setUserItems);
 
   const [currentContactIndex, setCurrentContactIndex] = useState(() => {
     if (params.initialIndex) {

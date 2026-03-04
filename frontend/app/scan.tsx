@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { MaterialIcons } from '@expo/vector-icons';
 import { handleOCR } from '../utils/ocrUtil';
-import { useReceipt } from '../utils/ReceiptContext';
+import { useSplitStore } from '../stores/splitStore';
 import { useOCR } from '../utils/OCRContext';
 import { ActivityIndicator } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -28,7 +28,7 @@ export default function Scan() {
   const [flash, setFlash] = useState<FlashMode>('off');
   const [capturing, setCapturing] = useState(false);
   const [cameraReady, setCameraReady] = useState(false);
-  const { updateReceiptData } = useReceipt();
+  const updateReceiptData = useSplitStore((state) => state.updateReceiptData);
   const { setIsProcessing, setStatus } = useOCR();
 
   // Cycle flash: off → on → auto → off
