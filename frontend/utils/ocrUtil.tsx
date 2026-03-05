@@ -9,10 +9,10 @@ import * as ImageManipulator from 'expo-image-manipulator';
 
 
 export const handleOCR = async (
-	imageUri: string, // Changed from base64DataUrl to imageUri
+	imageUri: string, 
 	updateReceiptData: (data: OCRResponse) => void,
 	setIsProcessing: (val: boolean) => void,
-	setStatus: (val: string) => void, // Added setStatus
+	setStatus: (val: string) => void, 
 	router: Router
 ) => {
 
@@ -20,35 +20,45 @@ export const handleOCR = async (
 		setIsProcessing(true);
 		router.push("/contacts")
 
-		// 1. Compressing
 		setStatus("Compressing image...");
 		const manipulatedImage = await ImageManipulator.manipulateAsync(
 			imageUri,
-			[{ resize: { width: 1024 } }], // Resize to reasonable width
+			[{ resize: { width: 1024 } }], 
 			{ compress: 0.7, format: ImageManipulator.SaveFormat.JPEG, base64: true }
 		);
 		const base64DataUrl = `data:image/jpeg;base64,${manipulatedImage.base64}`;
 
-		const { data: { session } } = await supabase.auth.getSession();
-		const token = session?.access_token;
+		// Refresh the session to ensure we have a valid (non-expired) JWT
+		const { data: { session }, error: refreshError } = await supabase.auth.refreshSession();
+		if (refreshError || !session) {
+			console.error('[OCR] Session refresh failed:', refreshError?.message);
+			throw new Error('Your session has expired. Please sign in again.');
+		}
 
-		console.log('[OCR Debug] Session exists:', !!session);
-		console.log('[OCR Debug] Token exists:', !!token);
+		console.log('[OCR Debug] Session refreshed, token valid');
 
-		// 2. Sending
-		setStatus("Sending it over...");
+		setStatus("Processing...");
 		const { data: extractedData, error } = await supabase.functions.invoke('ocr-vision', {
 			body: { image: base64DataUrl },
 		});
 
 		if (error) {
-			console.error("Supabase Edge Function error:", error);
-			throw error;
+			let errorMessage = error.message;
+			try {
+				if (error.context && typeof error.context.json === 'function') {
+					const errorBody = await error.context.json();
+					console.error("Edge Function error body:", JSON.stringify(errorBody));
+					errorMessage = errorBody?.error || errorMessage;
+				}
+			} catch (_) {
+				// context might not be parseable
+			}
+			console.error("Supabase Edge Function error:", errorMessage);
+			throw new Error(errorMessage);
 		}
 
 		console.log("Image sent for OCR processing");
 
-		// 3. Extracting
 		setStatus("Extracting text...");
 
 		if (extractedData && "items" in extractedData) {

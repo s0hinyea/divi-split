@@ -1,7 +1,6 @@
 import { create } from "zustand";
 import { supabase } from "../lib/supabase";
 
-// --- Types ---
 export type ReceiptItem = {
     name: string;
     price: number;
@@ -25,9 +24,7 @@ export type Contact = {
     items: ReceiptItem[];
 };
 
-// --- Store Interface ---
 interface SplitState {
-    // Receipt Data
     receiptData: OCRResponse;
     updateReceiptData: (data: Partial<OCRResponse>) => void;
     updateItem: (id: string, item: ReceiptItem) => void;
@@ -37,14 +34,13 @@ interface SplitState {
     saveReceipt: (receiptName: string, receiptDate?: Date) => Promise<boolean>;
     calculateTotal: (items: any[]) => number;
 
-    // Contacts Data
     selected: Contact[];
+    updateContactName: (id: string, newName: string) => void;
     manageContacts: (newContact: Contact) => void;
     manageItems: (newItem: ReceiptItem, currentContact: Contact) => void;
     clearItems: () => void;
     clearSelected: () => void;
 
-    // Global Actions
     resetStore: () => void;
 }
 
@@ -58,11 +54,9 @@ const initialReceiptData: OCRResponse = {
 };
 
 export const useSplitStore = create<SplitState>((set, get) => ({
-    // --- Initial State ---
     receiptData: initialReceiptData,
     selected: [],
 
-    // --- Receipt Actions ---
     updateReceiptData: (data) =>
         set((state) => ({
             receiptData: { ...state.receiptData, ...data },
@@ -127,7 +121,6 @@ export const useSplitStore = create<SplitState>((set, get) => ({
 
             if (receiptError) throw receiptError;
 
-            // 2. Insert receipt items
             let frontendToDbItemMap: Record<string, string> = {};
             if (state.receiptData.items && state.receiptData.items.length > 0) {
                 const itemsToInsert = state.receiptData.items.map((item) => ({
@@ -151,7 +144,6 @@ export const useSplitStore = create<SplitState>((set, get) => ({
                 });
             }
 
-            // 3. Insert contacts and assignments
             if (state.selected && state.selected.length > 0) {
                 for (const contact of state.selected) {
                     const { data: insertedContact, error: contactError } =
@@ -206,6 +198,13 @@ export const useSplitStore = create<SplitState>((set, get) => ({
     },
 
     // --- Contacts Actions ---
+    updateContactName: (id, newName) =>
+        set((state) => ({
+            selected: state.selected.map((contact) =>
+                contact.id === id ? { ...contact, name: newName } : contact
+            ),
+        })),
+
     manageContacts: (newContact) =>
         set((state) => {
             const isSelected = state.selected.some((contact) =>
@@ -256,6 +255,5 @@ export const useSplitStore = create<SplitState>((set, get) => ({
 
     clearSelected: () => set({ selected: [] }),
 
-    // --- Master Reset ---
     resetStore: () => set({ receiptData: initialReceiptData, selected: [] }),
 }));

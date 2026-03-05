@@ -21,6 +21,7 @@ export default function ReviewPage() {
   const updateReceiptData = useSplitStore((state) => state.updateReceiptData);
   const calculateTotal = useSplitStore((state) => state.calculateTotal);
   const saveReceipt = useSplitStore((state) => state.saveReceipt);
+  const updateContactName = useSplitStore((state) => state.updateContactName);
   const { refreshReceipts } = useHistory();
   const { profile } = useProfile();
   // Modal state
@@ -253,7 +254,16 @@ export default function ReviewPage() {
 
           return (
             <View key={contact.id} style={styles.card}>
-              <Text style={styles.cardTitle}>{contact.name}</Text>
+              <View style={styles.cardHeaderRow}>
+                <TextInput
+                  style={styles.cardTitleInput}
+                  value={contact.name}
+                  onChangeText={(text) => updateContactName(contact.id, text)}
+                  placeholder="Contact Name"
+                  placeholderTextColor={colors.gray400}
+                />
+                <MaterialIcons name="edit" size={16} color={colors.gray400} />
+              </View>
               <View style={styles.cardDivider} />
 
               {contact.items.map((item: ReceiptItem) => (
@@ -513,6 +523,20 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.lg,
     color: colors.black,
     marginBottom: spacing.sm,
+  },
+  cardHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.sm,
+  },
+  cardTitleInput: {
+    flex: 1,
+    fontFamily: fonts.bodyBold,
+    fontSize: fontSizes.lg,
+    color: colors.black,
+    padding: 0,
+    margin: 0,
   },
   cardDivider: {
     height: 1,
