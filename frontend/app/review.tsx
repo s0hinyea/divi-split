@@ -171,7 +171,9 @@ export default function ReviewPage() {
     clearItems();
     clearSelected();
     setUserItems([]);
-    router.replace('/(tabs)'); // navigate underneath the overlay
+    requestAnimationFrame(() => {
+      router.replace('/(tabs)'); // navigate underneath the overlay
+    });
   };
 
   // Handle date picker change

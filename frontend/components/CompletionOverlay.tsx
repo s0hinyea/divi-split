@@ -1,74 +1,93 @@
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, Modal } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { MaterialIcons } from '@expo/vector-icons';
-import Animated, { 
-    useSharedValue, 
-    useAnimatedStyle, 
-    withTiming, 
+import Animated, {
+    useSharedValue,
+    useAnimatedStyle,
+    withTiming,
+    withSequence,
     withDelay,
-    runOnJS
+    runOnJS,
 } from 'react-native-reanimated';
 import { colors, fonts, fontSizes } from '@/styles/theme';
 import { useSplitStore } from '@/stores/splitStore';
 
 /**
  * Global completion overlay — rendered in _layout.tsx so it sits above
- * every route.  Reads `showCompletion` from the Zustand store and
- * auto-dismisses after the check-mark animation finishes.
+ * every route.  Uses an absolute-positioned View (not a Modal) to avoid
+ * native-window timing glitches that cause black flashes.
  */
 export default function CompletionOverlay() {
     const visible = useSplitStore((s) => s.showCompletion);
     const clearCompletion = useSplitStore((s) => s.clearCompletion);
 
-    const opacity = useSharedValue(0);
-    const scale = useSharedValue(0.6);
+    const containerOpacity = useSharedValue(0);
+    const contentScale = useSharedValue(0.5);
 
     useEffect(() => {
         if (visible) {
-            // Reset values
-            opacity.value = 0;
-            scale.value = 0.6;
+            // Blur background fades in instantly
+            containerOpacity.value = withTiming(1, { duration: 150 });
 
-            // Pop in
-            opacity.value = withTiming(1, { duration: 200 });
-            scale.value = withTiming(1, { duration: 250 });
-
-            // Hold, then fade out and clear global state
-            opacity.value = withDelay(
-                1400,
-                withTiming(0, { duration: 280 }, () => {
-                    runOnJS(clearCompletion)();
-                })
+            // Checkmark pops in, holds, then everything fades out together
+            contentScale.value = withSequence(
+                withTiming(1, { duration: 250 }),                          // pop in
+                withDelay(1200, withTiming(0.8, { duration: 200 }))        // subtle shrink before fade
             );
+
+            // Container holds, then fades out and clears state
+            containerOpacity.value = withSequence(
+                withTiming(1, { duration: 150 }),                          // ensure fully visible
+                withDelay(1300, withTiming(0, { duration: 300 }, () => {   // fade everything out
+                    runOnJS(clearCompletion)();
+                }))
+            );
+        } else {
+            // Reset for next use
+            containerOpacity.value = 0;
+            contentScale.value = 0.5;
         }
     }, [visible]);
 
-    const animatedStyle = useAnimatedStyle(() => ({
-        opacity: opacity.value,
-        transform: [{ scale: scale.value }],
+    const containerStyle = useAnimatedStyle(() => ({
+        opacity: containerOpacity.value,
+        pointerEvents: containerOpacity.value > 0 ? 'auto' as const : 'none' as const,
     }));
 
-    if (!visible) return null;
+    const contentStyle = useAnimatedStyle(() => ({
+        transform: [{ scale: contentScale.value }],
+    }));
 
     return (
-        <Modal transparent visible={visible} animationType="none">
-            <BlurView intensity={40} style={styles.container} tint="light">
-                <Animated.View style={[styles.content, animatedStyle]}>
+        <Animated.View style={[styles.overlay, containerStyle]}>
+            {/* Immediate light fallback to prevent black frame while blur initializes */}
+            <View style={styles.fallbackLight} />
+            <BlurView intensity={50} tint="light" style={StyleSheet.absoluteFill} />
+            <View style={styles.center}>
+                <Animated.View style={[styles.content, contentStyle]}>
                     <MaterialIcons name="check-circle" size={80} color={colors.green} />
                     <Text style={styles.text}>Completed!</Text>
                 </Animated.View>
-            </BlurView>
-        </Modal>
+            </View>
+        </Animated.View>
     );
 }
 
 const styles = StyleSheet.create({
-    container: {
+    overlay: {
+        ...StyleSheet.absoluteFillObject,
+        zIndex: 9999,
+        elevation: 9999,
+    },
+    fallbackLight: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: 'rgba(255,255,255,0.16)',
+    },
+    center: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: 'transparent',
     },
     content: {
         alignItems: 'center',
