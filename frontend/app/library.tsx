@@ -14,7 +14,7 @@ export default function PickPhoto() {
   const [loading, setLoading] = useState(false);
   const galleryActive = useRef<boolean>(false);
   const updateReceiptData = useSplitStore((state) => state.updateReceiptData);
-  const { setIsProcessing, setStatus } = useOCR();
+  const { setIsProcessing, setStatus, setError } = useOCR();
 
   const pickFromGallery = async () => {
     if (galleryActive.current) return;
@@ -41,7 +41,7 @@ export default function PickPhoto() {
 
       const asset = res.assets[0];
       setLoading(true);
-      await handleOCR(asset.uri, updateReceiptData, setIsProcessing, setStatus, router);
+      await handleOCR(asset.uri, updateReceiptData, setIsProcessing, setStatus, setError, router);
       setLoading(false);
     } catch (error) {
       console.error("Gallery picker error:", error);

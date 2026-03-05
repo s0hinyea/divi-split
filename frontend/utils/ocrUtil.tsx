@@ -1,43 +1,36 @@
 import { Alert } from "react-native";
 import { OCRResponse } from "../stores/splitStore";
-import { useOCR } from "@/utils/OCRContext";
 import { Router } from "expo-router";
 import { supabase } from "@/lib/supabase";
 import * as ImageManipulator from 'expo-image-manipulator';
 
-
-
-
 export const handleOCR = async (
-	imageUri: string, 
+	imageUri: string,
 	updateReceiptData: (data: OCRResponse) => void,
 	setIsProcessing: (val: boolean) => void,
-	setStatus: (val: string) => void, 
+	setStatus: (val: string) => void,
+	setError: (val: string | null) => void,
 	router: Router
 ) => {
-
 	try {
 		setIsProcessing(true);
-		router.push("/contacts")
+		setError(null);
+		router.push("/contacts");
 
 		setStatus("Compressing image...");
 		const manipulatedImage = await ImageManipulator.manipulateAsync(
 			imageUri,
-			[{ resize: { width: 1024 } }], 
+			[{ resize: { width: 1024 } }],
 			{ compress: 0.7, format: ImageManipulator.SaveFormat.JPEG, base64: true }
 		);
 		const base64DataUrl = `data:image/jpeg;base64,${manipulatedImage.base64}`;
 
-		// Refresh the session to ensure we have a valid (non-expired) JWT
 		const { data: { session }, error: refreshError } = await supabase.auth.refreshSession();
 		if (refreshError || !session) {
-			console.error('[OCR] Session refresh failed:', refreshError?.message);
 			throw new Error('Your session has expired. Please sign in again.');
 		}
 
-		console.log('[OCR Debug] Session refreshed, token valid');
-
-		setStatus("Processing...");
+		setStatus("Analyzing receipt...");
 		const { data: extractedData, error } = await supabase.functions.invoke('ocr-vision', {
 			body: { image: base64DataUrl },
 		});
@@ -47,30 +40,59 @@ export const handleOCR = async (
 			try {
 				if (error.context && typeof error.context.json === 'function') {
 					const errorBody = await error.context.json();
-					console.error("Edge Function error body:", JSON.stringify(errorBody));
 					errorMessage = errorBody?.error || errorMessage;
 				}
-			} catch (_) {
-				// context might not be parseable
+			} catch (_) {}
+
+			if (errorMessage.includes('timed out') || errorMessage.includes('timeout')) {
+				throw new Error('TIMEOUT');
 			}
-			console.error("Supabase Edge Function error:", errorMessage);
 			throw new Error(errorMessage);
 		}
 
-		console.log("Image sent for OCR processing");
+		setStatus("Extracting items...");
 
-		setStatus("Extracting text...");
-
-		if (extractedData && "items" in extractedData) {
-			// Update the context with the new data
+		if (extractedData && "items" in extractedData && extractedData.items.length > 0) {
 			updateReceiptData(extractedData);
+		} else if (extractedData && "items" in extractedData && extractedData.items.length === 0) {
+			throw new Error('NO_ITEMS');
 		} else if (extractedData && "error" in extractedData) {
-			console.error("OCR error:", extractedData.error);
-			Alert.alert("Error", "There was a problem processing the image");
+			throw new Error(extractedData.error);
+		} else {
+			throw new Error('UNRECOGNIZED');
 		}
-	} catch (error) {
-		console.error("OCR Failed:", error);
-		Alert.alert("Error", "Failed to process the image");
+	} catch (err: any) {
+		const message = err?.message || '';
+
+		let title = 'Scan Failed';
+		let body = 'Something went wrong while processing your receipt.';
+		let buttons: any[] = [
+			{ text: 'Go Home', style: 'cancel', onPress: () => router.replace('/(tabs)') },
+			{ text: 'Try Again', onPress: () => router.replace('/(tabs)') },
+		];
+
+		if (message === 'TIMEOUT') {
+			title = 'Request Timed Out';
+			body = 'The server took too long to respond. This can happen with large or blurry images. Try again with a clearer photo.';
+		} else if (message === 'NO_ITEMS') {
+			title = 'No Items Found';
+			body = "We couldn't detect any items on this receipt. Make sure the receipt is well-lit and fully visible, then try again.";
+		} else if (message === 'UNRECOGNIZED') {
+			title = 'Processing Error';
+			body = 'We received an unexpected response from the server. Please try scanning again.';
+		} else if (message.includes('session') || message.includes('Unauthorized') || message.includes('auth')) {
+			title = 'Session Expired';
+			body = 'Your login session has expired. Please sign in again.';
+			buttons = [
+				{ text: 'Sign In', onPress: () => router.replace('/auth') },
+			];
+		} else if (message.includes('network') || message.includes('fetch')) {
+			title = 'No Connection';
+			body = "Couldn't reach the server. Check your internet connection and try again.";
+		}
+
+		setError(body);
+		Alert.alert(title, body, buttons);
 	} finally {
 		setIsProcessing(false);
 		setStatus("");

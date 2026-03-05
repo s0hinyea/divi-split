@@ -22,7 +22,7 @@ export default function ChooseContacts() {
   const selected = useSplitStore((state) => state.selected);
   const manageContacts = useSplitStore((state) => state.manageContacts);
   const [loading, setLoading] = useState(true);
-  const { isProcessing, status } = useOCR();
+  const { isProcessing, status, error: ocrError } = useOCR();
   const [searchQuery, setSearchQuery] = useState("");
   const router = useRouter();
 
@@ -149,7 +149,18 @@ export default function ChooseContacts() {
       />
 
       <View style={styles.footer}>
-        {(isProcessing || noContactsSelected) ? (
+        {ocrError ? (
+          <View style={styles.statusContainer}>
+            <Text style={[styles.statusText, { color: colors.error }]}>{ocrError}</Text>
+            <TouchableOpacity
+              style={[styles.continueButton, { marginTop: spacing.sm }]}
+              onPress={() => router.replace('/(tabs)')}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.buttonText}>Go Home</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (isProcessing || noContactsSelected) ? (
           <View style={styles.statusContainer}>
             {isProcessing ? (
               <>
