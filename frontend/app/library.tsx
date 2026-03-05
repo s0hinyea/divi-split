@@ -64,9 +64,11 @@ export default function PickPhoto() {
   useFocusEffect(
     useCallback(() => {
       console.log("Opening library");
+      // Wait for the navigation transition (screen slide) to finish 
+      // before launching the native modal, otherwise iOS instantly dismisses it.
       const timer = setTimeout(() => {
         pickFromGallery();
-      }, 1000);
+      }, 400);
 
       return () => {
         clearTimeout(timer);

@@ -23,7 +23,7 @@ export default function Dashboard() {
     const router = useRouter();
     const { session } = useContext(SessionContext);
     const { receipts, loading } = useHistory();
-    const { profile } = useProfile();
+    const { profile, loading: profileLoading } = useProfile();
 
     const getGreeting = () => {
         const hour = new Date().getHours();
@@ -33,6 +33,7 @@ export default function Dashboard() {
     };
 
     const getUserName = () => {
+        if (profileLoading) return '...';
         if (profile?.username) return profile.username;
         if (profile?.full_name) return profile.full_name.split(' ')[0]; // Use first name if full name exists
 

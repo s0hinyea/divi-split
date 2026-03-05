@@ -11,6 +11,7 @@ import { colors, fonts, fontSizes, spacing, radii, shadows } from '@/styles/them
 import { MaterialIcons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { allocateAmount } from '../utils/mathUtil';
+import CompletionOverlay from '@/components/CompletionOverlay';
 export default function ReviewPage() {
   const router = useRouter();
   const selected = useSplitStore((state) => state.selected);
@@ -31,6 +32,9 @@ export default function ReviewPage() {
   const [receiptName, setReceiptName] = useState('');
   const [receiptDate, setReceiptDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
+
+  // Completion Animation state
+  const [showCompletionInfo, setShowCompletionInfo] = useState(false);
 
   useEffect(() => {
     if ('items' in receiptData) {
@@ -154,7 +158,7 @@ export default function ReviewPage() {
 
       await SMS.sendSMSAsync(phoneNumbers, message);
       setShowSmsModal(false);
-      proceedToNextScreen();
+      triggerCompletion();
 
     } catch (error) {
       console.error('SMS Error:', error);
@@ -163,8 +167,13 @@ export default function ReviewPage() {
     }
   };
 
-  // Navigate to next screen and cleanup
-  const proceedToNextScreen = () => {
+  // Triggers the animation, which will then do the cleanup
+  const triggerCompletion = () => {
+    setShowCompletionInfo(true);
+  };
+
+  const handleAnimationComplete = () => {
+    setShowCompletionInfo(false);
     clearItems();
     clearSelected();
     setUserItems([]);
@@ -191,7 +200,7 @@ export default function ReviewPage() {
     if (selected.length > 0) {
       setShowSmsModal(true);
     } else {
-      proceedToNextScreen();
+      triggerCompletion();
     }
   };
 
@@ -245,6 +254,7 @@ export default function ReviewPage() {
         </View>
 
         <Text style={styles.sectionTitle}>Breakdown</Text>
+        <Text style={styles.sectionSubtitle}>Tap a name below to edit it if needed</Text>
 
         {selected.map((contact) => {
           const contactMealTotal = calculateTotal(contact.items as ReceiptItem[]);
@@ -419,7 +429,7 @@ export default function ReviewPage() {
                 style={[styles.modalButton, styles.modalButtonSecondary]}
                 onPress={() => {
                   setShowSmsModal(false);
-                  proceedToNextScreen();
+                  triggerCompletion();
                 }}
               >
                 <Text style={styles.modalButtonSecondaryText}>No, Skip</Text>
@@ -428,6 +438,12 @@ export default function ReviewPage() {
           </View>
         </BlurView>
       </Modal>
+
+      {/* Full Screen Completion Overlay */}
+      <CompletionOverlay
+        visible={showCompletionInfo}
+        onAnimationComplete={handleAnimationComplete}
+      />
     </SafeAreaView>
   );
 }
@@ -458,6 +474,13 @@ const styles = StyleSheet.create({
     color: colors.black,
     marginTop: spacing.lg,
     marginBottom: spacing.md,
+  },
+  sectionSubtitle: {
+    fontFamily: fonts.body,
+    fontSize: fontSizes.sm,
+    color: colors.gray500,
+    marginTop: -spacing.sm,
+    marginBottom: spacing.lg,
   },
   detailsCard: {
     backgroundColor: colors.white,
