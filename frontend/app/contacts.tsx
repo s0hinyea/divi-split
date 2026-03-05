@@ -23,6 +23,7 @@ export default function ChooseContacts() {
   const manageContacts = useSplitStore((state) => state.manageContacts);
   const [loading, setLoading] = useState(true);
   const { isProcessing, status, error: ocrError } = useOCR();
+  const receiptData = useSplitStore((state) => state.receiptData);
   const [searchQuery, setSearchQuery] = useState("");
   const router = useRouter();
 
@@ -175,7 +176,19 @@ export default function ChooseContacts() {
           <TouchableOpacity
             style={styles.continueButton}
             onPress={() => {
-              router.push("/result");
+              if (receiptData?.items?.length === 0) {
+                import('react-native').then(({ Alert }) => {
+                  Alert.alert(
+                    "No Items Found",
+                    "We couldn't detect any assignable items on this receipt. Please try scanning again.",
+                    [
+                      { text: "Go Home", onPress: () => router.replace('/(tabs)') }
+                    ]
+                  );
+                });
+              } else {
+                router.push("/result");
+              }
             }}
             activeOpacity={0.8}
           >
