@@ -9,10 +9,10 @@ import * as ImageManipulator from 'expo-image-manipulator';
 
 
 export const handleOCR = async (
-	imageUri: string, // Changed from base64DataUrl to imageUri
+	imageUri: string, 
 	updateReceiptData: (data: OCRResponse) => void,
 	setIsProcessing: (val: boolean) => void,
-	setStatus: (val: string) => void, // Added setStatus
+	setStatus: (val: string) => void, 
 	router: Router
 ) => {
 
@@ -20,11 +20,10 @@ export const handleOCR = async (
 		setIsProcessing(true);
 		router.push("/contacts")
 
-		// 1. Compressing
 		setStatus("Compressing image...");
 		const manipulatedImage = await ImageManipulator.manipulateAsync(
 			imageUri,
-			[{ resize: { width: 1024 } }], // Resize to reasonable width
+			[{ resize: { width: 1024 } }], 
 			{ compress: 0.7, format: ImageManipulator.SaveFormat.JPEG, base64: true }
 		);
 		const base64DataUrl = `data:image/jpeg;base64,${manipulatedImage.base64}`;
@@ -38,14 +37,12 @@ export const handleOCR = async (
 
 		console.log('[OCR Debug] Session refreshed, token valid');
 
-		// 2. Sending
-		setStatus("Sending it over...");
+		setStatus("Processing...");
 		const { data: extractedData, error } = await supabase.functions.invoke('ocr-vision', {
 			body: { image: base64DataUrl },
 		});
 
 		if (error) {
-			// Extract real error message from Edge Function response body
 			let errorMessage = error.message;
 			try {
 				if (error.context && typeof error.context.json === 'function') {
@@ -62,7 +59,6 @@ export const handleOCR = async (
 
 		console.log("Image sent for OCR processing");
 
-		// 3. Extracting
 		setStatus("Extracting text...");
 
 		if (extractedData && "items" in extractedData) {

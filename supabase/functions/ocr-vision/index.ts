@@ -9,14 +9,12 @@ const corsHeaders = {
 };
 
 Deno.serve(async (req) => {
-  // Handle CORS preflight requests
 
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
 
   try {
-    // Manual auth verification (gateway JWT check is disabled via --no-verify-jwt)
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(
