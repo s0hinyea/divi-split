@@ -22,7 +22,8 @@ export default function ChooseContacts() {
   const selected = useSplitStore((state) => state.selected);
   const manageContacts = useSplitStore((state) => state.manageContacts);
   const [loading, setLoading] = useState(true);
-  const { isProcessing, status } = useOCR();
+  const { isProcessing, status, error: ocrError } = useOCR();
+  const receiptData = useSplitStore((state) => state.receiptData);
   const [searchQuery, setSearchQuery] = useState("");
   const router = useRouter();
 
@@ -149,7 +150,18 @@ export default function ChooseContacts() {
       />
 
       <View style={styles.footer}>
-        {(isProcessing || noContactsSelected) ? (
+        {ocrError ? (
+          <View style={styles.statusContainer}>
+            <Text style={[styles.statusText, { color: colors.error }]}>{ocrError}</Text>
+            <TouchableOpacity
+              style={[styles.continueButton, { marginTop: spacing.sm }]}
+              onPress={() => router.replace('/(tabs)')}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.buttonText}>Go Home</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (isProcessing || noContactsSelected) ? (
           <View style={styles.statusContainer}>
             {isProcessing ? (
               <>
@@ -164,7 +176,19 @@ export default function ChooseContacts() {
           <TouchableOpacity
             style={styles.continueButton}
             onPress={() => {
-              router.push("/result");
+              if (receiptData?.items?.length === 0) {
+                import('react-native').then(({ Alert }) => {
+                  Alert.alert(
+                    "No Items Found",
+                    "We couldn't detect any assignable items on this receipt. Please try scanning again.",
+                    [
+                      { text: "Go Home", onPress: () => router.replace('/(tabs)') }
+                    ]
+                  );
+                });
+              } else {
+                router.push("/result");
+              }
             }}
             activeOpacity={0.8}
           >

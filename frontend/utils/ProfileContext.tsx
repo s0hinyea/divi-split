@@ -25,7 +25,7 @@ const ProfileContext = createContext<ProfileContextType | undefined>(undefined);
 export function ProfileProvider({ children }: { children: ReactNode }) {
     const { session } = useContext(SessionContext);
     const [profile, setProfile] = useState<Profile | null>(null);
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(!!session);
 
     const fetchProfile = async () => {
         if (!session?.user) {

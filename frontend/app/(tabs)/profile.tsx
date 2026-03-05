@@ -11,6 +11,10 @@ import { colors, fonts, fontSizes, spacing, radii, shadows } from '@/styles/them
 import { useProfile } from '@/utils/ProfileContext';
 import * as ImagePicker from 'expo-image-picker';
 
+const VenmoLogo = require('@/assets/images/venmo.png');
+const CashAppLogo = require('@/assets/images/cashapp.png');
+const ZelleLogo = require('@/assets/images/zelle.png');
+
 export default function Profile() {
     const { session } = useContext(SessionContext);
     const { profile, loading, updateProfile } = useProfile();
@@ -162,7 +166,7 @@ export default function Profile() {
                     {/* Venmo */}
                     <View style={styles.row}>
                         <View style={styles.iconContainer}>
-                            <FontAwesome5 name="venmo" size={20} color="#3D95CE" />
+                            <Image source={VenmoLogo} style={styles.venmoIcon} resizeMode="contain" />
                         </View>
                         <View style={styles.inputWrapper}>
                             <Text style={styles.label}>Venmo</Text>
@@ -184,7 +188,7 @@ export default function Profile() {
                     {/* Cash App */}
                     <View style={styles.row}>
                         <View style={styles.iconContainer}>
-                            <FontAwesome5 name="dollar-sign" size={20} color="#00D632" />
+                            <Image source={CashAppLogo} style={styles.cashAppIcon} resizeMode="contain" />
                         </View>
                         <View style={styles.inputWrapper}>
                             <Text style={styles.label}>Cash App</Text>
@@ -206,7 +210,7 @@ export default function Profile() {
                     {/* Zelle */}
                     <View style={styles.row}>
                         <View style={styles.iconContainer}>
-                            <Text style={{ fontWeight: 'bold', color: '#6D1ED4', fontSize: 12 }}>Zelle</Text>
+                            <Image source={ZelleLogo} style={styles.zelleIcon} resizeMode="contain" />
                         </View>
                         <View style={styles.inputWrapper}>
                             <Text style={styles.label}>Zelle</Text>
@@ -341,9 +345,22 @@ const styles = StyleSheet.create({
 
     iconContainer: {
         width: 36, height: 36, borderRadius: radii.md,
-        backgroundColor: colors.gray100,
+        backgroundColor: colors.white,
         justifyContent: 'center', alignItems: 'center',
-        marginRight: spacing.md
+        marginRight: spacing.md,
+        borderWidth: 1, borderColor: colors.gray100
+    },
+    venmoIcon: {
+        width: 45,
+        height: 45,
+    },
+    cashAppIcon: {
+        width: 26,
+        height: 26,
+    },
+    zelleIcon: {
+        width: 32,
+        height: 32,
     },
     inputWrapper: { flex: 1 },
     label: { fontFamily: fonts.bodyBold, fontSize: 12, color: colors.gray500, marginBottom: 2 },

@@ -42,6 +42,10 @@ interface SplitState {
     clearSelected: () => void;
 
     resetStore: () => void;
+    // Completion overlay
+    showCompletion: boolean;
+    triggerCompletion: () => void;
+    clearCompletion: () => void;
 }
 
 const initialReceiptData: OCRResponse = {
@@ -56,6 +60,7 @@ const initialReceiptData: OCRResponse = {
 export const useSplitStore = create<SplitState>((set, get) => ({
     receiptData: initialReceiptData,
     selected: [],
+    showCompletion: false,
 
     updateReceiptData: (data) =>
         set((state) => ({
@@ -256,4 +261,8 @@ export const useSplitStore = create<SplitState>((set, get) => ({
     clearSelected: () => set({ selected: [] }),
 
     resetStore: () => set({ receiptData: initialReceiptData, selected: [] }),
+
+    // Completion overlay actions
+    triggerCompletion: () => set({ showCompletion: true }),
+    clearCompletion: () => set({ showCompletion: false }),
 }));

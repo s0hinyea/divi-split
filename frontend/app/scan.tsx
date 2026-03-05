@@ -29,7 +29,7 @@ export default function Scan() {
   const [capturing, setCapturing] = useState(false);
   const [cameraReady, setCameraReady] = useState(false);
   const updateReceiptData = useSplitStore((state) => state.updateReceiptData);
-  const { setIsProcessing, setStatus } = useOCR();
+  const { setIsProcessing, setStatus, setError } = useOCR();
 
   // Cycle flash: off → on → auto → off
   const cycleFlash = () => {
@@ -53,7 +53,7 @@ export default function Scan() {
 
       if (photo?.uri) {
         console.log('Photo captured successfully');
-        await handleOCR(photo.uri, updateReceiptData, setIsProcessing, setStatus, router);
+        await handleOCR(photo.uri, updateReceiptData, setIsProcessing, setStatus, setError, router);
       }
     } catch (error) {
       console.error('Capture error:', error);

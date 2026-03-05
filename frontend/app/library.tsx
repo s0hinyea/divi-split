@@ -7,8 +7,6 @@ import { ActivityIndicator } from 'react-native-paper';
 import { handleOCR } from '../utils/ocrUtil';
 import { useSplitStore } from '../stores/splitStore';
 import { useOCR } from '../utils/OCRContext';
-
-
 import { colors } from '@/styles/theme';
 
 export default function PickPhoto() {
@@ -16,15 +14,10 @@ export default function PickPhoto() {
   const [loading, setLoading] = useState(false);
   const galleryActive = useRef<boolean>(false);
   const updateReceiptData = useSplitStore((state) => state.updateReceiptData);
-  const { setIsProcessing, setStatus } = useOCR();
-
+  const { setIsProcessing, setStatus, setError } = useOCR();
 
   const pickFromGallery = async () => {
-    if (galleryActive.current) {
-      console.log("Gallery picker already active, skipping");
-      return;
-    }
-
+    if (galleryActive.current) return;
     galleryActive.current = true;
 
     try {
@@ -47,10 +40,8 @@ export default function PickPhoto() {
       }
 
       const asset = res.assets[0];
-      console.log("Image selected successfully");
-
       setLoading(true);
-      await handleOCR(asset.uri, updateReceiptData, setIsProcessing, setStatus, router);
+      await handleOCR(asset.uri, updateReceiptData, setIsProcessing, setStatus, setError, router);
       setLoading(false);
     } catch (error) {
       console.error("Gallery picker error:", error);
@@ -63,14 +54,10 @@ export default function PickPhoto() {
 
   useFocusEffect(
     useCallback(() => {
-      console.log("Opening library");
-      const timer = setTimeout(() => {
-        pickFromGallery();
-      }, 1000);
+      const timer = setTimeout(pickFromGallery, 700);
 
       return () => {
         clearTimeout(timer);
-        console.log("Screen unfocused, resetting camera state");
         galleryActive.current = false;
       };
     }, [])

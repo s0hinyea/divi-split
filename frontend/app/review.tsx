@@ -154,7 +154,7 @@ export default function ReviewPage() {
 
       await SMS.sendSMSAsync(phoneNumbers, message);
       setShowSmsModal(false);
-      proceedToNextScreen();
+      triggerCompletion();
 
     } catch (error) {
       console.error('SMS Error:', error);
@@ -163,12 +163,17 @@ export default function ReviewPage() {
     }
   };
 
-  // Navigate to next screen and cleanup
-  const proceedToNextScreen = () => {
+  // Clean up and route to home; the global CompletionOverlay (in _layout)
+  // is triggered BEFORE navigation so the blur covers the transition.
+  const triggerCompletion = () => {
+    const { triggerCompletion: showOverlay } = useSplitStore.getState();
+    showOverlay();              // overlay appears instantly over current screen
     clearItems();
     clearSelected();
     setUserItems([]);
-    router.push('/(tabs)');
+    requestAnimationFrame(() => {
+      router.replace('/(tabs)'); // navigate underneath the overlay
+    });
   };
 
   // Handle date picker change
@@ -191,7 +196,7 @@ export default function ReviewPage() {
     if (selected.length > 0) {
       setShowSmsModal(true);
     } else {
-      proceedToNextScreen();
+      triggerCompletion();
     }
   };
 
@@ -245,6 +250,7 @@ export default function ReviewPage() {
         </View>
 
         <Text style={styles.sectionTitle}>Breakdown</Text>
+        <Text style={styles.sectionSubtitle}>Tap a name below to edit it if needed</Text>
 
         {selected.map((contact) => {
           const contactMealTotal = calculateTotal(contact.items as ReceiptItem[]);
@@ -419,7 +425,7 @@ export default function ReviewPage() {
                 style={[styles.modalButton, styles.modalButtonSecondary]}
                 onPress={() => {
                   setShowSmsModal(false);
-                  proceedToNextScreen();
+                  triggerCompletion();
                 }}
               >
                 <Text style={styles.modalButtonSecondaryText}>No, Skip</Text>
@@ -458,6 +464,13 @@ const styles = StyleSheet.create({
     color: colors.black,
     marginTop: spacing.lg,
     marginBottom: spacing.md,
+  },
+  sectionSubtitle: {
+    fontFamily: fonts.body,
+    fontSize: fontSizes.sm,
+    color: colors.gray500,
+    marginTop: -spacing.sm,
+    marginBottom: spacing.lg,
   },
   detailsCard: {
     backgroundColor: colors.white,
