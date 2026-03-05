@@ -1,14 +1,12 @@
 import { Alert } from "react-native";
-import { useReceipt, OCRResponse } from "./ReceiptContext";
+import { OCRResponse } from "../stores/splitStore";
 import { useOCR } from "@/utils/OCRContext";
 import { Router } from "expo-router";
 import { supabase } from "@/lib/supabase";
 import * as ImageManipulator from 'expo-image-manipulator';
 
-import { Config } from "@/constants/Config";
 
-// The URL can be changed based on environment
-const API_URL = `${Config.BACKEND_URL}/ocr-vision`;
+
 
 export const handleOCR = async (
 	imageUri: string, // Changed from base64DataUrl to imageUri
@@ -41,10 +39,6 @@ export const handleOCR = async (
 		setStatus("Sending it over...");
 		const { data: extractedData, error } = await supabase.functions.invoke('ocr-vision', {
 			body: { image: base64DataUrl },
-			headers: {
-				// Explicitly pass the user JWT so the Edge Function can verify auth
-				Authorization: `Bearer ${token}`,
-			},
 		});
 
 		if (error) {

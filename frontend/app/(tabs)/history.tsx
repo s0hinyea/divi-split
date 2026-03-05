@@ -9,7 +9,7 @@ import { Text, Icon } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useEffect } from 'react';
 import { BlurView } from 'expo-blur';
-import { Config } from '@/constants/Config';
+
 import { supabase } from '@/lib/supabase';
 import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import { MaterialIcons } from '@expo/vector-icons';

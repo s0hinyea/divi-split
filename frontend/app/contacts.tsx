@@ -12,14 +12,15 @@ import {
 } from "react-native";
 import * as Contacts from "expo-contacts";
 import { useOCR } from "../utils/OCRContext";
-import { useContacts, Contact } from "../utils/ContactsContext";
+import { useSplitStore, Contact } from '../stores/splitStore';
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Icon } from "react-native-paper";
 import { colors, fonts, fontSizes, spacing, radii, shadows } from '@/styles/theme';
 
 export default function ChooseContacts() {
   const [contacts, setContacts] = useState<Contact[]>([]);
-  const { selected, manageContacts } = useContacts();
+  const selected = useSplitStore((state) => state.selected);
+  const manageContacts = useSplitStore((state) => state.manageContacts);
   const [loading, setLoading] = useState(true);
   const { isProcessing, status } = useOCR();
   const [searchQuery, setSearchQuery] = useState("");

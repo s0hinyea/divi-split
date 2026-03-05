@@ -5,7 +5,7 @@ import { useFocusEffect } from 'expo-router';
 import { Alert, View, Text } from 'react-native';
 import { ActivityIndicator } from 'react-native-paper';
 import { handleOCR } from '../utils/ocrUtil';
-import { useReceipt } from '../utils/ReceiptContext';
+import { useSplitStore } from '../stores/splitStore';
 import { useOCR } from '../utils/OCRContext';
 
 
@@ -15,7 +15,7 @@ export default function PickPhoto() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const galleryActive = useRef<boolean>(false);
-  const { updateReceiptData } = useReceipt();
+  const updateReceiptData = useSplitStore((state) => state.updateReceiptData);
   const { setIsProcessing, setStatus } = useOCR();
 
 

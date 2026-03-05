@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Modal, Alert, ActivityIndicator, TextInput, Platform, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useContacts } from '../utils/ContactsContext';
-import { useReceipt, ReceiptItem } from '../utils/ReceiptContext';
+import { useSplitStore, ReceiptItem } from '../stores/splitStore';
 import { useHistory } from '../utils/HistoryContext';
 import { useProfile } from '../utils/ProfileContext';
 import * as SMS from 'expo-sms';
@@ -11,11 +10,17 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, fonts, fontSizes, spacing, radii, shadows } from '@/styles/theme';
 import { MaterialIcons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
-
+import { allocateAmount } from '../utils/mathUtil';
 export default function ReviewPage() {
   const router = useRouter();
-  const { selected, clearItems, clearSelected } = useContacts();
-  const { receiptData, setUserItems, updateReceiptData, calculateTotal, saveReceipt } = useReceipt();
+  const selected = useSplitStore((state) => state.selected);
+  const clearItems = useSplitStore((state) => state.clearItems);
+  const clearSelected = useSplitStore((state) => state.clearSelected);
+  const receiptData = useSplitStore((state) => state.receiptData);
+  const setUserItems = useSplitStore((state) => state.setUserItems);
+  const updateReceiptData = useSplitStore((state) => state.updateReceiptData);
+  const calculateTotal = useSplitStore((state) => state.calculateTotal);
+  const saveReceipt = useSplitStore((state) => state.saveReceipt);
   const { refreshReceipts } = useHistory();
   const { profile } = useProfile();
   // Modal state
@@ -42,32 +47,16 @@ export default function ReviewPage() {
       return { taxPercentage: 0, individualTaxes: {} };
     }
 
-    const allMealItems = 'items' in receiptData ? receiptData.items : [];
-    const subtotal = calculateTotal(allMealItems);
-
-    if (subtotal <= 0) {
-      return { taxPercentage: 0, individualTaxes: {} };
-    }
-
-    // Calculate tax percentage
-    const taxPercentage = receiptData.tax / subtotal;
-
-    // Calculate individual tax amounts
-    const individualTaxes: { [key: string]: number } = {};
-
-    // Calculate tax for each contact
+    const shares: { id: string; share: number }[] = [];
     selected.forEach(contact => {
-      const contactMealTotal = calculateTotal(contact.items as ReceiptItem[]);
-      individualTaxes[contact.id] = contactMealTotal * taxPercentage;
+      shares.push({ id: contact.id, share: calculateTotal(contact.items as ReceiptItem[]) });
     });
-
-    // Calculate tax for user items
     if (receiptData.userItems && receiptData.userItems.length > 0) {
-      const userMealTotal = calculateTotal(receiptData.userItems as ReceiptItem[]);
-      individualTaxes['user'] = userMealTotal * taxPercentage;
+      shares.push({ id: 'user', share: calculateTotal(receiptData.userItems as ReceiptItem[]) });
     }
 
-    return { taxPercentage, individualTaxes };
+    const individualTaxes = allocateAmount(receiptData.tax, shares);
+    return { taxPercentage: 0, individualTaxes }; // Return signature kept identical for UI components
   };
 
   const calculateTipBreakdown = () => {
@@ -75,33 +64,16 @@ export default function ReviewPage() {
       return { tipPerPerson: 0, individualTips: {} };
     }
 
-    // Count total people (contacts + user if user has items)
-    let totalPeople = selected.length;
-    if (receiptData.userItems && receiptData.userItems.length > 0) {
-      totalPeople += 1;
-    }
-
-    if (totalPeople <= 0) {
-      return { tipPerPerson: 0, individualTips: {} };
-    }
-
-    // Split tip evenly among all people
-    const tipPerPerson = receiptData.tip / totalPeople;
-
-    // Calculate individual tip amounts
-    const individualTips: { [key: string]: number } = {};
-
-    // Assign tip for each contact
+    const shares: { id: string; share: number }[] = [];
     selected.forEach(contact => {
-      individualTips[contact.id] = tipPerPerson;
+      shares.push({ id: contact.id, share: 1 }); // Even split for tips (weight of 1 each)
     });
-
-    // Assign tip for user if they have items
     if (receiptData.userItems && receiptData.userItems.length > 0) {
-      individualTips['user'] = tipPerPerson;
+      shares.push({ id: 'user', share: 1 });
     }
 
-    return { tipPerPerson, individualTips };
+    const individualTips = allocateAmount(receiptData.tip, shares);
+    return { tipPerPerson: 0, individualTips }; // Return signature kept identical for UI components
   };
 
   const { taxPercentage, individualTaxes } = calculateTaxBreakdown();

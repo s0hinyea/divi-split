@@ -14,11 +14,11 @@ import { Text, Button, Surface, Icon } from "react-native-paper";
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "expo-router";
 import { styles } from "../styles/expense-splitterCss";
-import { useReceipt } from "../utils/ReceiptContext";
+import { useSplitStore } from '../stores/splitStore';
 import { SafeAreaView } from "react-native-safe-area-context";
 import Colors from "../constants/Colors";
 import { BlurView } from "expo-blur";
-import { Config } from "@/constants/Config";
+
 import { supabase } from "@/lib/supabase";
 import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -36,7 +36,7 @@ export default function MainPage() {
   const router = useRouter();
   const [visible, setVisible] = useState(false);
   const [showReceiptsModal, setShowReceiptsModal] = useState(false);
-  const { updateReceiptData } = useReceipt();
+  const updateReceiptData = useSplitStore((state) => state.updateReceiptData);
 
   // Real receipts from backend
   const [pastReceipts, setPastReceipts] = useState<Receipt[]>([]);
@@ -60,31 +60,28 @@ export default function MainPage() {
         setLoadingReceipts(true);
       }
 
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
-
-      if (!token) {
-        setLoadingReceipts(false);
-        return;
-      }
-
       const offset = loadMore ? pastReceipts.length : 0;
-      const response = await fetch(`${Config.BACKEND_URL}/receipts?limit=5&offset=${offset}`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      const { data, error } = await supabase
+        .from('receipts')
+        .select(`
+          id,
+          receipt_name,
+          total_amount,
+          created_at,
+          receipt_items (id, item_name, item_price)
+        `)
+        .order('created_at', { ascending: false })
+        .range(offset, offset + 4);
 
-      if (response.ok) {
-        const data = await response.json();
-        if (loadMore) {
-          setPastReceipts(prev => [...prev, ...(data.receipts || [])]);
-        } else {
-          setPastReceipts(data.receipts || []);
-        }
-        setHasMore(data.hasMore || false);
+      if (error) throw error;
+
+      const newReceipts = (data as Receipt[]) || [];
+      if (loadMore) {
+        setPastReceipts(prev => [...prev, ...newReceipts]);
+      } else {
+        setPastReceipts(newReceipts);
       }
+      setHasMore(newReceipts.length === 5);
     } catch (error) {
       console.error('Error fetching receipts:', error);
     } finally {
@@ -95,27 +92,12 @@ export default function MainPage() {
 
   // Delete a receipt (called from swipe action)
   const deleteReceipt = async (receiptId: string) => {
+    // Optimistic update
+    setPastReceipts(prev => prev.filter(r => r.id !== receiptId));
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
-
-      if (!token) return;
-
-      // Optimistically remove from UI first for smooth UX
-      setPastReceipts(prev => prev.filter(r => r.id !== receiptId));
-
-      const response = await fetch(`${Config.BACKEND_URL}/receipts/${receiptId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (!response.ok) {
-        // If delete failed, refetch to restore
-        fetchReceipts();
-        console.error('Failed to delete receipt');
-      }
+      await supabase.from('receipt_items').delete().eq('receipt_id', receiptId);
+      const { error } = await supabase.from('receipts').delete().eq('id', receiptId);
+      if (error) throw error;
     } catch (error) {
       console.error('Error deleting receipt:', error);
       fetchReceipts(); // Restore on error
