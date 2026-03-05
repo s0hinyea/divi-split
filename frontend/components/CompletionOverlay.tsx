@@ -10,40 +10,52 @@ import Animated, {
     runOnJS
 } from 'react-native-reanimated';
 import { colors, fonts, fontSizes } from '@/styles/theme';
+import { useSplitStore } from '@/stores/splitStore';
 
-interface CompletionOverlayProps {
-    visible: boolean;
-    onAnimationComplete: () => void;
-}
+/**
+ * Global completion overlay — rendered in _layout.tsx so it sits above
+ * every route.  Reads `showCompletion` from the Zustand store and
+ * auto-dismisses after the check-mark animation finishes.
+ */
+export default function CompletionOverlay() {
+    const visible = useSplitStore((s) => s.showCompletion);
+    const clearCompletion = useSplitStore((s) => s.clearCompletion);
 
-export default function CompletionOverlay({ visible, onAnimationComplete }: CompletionOverlayProps) {
     const opacity = useSharedValue(0);
+    const scale = useSharedValue(0.6);
 
     useEffect(() => {
         if (visible) {
-            // Pop in, stay visible briefly, then fade out.
+            // Reset values
             opacity.value = 0;
-            opacity.value = withTiming(1, { duration: 200 }, () => {
-                opacity.value = withDelay(900, withTiming(0, { duration: 240 }, () => {
-                    runOnJS(onAnimationComplete)();
-                }));
-            });
+            scale.value = 0.6;
+
+            // Pop in
+            opacity.value = withTiming(1, { duration: 200 });
+            scale.value = withTiming(1, { duration: 250 });
+
+            // Hold, then fade out and clear global state
+            opacity.value = withDelay(
+                1400,
+                withTiming(0, { duration: 280 }, () => {
+                    runOnJS(clearCompletion)();
+                })
+            );
         }
     }, [visible]);
 
-    const animatedStyle = useAnimatedStyle(() => {
-        return {
-            opacity: opacity.value,
-        };
-    });
+    const animatedStyle = useAnimatedStyle(() => ({
+        opacity: opacity.value,
+        transform: [{ scale: scale.value }],
+    }));
 
     if (!visible) return null;
 
     return (
-        <Modal transparent visible={visible} animationType="fade">
-            <BlurView intensity={28} style={styles.container} tint="light">
+        <Modal transparent visible={visible} animationType="none">
+            <BlurView intensity={40} style={styles.container} tint="light">
                 <Animated.View style={[styles.content, animatedStyle]}>
-                    <MaterialIcons name="check" size={72} color={colors.green} />
+                    <MaterialIcons name="check-circle" size={80} color={colors.green} />
                     <Text style={styles.text}>Completed!</Text>
                 </Animated.View>
             </BlurView>
@@ -61,11 +73,11 @@ const styles = StyleSheet.create({
     content: {
         alignItems: 'center',
         justifyContent: 'center',
-        gap: 10,
+        gap: 12,
     },
     text: {
         fontFamily: fonts.bodyBold,
         fontSize: fontSizes.xl,
         color: colors.gray800,
-    }
+    },
 });

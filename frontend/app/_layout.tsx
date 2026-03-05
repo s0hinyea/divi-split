@@ -19,6 +19,7 @@ import { HistoryProvider } from "@/utils/HistoryContext";
 import { Session } from "@supabase/supabase-js";
 import { supabase } from "../lib/supabase";
 import AnimatedSplash from "@/components/AnimatedSplash";
+import CompletionOverlay from "@/components/CompletionOverlay";
 
 
 export const SessionContext = createContext<{
@@ -136,6 +137,7 @@ export default function RootLayout() {
                       <Stack.Screen name="+not-found" />
                     </Stack>
                     <StatusBar style="dark" />
+                    <CompletionOverlay />
                   </ThemeProvider>
                 </PaperProvider>
               </GestureHandlerRootView>

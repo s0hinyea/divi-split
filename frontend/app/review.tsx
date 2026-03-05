@@ -163,12 +163,15 @@ export default function ReviewPage() {
     }
   };
 
-  // Clean up and route to home, where completion overlay is shown.
+  // Clean up and route to home; the global CompletionOverlay (in _layout)
+  // is triggered BEFORE navigation so the blur covers the transition.
   const triggerCompletion = () => {
+    const { triggerCompletion: showOverlay } = useSplitStore.getState();
+    showOverlay();              // overlay appears instantly over current screen
     clearItems();
     clearSelected();
     setUserItems([]);
-    router.replace({ pathname: '/(tabs)', params: { completed: '1' } });
+    router.replace('/(tabs)'); // navigate underneath the overlay
   };
 
   // Handle date picker change
