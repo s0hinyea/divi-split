@@ -7,8 +7,6 @@ import { ActivityIndicator } from 'react-native-paper';
 import { handleOCR } from '../utils/ocrUtil';
 import { useSplitStore } from '../stores/splitStore';
 import { useOCR } from '../utils/OCRContext';
-
-
 import { colors } from '@/styles/theme';
 
 export default function PickPhoto() {
@@ -18,13 +16,8 @@ export default function PickPhoto() {
   const updateReceiptData = useSplitStore((state) => state.updateReceiptData);
   const { setIsProcessing, setStatus } = useOCR();
 
-
   const pickFromGallery = async () => {
-    if (galleryActive.current) {
-      console.log("Gallery picker already active, skipping");
-      return;
-    }
-
+    if (galleryActive.current) return;
     galleryActive.current = true;
 
     try {
@@ -47,8 +40,6 @@ export default function PickPhoto() {
       }
 
       const asset = res.assets[0];
-      console.log("Image selected successfully");
-
       setLoading(true);
       await handleOCR(asset.uri, updateReceiptData, setIsProcessing, setStatus, router);
       setLoading(false);
@@ -63,16 +54,10 @@ export default function PickPhoto() {
 
   useFocusEffect(
     useCallback(() => {
-      console.log("Opening library");
-      // Wait for the navigation transition (screen slide) to finish 
-      // before launching the native modal, otherwise iOS instantly dismisses it.
-      const timer = setTimeout(() => {
-        pickFromGallery();
-      }, 400);
+      const timer = setTimeout(pickFromGallery, 700);
 
       return () => {
         clearTimeout(timer);
-        console.log("Screen unfocused, resetting camera state");
         galleryActive.current = false;
       };
     }, [])
