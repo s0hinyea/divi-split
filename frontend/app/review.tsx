@@ -11,7 +11,6 @@ import { colors, fonts, fontSizes, spacing, radii, shadows } from '@/styles/them
 import { MaterialIcons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { allocateAmount } from '../utils/mathUtil';
-import CompletionOverlay from '@/components/CompletionOverlay';
 export default function ReviewPage() {
   const router = useRouter();
   const selected = useSplitStore((state) => state.selected);
@@ -32,9 +31,6 @@ export default function ReviewPage() {
   const [receiptName, setReceiptName] = useState('');
   const [receiptDate, setReceiptDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
-
-  // Completion Animation state
-  const [showCompletionInfo, setShowCompletionInfo] = useState(false);
 
   useEffect(() => {
     if ('items' in receiptData) {
@@ -167,17 +163,12 @@ export default function ReviewPage() {
     }
   };
 
-  // Triggers the animation, which will then do the cleanup
+  // Clean up and route to home, where completion overlay is shown.
   const triggerCompletion = () => {
-    setShowCompletionInfo(true);
-  };
-
-  const handleAnimationComplete = () => {
-    setShowCompletionInfo(false);
     clearItems();
     clearSelected();
     setUserItems([]);
-    router.push('/(tabs)');
+    router.replace({ pathname: '/(tabs)', params: { completed: '1' } });
   };
 
   // Handle date picker change
@@ -438,12 +429,6 @@ export default function ReviewPage() {
           </View>
         </BlurView>
       </Modal>
-
-      {/* Full Screen Completion Overlay */}
-      <CompletionOverlay
-        visible={showCompletionInfo}
-        onAnimationComplete={handleAnimationComplete}
-      />
     </SafeAreaView>
   );
 }

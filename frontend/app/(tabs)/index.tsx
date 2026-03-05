@@ -1,13 +1,14 @@
 import { View, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useContext } from 'react';
-import { useRouter } from 'expo-router';
+import { useContext, useEffect, useState } from 'react';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { colors, fonts, fontSizes, spacing } from '@/styles/theme';
 import { SessionContext } from '@/app/_layout';
 import ReceiptCard from '@/components/ReceiptCard';
 import { useHistory } from '@/utils/HistoryContext';
 import { useProfile } from '@/utils/ProfileContext';
+import CompletionOverlay from '@/components/CompletionOverlay';
 
 function ReceiptLines() {
     return (
@@ -21,9 +22,22 @@ function ReceiptLines() {
 
 export default function Dashboard() {
     const router = useRouter();
+    const { completed } = useLocalSearchParams<{ completed?: string }>();
     const { session } = useContext(SessionContext);
     const { receipts, loading } = useHistory();
     const { profile, loading: profileLoading } = useProfile();
+    const [showCompletionOverlay, setShowCompletionOverlay] = useState(false);
+
+    useEffect(() => {
+        if (completed === '1') {
+            setShowCompletionOverlay(true);
+        }
+    }, [completed]);
+
+    const handleCompletionAnimationComplete = () => {
+        setShowCompletionOverlay(false);
+        router.replace('/(tabs)');
+    };
 
     const getGreeting = () => {
         const hour = new Date().getHours();
@@ -129,6 +143,11 @@ export default function Dashboard() {
                     )}
                 </ReceiptCard>
             </ScrollView>
+
+            <CompletionOverlay
+                visible={showCompletionOverlay}
+                onAnimationComplete={handleCompletionAnimationComplete}
+            />
         </SafeAreaView>
     );
 }
