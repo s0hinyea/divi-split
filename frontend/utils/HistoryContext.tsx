@@ -14,6 +14,8 @@ type HistoryContextType = {
     receipts: Receipt[];
     loading: boolean;
     hasMore: boolean;
+    monthlyTotal: number;
+    totalCount: number;
     fetchReceipts: (loadMore?: boolean) => Promise<void>;
     addReceipt: (receipt: Receipt) => void;
     deleteReceipt: (id: string) => Promise<void>;
@@ -29,6 +31,32 @@ export function HistoryProvider({ children }: { children: ReactNode }) {
     const [receipts, setReceipts] = useState<Receipt[]>([]);
     const [loading, setLoading] = useState(false);
     const [hasMore, setHasMore] = useState(true);
+    const [monthlyTotal, setMonthlyTotal] = useState(0);
+    const [totalCount, setTotalCount] = useState(0);
+
+    // Lightweight query for Dashboard stats — independent of pagination
+    const fetchStats = async () => {
+        if (!session?.user) return;
+        try {
+            // Total count of all receipts
+            const { count } = await supabase
+                .from('receipts')
+                .select('id', { count: 'exact', head: true });
+            setTotalCount(count ?? 0);
+
+            // Sum of totals for current month
+            const now = new Date();
+            const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+            const { data: monthData } = await supabase
+                .from('receipts')
+                .select('total_amount')
+                .gte('created_at', startOfMonth);
+            const sum = (monthData ?? []).reduce((s, r) => s + (r.total_amount || 0), 0);
+            setMonthlyTotal(sum);
+        } catch (err) {
+            console.error('Error fetching stats:', err);
+        }
+    };
 
     const fetchReceipts = async (loadMore = false) => {
         if (!session?.user) return;
@@ -78,7 +106,7 @@ export function HistoryProvider({ children }: { children: ReactNode }) {
     };
 
     const refreshReceipts = async () => {
-        await fetchReceipts(false);
+        await Promise.all([fetchReceipts(false), fetchStats()]);
     };
 
     const addReceipt = (newReceipt: Receipt) => {
@@ -118,8 +146,11 @@ export function HistoryProvider({ children }: { children: ReactNode }) {
     useEffect(() => {
         if (session?.user) {
             fetchReceipts();
+            fetchStats();
         } else {
             setReceipts([]);
+            setMonthlyTotal(0);
+            setTotalCount(0);
         }
     }, [session]);
 
@@ -128,6 +159,8 @@ export function HistoryProvider({ children }: { children: ReactNode }) {
             receipts,
             loading,
             hasMore,
+            monthlyTotal,
+            totalCount,
             fetchReceipts,
             addReceipt,
             deleteReceipt,

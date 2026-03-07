@@ -22,7 +22,7 @@ function ReceiptLines() {
 export default function Dashboard() {
     const router = useRouter();
     const { session } = useContext(SessionContext);
-    const { receipts, loading, refreshReceipts } = useHistory();
+    const { receipts, loading, refreshReceipts, monthlyTotal, totalCount } = useHistory();
     const { profile, loading: profileLoading, refreshProfile } = useProfile();
     const [refreshing, setRefreshing] = useState(false);
 
@@ -42,7 +42,7 @@ export default function Dashboard() {
     const getUserName = () => {
         if (profileLoading) return '...';
         if (profile?.username) return profile.username;
-        if (profile?.full_name) return profile.full_name.split(' ')[0]; // Use first name if full name exists
+        if (profile?.full_name) return profile.full_name.split(' ')[0];
 
         const email = session?.user?.email || '';
         const name = email.split('@')[0];
@@ -50,15 +50,6 @@ export default function Dashboard() {
         return name.charAt(0).toUpperCase() + name.slice(1);
     };
 
-
-    const now = new Date();
-    const monthlyReceipts = receipts.filter(r => {
-        const d = new Date(r.created_at);
-        return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-    });
-
-    const monthlyTotal = monthlyReceipts.reduce((sum, r) => sum + (r.total_amount || 0), 0);
-    const totalScanned = receipts.length;
     const recentTwo = receipts.slice(0, 2);
 
     // Dynamic sizing
@@ -93,7 +84,7 @@ export default function Dashboard() {
 
                     <ReceiptCard style={[styles.statCard, styles.flippedCard]} showTopZigzag={false} showBottomZigzag={true}>
                         <View style={styles.flippedContent}>
-                            <Text style={styles.statAmount}>{totalScanned}</Text>
+                            <Text style={styles.statAmount}>{totalCount}</Text>
                             <Text style={styles.statLabel}>receipts scanned</Text>
                             <ReceiptLines />
                         </View>
