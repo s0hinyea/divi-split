@@ -168,12 +168,15 @@ export default function ReviewPage() {
   const triggerCompletion = () => {
     const { triggerCompletion: showOverlay } = useSplitStore.getState();
     showOverlay();              // overlay appears instantly over current screen
-    clearItems();
-    clearSelected();
-    setUserItems([]);
-    requestAnimationFrame(() => {
-      router.replace('/(tabs)'); // navigate underneath the overlay
-    });
+    
+    // Give the overlay 50ms to mount and render its first opaque frame
+    // before we trigger the heavy layout transition of navigation.
+    setTimeout(() => {
+      clearItems();
+      clearSelected();
+      setUserItems([]);
+      router.replace('/(tabs)');
+    }, 50);
   };
 
   // Handle date picker change

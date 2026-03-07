@@ -27,24 +27,24 @@ export default function CompletionOverlay() {
 
     useEffect(() => {
         if (visible) {
-            // Blur background fades in instantly
-            containerOpacity.value = withTiming(1, { duration: 150 });
+            // Reset values immediately
+            containerOpacity.value = 0;
+            contentScale.value = 0.5;
 
-            // Checkmark pops in, holds, then everything fades out together
-            contentScale.value = withSequence(
-                withTiming(1, { duration: 250 }),                          // pop in
-                withDelay(1200, withTiming(0.8, { duration: 200 }))        // subtle shrink before fade
-            );
-
-            // Container holds, then fades out and clears state
+            // Single sequence for container: Fade in -> Hold -> Fade out
             containerOpacity.value = withSequence(
-                withTiming(1, { duration: 150 }),                          // ensure fully visible
-                withDelay(1300, withTiming(0, { duration: 300 }, () => {   // fade everything out
+                withTiming(1, { duration: 200 }),                          // Fade in the blur/overlay
+                withDelay(1400, withTiming(0, { duration: 300 }, () => {   // Hold then fade out
                     runOnJS(clearCompletion)();
                 }))
             );
+
+            // Pop in the checkmark
+            contentScale.value = withSequence(
+                withTiming(1, { duration: 300 }),                          // Pop in
+                withDelay(1200, withTiming(0.9, { duration: 200 }))        // Stay then slight shrink
+            );
         } else {
-            // Reset for next use
             containerOpacity.value = 0;
             contentScale.value = 0.5;
         }
