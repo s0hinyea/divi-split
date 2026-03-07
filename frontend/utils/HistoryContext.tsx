@@ -6,6 +6,8 @@ export interface Receipt {
     id: string;
     receipt_name: string;
     total_amount: number;
+    tax_amount: number;
+    tip_amount: number;
     created_at: string;
     receipt_items: { id: string; item_name: string; item_price: number }[];
 }
@@ -75,6 +77,8 @@ export function HistoryProvider({ children }: { children: ReactNode }) {
                     id,
                     receipt_name,
                     total_amount,
+                    tax_amount,
+                    tip_amount,
                     created_at,
                     receipt_items (
                         id,
