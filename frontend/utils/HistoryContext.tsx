@@ -22,7 +22,7 @@ type HistoryContextType = {
 
 const HistoryContext = createContext<HistoryContextType | undefined>(undefined);
 
-const PAGE_LIMIT = 50;
+const PAGE_LIMIT = 5;
 
 export function HistoryProvider({ children }: { children: ReactNode }) {
     const { session } = useContext(SessionContext);
