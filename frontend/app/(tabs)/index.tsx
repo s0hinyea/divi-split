@@ -1,7 +1,7 @@
-import { View, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useContext } from 'react';
+import { useContext, useState, useCallback } from 'react';
 import { useRouter } from 'expo-router';
 import { colors, fonts, fontSizes, spacing } from '@/styles/theme';
 import { SessionContext } from '@/app/_layout';
@@ -22,8 +22,15 @@ function ReceiptLines() {
 export default function Dashboard() {
     const router = useRouter();
     const { session } = useContext(SessionContext);
-    const { receipts, loading } = useHistory();
-    const { profile, loading: profileLoading } = useProfile();
+    const { receipts, loading, refreshReceipts } = useHistory();
+    const { profile, loading: profileLoading, refreshProfile } = useProfile();
+    const [refreshing, setRefreshing] = useState(false);
+
+    const onRefresh = useCallback(async () => {
+        setRefreshing(true);
+        await Promise.all([refreshReceipts(), refreshProfile()]);
+        setRefreshing(false);
+    }, []);
 
     const getGreeting = () => {
         const hour = new Date().getHours();
@@ -60,7 +67,17 @@ export default function Dashboard() {
 
     return (
         <SafeAreaView style={styles.container}>
-            <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+            <ScrollView
+                contentContainerStyle={styles.scrollContent}
+                showsVerticalScrollIndicator={false}
+                refreshControl={
+                    <RefreshControl
+                        refreshing={refreshing}
+                        onRefresh={onRefresh}
+                        tintColor={colors.green}
+                    />
+                }
+            >
                 {/* Greeting */}
                 <Text style={styles.greeting}>{getGreeting()},</Text>
                 <Text style={styles.userName}>{getUserName()}.</Text>

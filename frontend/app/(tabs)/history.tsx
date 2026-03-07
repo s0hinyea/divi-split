@@ -4,10 +4,11 @@ import {
     TouchableOpacity,
     ScrollView,
     Modal,
+    RefreshControl,
 } from 'react-native';
 import { Text, Icon } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useState, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import { BlurView } from 'expo-blur';
 
 import { supabase } from '@/lib/supabase';
@@ -18,10 +19,17 @@ import { colors, fonts, fontSizes, spacing, radii } from '@/styles/theme';
 import { useHistory, Receipt } from '@/utils/HistoryContext';
 
 export default function History() {
-    const { receipts, loading, hasMore, fetchReceipts, deleteReceipt: contextDeleteReceipt } = useHistory();
+    const { receipts, loading, hasMore, fetchReceipts, deleteReceipt: contextDeleteReceipt, refreshReceipts } = useHistory();
     const [selectedReceipt, setSelectedReceipt] = useState<Receipt | null>(null);
     const [loadingMore, setLoadingMore] = useState(false);
     const [showModal, setShowModal] = useState(false);
+    const [refreshing, setRefreshing] = useState(false);
+
+    const onRefresh = useCallback(async () => {
+        setRefreshing(true);
+        await refreshReceipts();
+        setRefreshing(false);
+    }, []);
 
     const handleLoadMore = async () => {
         if (!hasMore || loadingMore) return;
@@ -53,7 +61,17 @@ export default function History() {
                 <Text style={styles.title}>History</Text>
             </View>
 
-            <ScrollView style={styles.scrollContainer} contentContainerStyle={styles.scrollContent}>
+            <ScrollView
+                style={styles.scrollContainer}
+                contentContainerStyle={styles.scrollContent}
+                refreshControl={
+                    <RefreshControl
+                        refreshing={refreshing}
+                        onRefresh={onRefresh}
+                        tintColor={colors.green}
+                    />
+                }
+            >
                 {loading ? (
                     <Text style={styles.statusText}>Loading receipts...</Text>
                 ) : receipts.length === 0 ? (

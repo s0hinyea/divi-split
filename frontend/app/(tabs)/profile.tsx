@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, TouchableOpacity, ScrollView, Alert, TextInput, Switch, Image } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, StyleSheet, TouchableOpacity, ScrollView, Alert, TextInput, Switch, Image, RefreshControl } from 'react-native';
 import { Text, ActivityIndicator } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useContext } from 'react';
@@ -17,11 +17,18 @@ const ZelleLogo = require('@/assets/images/zelle.png');
 
 export default function Profile() {
     const { session } = useContext(SessionContext);
-    const { profile, loading, updateProfile } = useProfile();
+    const { profile, loading, updateProfile, refreshProfile } = useProfile();
     const router = useRouter();
 
     const [notificationsEnabled, setNotificationsEnabled] = useState(true);
     const [darkMode, setDarkMode] = useState(false);
+    const [refreshing, setRefreshing] = useState(false);
+
+    const onRefresh = useCallback(async () => {
+        setRefreshing(true);
+        await refreshProfile();
+        setRefreshing(false);
+    }, []);
 
 
     const [isEditing, setIsEditing] = useState(false);
@@ -115,7 +122,17 @@ export default function Profile() {
                 </TouchableOpacity>
             </View>
 
-            <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
+            <ScrollView
+                style={styles.scrollView}
+                contentContainerStyle={styles.content}
+                refreshControl={
+                    <RefreshControl
+                        refreshing={refreshing}
+                        onRefresh={onRefresh}
+                        tintColor={colors.green}
+                    />
+                }
+            >
 
                 {/* 1. Hero / Identity Section */}
                 <View style={styles.section}>
