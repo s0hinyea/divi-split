@@ -62,7 +62,9 @@ export function HistoryProvider({ children }: { children: ReactNode }) {
         if (!session?.user) return;
 
         try {
-            if (!loadMore) setLoading(true);
+            // Only show full loading state on first load (no data yet).
+            // On refresh, existing data stays visible while we fetch.
+            if (!loadMore && receipts.length === 0) setLoading(true);
 
             const offset = loadMore ? receipts.length : 0;
 
