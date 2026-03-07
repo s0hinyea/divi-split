@@ -74,6 +74,7 @@ export default function History() {
                 .from('assignments')
                 .select(`
                     item_id,
+                    contact_id,
                     contacts (
                         id,
                         contact_name,
@@ -82,10 +83,15 @@ export default function History() {
                 `)
                 .in('item_id', itemIds);
 
-            if (assignError) throw assignError;
+            if (assignError) {
+                console.error("Assign join error:", assignError);
+                throw assignError;
+            }
 
-            console.log("Assignments Fetched:", JSON.stringify(assignments, null, 2));
-
+            if (!assignments || assignments.length === 0) {
+                Alert.alert('No Assignments', 'No item assignments found for this receipt. The split data may not have been saved.');
+                return;
+            }
 
             // Reconstruct who got what
             const contactMap = new Map(); // id -> { name, phoneNumber, items[] }
@@ -114,12 +120,6 @@ export default function History() {
             }
 
             const selectedContacts = Array.from(contactMap.values());
-            console.log("Reconstructed contacts:", selectedContacts);
-
-            if (selectedContacts.length === 0 && assignments && assignments.length > 0) {
-                 Alert.alert('No Contacts Found', 'Assignments exist but could not resolve contact records. Check relation schema.');
-                 return;
-            }
 
             const assignedItemIds = new Set(assignments?.map(a => a.item_id) || []);
             const userItems = selectedReceipt.receipt_items.filter(i => !assignedItemIds.has(i.id));

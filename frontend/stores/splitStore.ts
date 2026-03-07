@@ -152,12 +152,17 @@ export const useSplitStore = create<SplitState>((set, get) => ({
             if (state.selected && state.selected.length > 0) {
                 for (const contact of state.selected) {
                     let insertedContact;
-                    const { data: existingContact } = await supabase
-                        .from("contacts")
-                        .select("id")
-                        .eq("user_id", user.id)
-                        .eq("phone_number", contact.phoneNumber || "no-phone")
-                        .single();
+                    const { data: existingContact, error: existingError } =
+                        await supabase
+                            .from("contacts")
+                            .select("id")
+                            .eq("user_id", user.id)
+                            .eq(
+                                "phone_number",
+                                contact.phoneNumber || "no-phone",
+                            )
+                            .limit(1)
+                            .maybeSingle();
 
                     if (existingContact) {
                         insertedContact = existingContact;
