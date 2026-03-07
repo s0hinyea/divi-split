@@ -84,12 +84,18 @@ export default function History() {
 
             if (assignError) throw assignError;
 
+            console.log("Assignments Fetched:", JSON.stringify(assignments, null, 2));
+
+
             // Reconstruct who got what
             const contactMap = new Map(); // id -> { name, phoneNumber, items[] }
 
             for (const assignment of assignments || []) {
-                // Supabase joins single relations as an object or array. 'contacts' is a single relation.
-                const contact = assignment.contacts as any;
+                // Supabase joins single relations as an object or array depending on schema constraints.
+                let contact = assignment.contacts as any;
+                if (Array.isArray(contact)) {
+                    contact = contact[0];
+                }
                 if (!contact) continue;
                 
                 if (!contactMap.has(contact.id)) {
@@ -108,6 +114,13 @@ export default function History() {
             }
 
             const selectedContacts = Array.from(contactMap.values());
+            console.log("Reconstructed contacts:", selectedContacts);
+
+            if (selectedContacts.length === 0 && assignments && assignments.length > 0) {
+                 Alert.alert('No Contacts Found', 'Assignments exist but could not resolve contact records. Check relation schema.');
+                 return;
+            }
+
             const assignedItemIds = new Set(assignments?.map(a => a.item_id) || []);
             const userItems = selectedReceipt.receipt_items.filter(i => !assignedItemIds.has(i.id));
 
