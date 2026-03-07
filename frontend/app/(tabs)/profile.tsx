@@ -21,7 +21,7 @@ export default function Profile() {
     const router = useRouter();
 
     const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-    const [darkMode, setDarkMode] = useState(false);
+
     const [refreshing, setRefreshing] = useState(false);
 
     const onRefresh = useCallback(async () => {
@@ -258,18 +258,6 @@ export default function Profile() {
                             value={notificationsEnabled}
                             onValueChange={setNotificationsEnabled}
                             trackColor={{ false: colors.gray300, true: colors.green }}
-                        />
-                    </View>
-                    <View style={styles.divider} />
-                    <View style={styles.row}>
-                        <View style={styles.iconContainer}>
-                            <MaterialIcons name="dark-mode" size={22} color={colors.black} />
-                        </View>
-                        <Text style={styles.settingLabel}>Dark Mode</Text>
-                        <Switch
-                            value={darkMode}
-                            onValueChange={setDarkMode}
-                            trackColor={{ false: colors.gray300, true: colors.black }}
                         />
                     </View>
                     <View style={styles.divider} />

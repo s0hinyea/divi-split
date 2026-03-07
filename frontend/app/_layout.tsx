@@ -1,5 +1,4 @@
 import {
-  DarkTheme,
   DefaultTheme,
   ThemeProvider,
 } from "@react-navigation/native";
@@ -11,7 +10,6 @@ import { useEffect, useState, createContext } from "react";
 import "react-native-reanimated";
 import { PaperProvider } from "react-native-paper";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { useColorScheme } from "@/hooks/useColorScheme";
 import { ChangeProvider } from "@/utils/ChangesContext";
 import { OCRProvider } from "@/utils/OCRContext";
 import { ProfileProvider } from "@/utils/ProfileContext";
@@ -34,7 +32,6 @@ export const SessionContext = createContext<{
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [splashComplete, setSplashComplete] = useState(false);
@@ -102,7 +99,7 @@ export default function RootLayout() {
               <GestureHandlerRootView style={{ flex: 1 }}>
                 <PaperProvider>
                   <ThemeProvider
-                    value={colorScheme === "dark" ? DarkTheme : DefaultTheme}
+                    value={DefaultTheme}
                   >
                     <Stack
                       screenOptions={{
