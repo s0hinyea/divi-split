@@ -102,6 +102,7 @@ export default function OCRResults() {
     const price = parseFloat(newPrice) || 0;
     const newItem: ReceiptItem = { id: newID, name: newName, price }
     addItem(newItem);
+    addChange({ type: 'ADD', id: newID, previous: newItem });
     isAdding(false);
     setNewName('');
     setNewPrice('');
@@ -167,7 +168,7 @@ export default function OCRResults() {
               <Text style={{ color: colors.green }}>Receipt</Text>
             </Text>
           </View>
-          <Text style={styles.headerSubtitle}>Tap to edit, swipe to delete</Text>
+          <Text style={styles.headerSubtitle}>Hold to edit, swipe to delete</Text>
         </View>
 
         {/* Horizontal Tax & Tip */}
