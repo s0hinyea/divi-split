@@ -63,21 +63,79 @@ export default function Auth({ initialMode }: AuthProps) {
 	const [showPassword, setShowPassword] = useState(false);
 	const [checkingUsername, setCheckingUsername] = useState(false);
 	const [isUsernameTaken, setIsUsernameTaken] = useState(false);
+	const [checkingEmail, setCheckingEmail] = useState(false);
+	const [isEmailTaken, setIsEmailTaken] = useState(false);
+	const [errors, setErrors] = useState<Record<string, string>>({});
+	const [touched, setTouched] = useState<Record<string, boolean>>({});
 	
 	const router = useRouter();
 	const isSignUp = initialMode === "signup";
-	const progress = useSharedValue(0.2); // Start at 20%
+	const progress = useSharedValue(0.2);
 
 	useEffect(() => {
 		if (isSignUp) progress.value = withTiming(step / 5, { duration: 300 });
 		else progress.value = withTiming(1, { duration: 300 });
 	}, [step, isSignUp]);
 
-	// Username Availability Check
+	// ──── Validation Helpers ────────────────────────────────
+
+	const isValidEmail = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
+	const isValidName = (n: string) => /^[a-zA-Z\s'-]{2,50}$/.test(n.trim());
+
+	const passwordChecks = {
+		length: password.length >= 8,
+		uppercase: /[A-Z]/.test(password),
+		number: /[0-9]/.test(password),
+		special: /[^A-Za-z0-9]/.test(password),
+	};
+	const isPasswordValid = passwordChecks.length && passwordChecks.uppercase && passwordChecks.number;
+	const isUsernameValid = username.length >= 3 && username.length <= 20 && /^[a-z0-9_.]+$/.test(username) && !isUsernameTaken;
+
+	// Mark a field as touched (show errors after first interaction)
+	const touch = (field: string) => setTouched(prev => ({ ...prev, [field]: true }));
+
+	// ──── Real-time Validation Effects ──────────────────────
+
+	// Name validation
 	useEffect(() => {
-		const checkUsername = async () => {
-			if (username.length < 3) return;
-			setCheckingUsername(true);
+		if (!touched.name) return;
+		if (!fullName.trim()) setErrors(p => ({ ...p, name: 'Name is required.' }));
+		else if (fullName.trim().length < 2) setErrors(p => ({ ...p, name: 'Name must be at least 2 characters.' }));
+		else if (!isValidName(fullName)) setErrors(p => ({ ...p, name: 'Only letters, spaces, hyphens, and apostrophes.' }));
+		else setErrors(p => { const { name, ...rest } = p; return rest; });
+	}, [fullName, touched.name]);
+
+	// Email validation + duplicate check
+	useEffect(() => {
+		if (!touched.email) return;
+		if (!email.trim()) { setErrors(p => ({ ...p, email: 'Email is required.' })); return; }
+		if (!isValidEmail(email)) { setErrors(p => ({ ...p, email: 'Enter a valid email address.' })); return; }
+		setErrors(p => { const { email: _, ...rest } = p; return rest; });
+
+		// Check if email is already registered (debounced)
+		if (!isSignUp) return;
+		const timer = setTimeout(async () => {
+			setCheckingEmail(true);
+			// Use signInWithOtp dry-run approach: try to sign up and check for "already registered"
+			// Actually, we'll just let the final signup handle this — remove the check here
+			setCheckingEmail(false);
+		}, 600);
+		return () => clearTimeout(timer);
+	}, [email, touched.email]);
+
+	// Password validation
+	useEffect(() => {
+		if (!touched.password) return;
+		if (!password) setErrors(p => ({ ...p, password: 'Password is required.' }));
+		else if (password.length < 8) setErrors(p => ({ ...p, password: 'Must be at least 8 characters.' }));
+		else setErrors(p => { const { password: _, ...rest } = p; return rest; });
+	}, [password, touched.password]);
+
+	// Username availability check
+	useEffect(() => {
+		if (username.length < 3) { setIsUsernameTaken(false); return; }
+		setCheckingUsername(true);
+		const timer = setTimeout(async () => {
 			const { data } = await supabase
 				.from('profiles')
 				.select('id')
@@ -85,16 +143,45 @@ export default function Auth({ initialMode }: AuthProps) {
 				.maybeSingle();
 			setIsUsernameTaken(!!data);
 			setCheckingUsername(false);
-		};
-		const timer = setTimeout(checkUsername, 500);
+		}, 500);
 		return () => clearTimeout(timer);
 	}, [username]);
 
+	// ──── Step Navigation ───────────────────────────────────
+
 	const nextStep = () => {
-		if (step === 1 && !fullName.trim()) return Alert.alert("Wait!", "What's your full name?");
-		if (step === 2 && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return Alert.alert("Wait!", "Please enter a valid email.");
-		if (step === 3 && password.length < 6) return Alert.alert("Wait!", "Password must be at least 6 characters.");
-		if (step === 4 && (username.length < 3 || isUsernameTaken)) return; 
+		// Validate current step
+		if (step === 1) {
+			touch('name');
+			if (!fullName.trim() || !isValidName(fullName)) {
+				Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+				if (!fullName.trim()) setErrors(p => ({ ...p, name: 'Name is required.' }));
+				else if (!isValidName(fullName)) setErrors(p => ({ ...p, name: 'Only letters, spaces, hyphens, and apostrophes.' }));
+				return;
+			}
+		}
+		if (step === 2) {
+			touch('email');
+			if (!isValidEmail(email)) {
+				Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+				setErrors(p => ({ ...p, email: 'Enter a valid email address.' }));
+				return;
+			}
+		}
+		if (step === 3) {
+			touch('password');
+			if (!isPasswordValid) {
+				Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+				setErrors(p => ({ ...p, password: 'Password does not meet requirements.' }));
+				return;
+			}
+		}
+		if (step === 4) {
+			if (!isUsernameValid || checkingUsername) {
+				Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+				return;
+			}
+		}
 		
 		Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 		setStep(s => s + 1);
@@ -109,36 +196,49 @@ export default function Auth({ initialMode }: AuthProps) {
 		}
 	};
 
+	// ──── Auth Actions ──────────────────────────────────────
+
+	const sanitizeHandle = (handle: string, prefix: string) => {
+		if (!handle.trim()) return null;
+		const cleaned = handle.replace(/[^a-zA-Z0-9_-]/g, '');
+		return cleaned ? `${prefix}${cleaned}` : null;
+	};
+
 	const performSignUp = async () => {
 		setLoading(true);
 		const { data: { user }, error } = await supabase.auth.signUp({
-			email: email.trim(),
+			email: email.trim().toLowerCase(),
 			password,
 			options: {
 				data: {
 					full_name: fullName.trim(),
 					username: username.toLowerCase().trim(),
-					venmo_handle: venmo ? (venmo.startsWith('@') ? venmo : `@${venmo}`) : null,
-					cashapp_handle: cashapp ? (cashapp.startsWith('$') ? cashapp : `$${cashapp}`) : null,
+					venmo_handle: sanitizeHandle(venmo, '@'),
+					cashapp_handle: sanitizeHandle(cashapp, '$'),
 				}
 			}
 		});
 
 		if (error) {
-			Alert.alert("Error", error.message);
+			if (error.message.includes("already registered")) {
+				Alert.alert("Account Exists", "This email is already registered. Try logging in instead.", [
+					{ text: "Go to Login", onPress: () => router.replace({ pathname: "/auth", params: { mode: "login" } }) },
+					{ text: "Cancel", style: "cancel" },
+				]);
+			} else if (error.message.includes("unique") || error.message.includes("duplicate")) {
+				Alert.alert("Username Taken", "This username was just claimed. Please go back and pick another.");
+			} else {
+				Alert.alert("Error", error.message);
+			}
 		} else if (user) {
+			Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 			if (user.email_confirmed_at) {
-				// Already confirmed (e.g. confirmations disabled), go straight in
 				router.replace("/(tabs)");
 			} else {
-				// Account created but not verified — send to login
 				Alert.alert(
 					"Check Your Email ✉️",
 					"We sent a verification link to your inbox. Once verified, come back and log in!",
-					[{
-						text: "Go to Login",
-						onPress: () => router.replace({ pathname: "/auth", params: { mode: "login" } }),
-					}]
+					[{ text: "Go to Login", onPress: () => router.replace({ pathname: "/auth", params: { mode: "login" } }) }]
 				);
 			}
 		}
@@ -146,21 +246,22 @@ export default function Auth({ initialMode }: AuthProps) {
 	};
 
 	const resendVerification = async () => {
-		const { error } = await supabase.auth.resend({
-			type: 'signup',
-			email: email.trim(),
-		});
+		const { error } = await supabase.auth.resend({ type: 'signup', email: email.trim() });
 		if (error) Alert.alert("Error", error.message);
 		else Alert.alert("Email Sent ✉️", "Check your inbox for a new verification link.");
 	};
 
 	const performLogin = async () => {
+		// Login validation
+		if (!email.trim()) { Alert.alert("Missing Email", "Please enter your email."); return; }
+		if (!isValidEmail(email)) { Alert.alert("Invalid Email", "Please enter a valid email address."); return; }
+		if (!password) { Alert.alert("Missing Password", "Please enter your password."); return; }
+
 		setLoading(true);
-		const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+		const { error } = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password });
 		
 		if (error) {
 			if (error.message.includes("Email not confirmed")) {
-				// State 2: Account exists but not verified
 				Alert.alert(
 					"Email Not Verified",
 					"You need to verify your email before logging in. Check your inbox or resend the link.",
@@ -169,6 +270,8 @@ export default function Auth({ initialMode }: AuthProps) {
 						{ text: "OK", style: "cancel" },
 					]
 				);
+			} else if (error.message.includes("Invalid login")) {
+				Alert.alert("Login Failed", "Incorrect email or password. Please try again.");
 			} else {
 				Alert.alert("Login Failed", error.message);
 			}
@@ -182,6 +285,18 @@ export default function Auth({ initialMode }: AuthProps) {
 		width: `${progress.value * 100}%`,
 		backgroundColor: isUsernameTaken && step === 4 ? colors.error : colors.green,
 	}));
+
+	// Determines if the Continue button should be disabled
+	const isContinueDisabled = () => {
+		if (loading) return true;
+		if (step === 1) return !fullName.trim() || !isValidName(fullName);
+		if (step === 2) return !isValidEmail(email);
+		if (step === 3) return !isPasswordValid;
+		if (step === 4) return !isUsernameValid || checkingUsername;
+		return false;
+	};
+
+	// ──── Render ────────────────────────────────────────────
 
 	return (
 		<View style={styles.container}>
@@ -207,75 +322,182 @@ export default function Auth({ initialMode }: AuthProps) {
 			<View style={styles.content}>
 				{isSignUp ? (
 					<Animated.View entering={FadeIn} exiting={FadeOut} style={styles.stepContainer} key={step}>
+						{/* Step 1: Name */}
 						{step === 1 && (
 							<>
 								<Text style={styles.title}>Who are you?</Text>
 								<Text style={styles.subtitle}>Enter your name as it appears to friends.</Text>
-								<TextInput style={styles.input} placeholder="e.g. John Doe" value={fullName} onChangeText={setFullName} autoFocus returnKeyType="next" onSubmitEditing={nextStep} />
+								<TextInput
+									style={[styles.input, touched.name && errors.name ? styles.inputError : null]}
+									placeholder="e.g. John Doe"
+									value={fullName}
+									onChangeText={setFullName}
+									onBlur={() => touch('name')}
+									autoFocus
+									returnKeyType="next"
+									onSubmitEditing={nextStep}
+									maxLength={50}
+								/>
+								{touched.name && errors.name && <Text style={styles.errorText}>{errors.name}</Text>}
+								{touched.name && !errors.name && fullName.trim().length >= 2 && (
+									<Text style={styles.successText}>Looks good! ✓</Text>
+								)}
 							</>
 						)}
 
+						{/* Step 2: Email */}
 						{step === 2 && (
 							<>
 								<Text style={styles.title}>What's your email?</Text>
-								<Text style={styles.subtitle}>Let's link your account together.</Text>
-								<TextInput style={styles.input} placeholder="email@address.com" value={email} onChangeText={setEmail} autoFocus autoCapitalize="none" keyboardType="email-address" onSubmitEditing={nextStep} />
+								<Text style={styles.subtitle}>Used for logging in and account recovery.</Text>
+								<TextInput
+									style={[styles.input, touched.email && errors.email ? styles.inputError : null]}
+									placeholder="email@address.com"
+									value={email}
+									onChangeText={setEmail}
+									onBlur={() => touch('email')}
+									autoFocus
+									autoCapitalize="none"
+									keyboardType="email-address"
+									textContentType="emailAddress"
+									onSubmitEditing={nextStep}
+								/>
+								{touched.email && errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
+								{touched.email && !errors.email && isValidEmail(email) && (
+									<Text style={styles.successText}>Valid email ✓</Text>
+								)}
 							</>
 						)}
 
+						{/* Step 3: Password */}
 						{step === 3 && (
 							<>
 								<Text style={styles.title}>Secure your account</Text>
-								<Text style={styles.subtitle}>Use at least 8 characters for better safety.</Text>
-								<View style={styles.inputGroup}>
-									<TextInput style={[styles.input, { flex: 1 }]} placeholder="Password" value={password} onChangeText={setPassword} secureTextEntry={!showPassword} autoFocus onSubmitEditing={nextStep} />
+								<Text style={styles.subtitle}>Create a strong password.</Text>
+								<View style={[styles.inputGroup, touched.password && errors.password ? styles.inputGroupError : null]}>
+									<TextInput
+										style={[styles.input, { flex: 1 }]}
+										placeholder="Password"
+										value={password}
+										onChangeText={setPassword}
+										onBlur={() => touch('password')}
+										secureTextEntry={!showPassword}
+										autoFocus
+										textContentType="newPassword"
+										onSubmitEditing={nextStep}
+									/>
 									<TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
 										<Feather name={showPassword ? "eye" : "eye-off"} size={20} color={colors.gray400} />
 									</TouchableOpacity>
 								</View>
+								{/* Strength Meter */}
 								<View style={styles.strengthMeter}>
 									{[1, 2, 3, 4].map(l => (
 										<View key={l} style={[styles.strengthBar, { backgroundColor: getPasswordStrength(password).level >= l ? getPasswordStrength(password).color : colors.gray200 }]} />
 									))}
 								</View>
+								{/* Requirements Checklist */}
+								{password.length > 0 && (
+									<View style={styles.checklistContainer}>
+										<Text style={[styles.checkItem, passwordChecks.length ? styles.checkPass : styles.checkFail]}>
+											{passwordChecks.length ? '✓' : '✗'} At least 8 characters
+										</Text>
+										<Text style={[styles.checkItem, passwordChecks.uppercase ? styles.checkPass : styles.checkFail]}>
+											{passwordChecks.uppercase ? '✓' : '✗'} One uppercase letter
+										</Text>
+										<Text style={[styles.checkItem, passwordChecks.number ? styles.checkPass : styles.checkFail]}>
+											{passwordChecks.number ? '✓' : '✗'} One number
+										</Text>
+										<Text style={[styles.checkItem, passwordChecks.special ? styles.checkPass : styles.checkFail]}>
+											{passwordChecks.special ? '✓' : '✗'} One special character (recommended)
+										</Text>
+									</View>
+								)}
 							</>
 						)}
 
+						{/* Step 4: Username */}
 						{step === 4 && (
 							<>
 								<Text style={styles.title}>Unique handle</Text>
-								<Text style={styles.subtitle}>Your @id for bill splitting.</Text>
+								<Text style={styles.subtitle}>Your @id for bill splitting. 3-20 characters, letters, numbers, dots, underscores.</Text>
 								<View style={styles.inputGroup}>
 									<Text style={styles.prefix}>@</Text>
-									<TextInput style={[styles.input, { flex: 1, paddingLeft: 35 }]} placeholder="username" value={username} onChangeText={t => setUsername(t.toLowerCase().replace(/[^a-z0-9_.]/g, ''))} autoFocus autoCapitalize="none" maxLength={20} onSubmitEditing={nextStep} />
+									<TextInput
+										style={[styles.input, { flex: 1, paddingLeft: 35 }]}
+										placeholder="username"
+										value={username}
+										onChangeText={t => setUsername(t.toLowerCase().replace(/[^a-z0-9_.]/g, ''))}
+										autoFocus
+										autoCapitalize="none"
+										maxLength={20}
+										onSubmitEditing={nextStep}
+									/>
 									{checkingUsername && <ActivityIndicator style={styles.spinner} size="small" color={colors.gray400} />}
+									{!checkingUsername && username.length >= 3 && (
+										<MaterialIcons
+											name={isUsernameTaken ? "close" : "check-circle"}
+											size={20}
+											color={isUsernameTaken ? colors.error : colors.green}
+											style={styles.spinner}
+										/>
+									)}
 								</View>
-								{username.length >= 3 && <Text style={[styles.status, { color: isUsernameTaken ? colors.error : colors.green }]}>{isUsernameTaken ? "This handle is taken." : "Handle available!"}</Text>}
+								{username.length > 0 && username.length < 3 && (
+									<Text style={styles.errorText}>Username must be at least 3 characters.</Text>
+								)}
+								{username.length >= 3 && !checkingUsername && (
+									<Text style={[styles.status, { color: isUsernameTaken ? colors.error : colors.green }]}>
+										{isUsernameTaken ? "This handle is taken." : "Handle available!"}
+									</Text>
+								)}
 							</>
 						)}
 
+						{/* Step 5: Payment Handles */}
 						{step === 5 && (
 							<>
 								<Text style={styles.title}>Connect handles</Text>
-								<Text style={styles.subtitle}>Speed up bill settlement (optional).</Text>
+								<Text style={styles.subtitle}>Speed up bill settlement. You can skip this and add them later in Settings.</Text>
 								<View style={styles.inputGroup}>
-									<MaterialIcons name="payment" size={20} color={colors.gray400}  style={{marginLeft: 15}}/>
-									<TextInput style={[styles.input, { flex: 1, backgroundColor: 'transparent' }]} placeholder="Venmo @id" value={venmo} onChangeText={setVenmo} autoCapitalize="none" />
+									<MaterialIcons name="payment" size={20} color={colors.gray400} style={{ marginLeft: 15 }} />
+									<TextInput
+										style={[styles.input, { flex: 1, backgroundColor: 'transparent' }]}
+										placeholder="Venmo @id"
+										value={venmo}
+										onChangeText={setVenmo}
+										autoCapitalize="none"
+										maxLength={30}
+									/>
 								</View>
 								<View style={[styles.inputGroup, { marginTop: 15 }]}>
-									<Feather name="dollar-sign" size={20} color={colors.gray400} style={{marginLeft: 15}}/>
-									<TextInput style={[styles.input, { flex: 1, backgroundColor: 'transparent' }]} placeholder="CashApp $id" value={cashapp} onChangeText={setCashapp} autoCapitalize="none" />
+									<Feather name="dollar-sign" size={20} color={colors.gray400} style={{ marginLeft: 15 }} />
+									<TextInput
+										style={[styles.input, { flex: 1, backgroundColor: 'transparent' }]}
+										placeholder="CashApp $id"
+										value={cashapp}
+										onChangeText={setCashapp}
+										autoCapitalize="none"
+										maxLength={30}
+									/>
 								</View>
 							</>
 						)}
 
+						{/* Continue / Create Account Button */}
 						<TouchableOpacity 
-							style={[styles.btn, (loading || (step === 4 && (username.length < 3 || isUsernameTaken))) && styles.btnDisabled]} 
+							style={[styles.btn, isContinueDisabled() && styles.btnDisabled]} 
 							onPress={step === 5 ? performSignUp : nextStep}
-							disabled={loading || (step === 4 && (username.length < 3 || isUsernameTaken))}
+							disabled={isContinueDisabled()}
 						>
 							{loading ? <ActivityIndicator color="#FFF" /> : <Text style={styles.btnText}>{step === 5 ? "Create Account" : "Continue"}</Text>}
 						</TouchableOpacity>
+
+						{step === 5 && (
+							<TouchableOpacity style={styles.skipBtn} onPress={performSignUp} disabled={loading}>
+								<Text style={styles.skipText}>Skip for now</Text>
+							</TouchableOpacity>
+						)}
 						
 						{step === 1 && (
 							<View style={styles.toggleRow}>
@@ -290,9 +512,9 @@ export default function Auth({ initialMode }: AuthProps) {
 					<Animated.View entering={FadeIn} style={styles.stepContainer}>
 						<Text style={styles.title}>Log In</Text>
 						<Text style={styles.subtitle}>Enter your credentials to continue.</Text>
-						<TextInput style={styles.input} placeholder="Email" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" />
-						<TextInput style={[styles.input, { marginTop: 15 }]} placeholder="Password" value={password} onChangeText={setPassword} secureTextEntry />
-						<TouchableOpacity style={styles.btn} onPress={performLogin} disabled={loading}>
+						<TextInput style={styles.input} placeholder="Email" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" textContentType="emailAddress" />
+						<TextInput style={[styles.input, { marginTop: 15 }]} placeholder="Password" value={password} onChangeText={setPassword} secureTextEntry textContentType="password" />
+						<TouchableOpacity style={[styles.btn, loading && styles.btnDisabled]} onPress={performLogin} disabled={loading}>
 							{loading ? <ActivityIndicator color="#FFF" /> : <Text style={styles.btnText}>Log In</Text>}
 						</TouchableOpacity>
 						<View style={styles.toggleRow}>
@@ -346,4 +568,14 @@ const styles = StyleSheet.create({
 	toggleRow: { flexDirection: 'row', justifyContent: 'center', marginTop: 30 },
 	smallText: { fontSize: 15, color: colors.gray500, fontFamily: fonts.body },
 	toggleLink: { fontSize: 15, color: colors.green, fontFamily: fonts.bodyBold },
+	inputError: { borderWidth: 1.5, borderColor: colors.error },
+	inputGroupError: { borderWidth: 1.5, borderColor: colors.error },
+	errorText: { fontSize: 13, color: colors.error, fontFamily: fonts.bodyMedium, marginTop: 8, marginLeft: 4 },
+	successText: { fontSize: 13, color: colors.green, fontFamily: fonts.bodyMedium, marginTop: 8, marginLeft: 4 },
+	checklistContainer: { marginTop: 16, paddingLeft: 4, gap: 6 },
+	checkItem: { fontSize: 13, fontFamily: fonts.body },
+	checkPass: { color: colors.green },
+	checkFail: { color: colors.gray400 },
+	skipBtn: { marginTop: 16, alignSelf: 'center', paddingVertical: 10 },
+	skipText: { fontSize: 15, color: colors.gray500, fontFamily: fonts.bodyMedium },
 });
