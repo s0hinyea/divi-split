@@ -163,7 +163,7 @@ export default function History() {
                 month: 'short', day: 'numeric', year: 'numeric'
             });
 
-            let message = `🧾 Divi Split — ${name}\n📅 ${dateStr}\n\n`;
+            let message = `🧾 Divi — ${name}\n📅 ${dateStr}\n\n`;
 
             selectedContacts.forEach(contact => {
                 const contactMealTotal = calculateTotal(contact.items);

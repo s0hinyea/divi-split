@@ -11,6 +11,7 @@ import { colors, fonts, fontSizes, spacing, radii, shadows } from '@/styles/them
 import { MaterialIcons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { allocateAmount } from '../utils/mathUtil';
+
 export default function ReviewPage() {
   const router = useRouter();
   const selected = useSplitStore((state) => state.selected);
@@ -105,7 +106,7 @@ export default function ReviewPage() {
         month: 'short', day: 'numeric', year: 'numeric'
       });
 
-      let message = `🧾 Divi Split — ${name}\n📅 ${dateStr}\n\n`;
+      let message = `🧾 Divi — ${name}\n📅 ${dateStr}\n\n`;
 
       selected.forEach(contact => {
         const contactMealTotal = calculateTotal(contact.items as ReceiptItem[]);
@@ -114,14 +115,28 @@ export default function ReviewPage() {
         const contactTotal = contactMealTotal + contactTax + contactTip;
 
         message += `• ${contact.name}: $${contactTotal.toFixed(2)}`;
-
-        // Add breakdown details
+      
+      
         const details: string[] = [];
         details.push(`meal $${contactMealTotal.toFixed(2)}`);
         if (contactTax > 0) details.push(`tax $${contactTax.toFixed(2)}`);
         if (contactTip > 0) details.push(`tip $${contactTip.toFixed(2)}`);
         message += ` (${details.join(' + ')})\n`;
       });
+
+        const userMealTotal = calculateTotal(receiptData.userItems as ReceiptItem[]);
+        const userTax = individualTaxes["user"] || 0;
+        const userTip = individualTips["user"] || 0;
+        const userTotal = userMealTotal + userTax + userTip;
+
+        message += `• ${profile?.full_name}: $${userTotal.toFixed(2)}`;
+      
+        const details: string[] = [];
+        details.push(`meal $${userMealTotal.toFixed(2)}`);
+        if (userTax > 0) details.push(`tax $${userTax.toFixed(2)}`);
+        if (userTip > 0) details.push(`tip $${userTip.toFixed(2)}`);
+        message += ` (${details.join(' + ')})\n`;
+
 
       const allMealItems = 'items' in receiptData ? receiptData.items : [];
       const grandTotal = calculateTotal(allMealItems) +
@@ -130,17 +145,13 @@ export default function ReviewPage() {
 
       message += `\nTotal: $${grandTotal.toFixed(2)}`;
 
-      // Append Venmo Link if handle exists
       if (profile?.venmo_handle) {
         const handle = profile.venmo_handle.replace('@', '');
-        const note = encodeURIComponent(`Divi Split - ${name}`);
-        // Deep link format: venmo://paycharge?txn=pay&recipients=HANDLE&note=NOTE
-        // Web fallback: https://venmo.com/u/HANDLE
+        const note = encodeURIComponent(`Divi - ${name}`);
         const venmoLink = `https://venmo.com/u/${handle}`;
         message += `\n\nPay me on Venmo:\n${venmoLink}`;
       }
 
-      // Append CashApp Link if handle exists
       if (profile?.cashapp_handle) {
         const handle = profile.cashapp_handle.replace('$', '');
         const cashLink = `https://cash.app/$${handle}`;
