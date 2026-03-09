@@ -29,7 +29,9 @@ export const SessionContext = createContext<{
 });
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
-SplashScreen.preventAutoHideAsync();
+SplashScreen.preventAutoHideAsync().catch(() => {
+  /* Ignore — native splash screen may not be registered yet in Expo Go */
+});
 
 export default function RootLayout() {
   const [session, setSession] = useState<Session | null>(null);
@@ -73,7 +75,9 @@ export default function RootLayout() {
 
   useEffect(() => {
     if (loaded) {
-      SplashScreen.hideAsync();
+      SplashScreen.hideAsync().catch(() => {
+        /* Ignore — native splash screen may not be registered yet in Expo Go */
+      });
     }
   }, [loaded]);
 
