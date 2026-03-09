@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { View, TextInput, ScrollView, StyleSheet, TouchableOpacity, Pressable, Image, Modal, Text } from 'react-native';
 import { Button, Surface } from 'react-native-paper';
 import { useSplitStore, ReceiptItem } from '../stores/splitStore';
+import { TouchableOpacity as GHTouchableOpacity } from 'react-native-gesture-handler';
 import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useChange } from '../utils/ChangesContext';
@@ -249,14 +250,14 @@ export default function OCRResults() {
                   renderRightActions={() => renderRightActions(item.id, item)}
                   rightThreshold={40}
                 >
-                  <TouchableOpacity
+                  <GHTouchableOpacity
                     onPress={() => { startChange(item.id) }}
                     activeOpacity={0.7}
                     style={styles.itemRow}
                   >
                     <Text style={styles.itemName}>{item.name}</Text>
                     <Text style={styles.itemPrice}>${item.price.toFixed(2)}</Text>
-                  </TouchableOpacity>
+                  </GHTouchableOpacity>
                 </Swipeable>
               )
             ))}

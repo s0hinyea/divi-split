@@ -14,6 +14,7 @@ import { useState, useCallback } from 'react';
 import { BlurView } from 'expo-blur';
 
 import { supabase } from '@/lib/supabase';
+import { TouchableOpacity as GHTouchableOpacity } from 'react-native-gesture-handler';
 import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import { MaterialIcons } from '@expo/vector-icons';
 import { colors, fonts, fontSizes, spacing, radii } from '@/styles/theme';
@@ -246,12 +247,13 @@ export default function History() {
                                 renderRightActions={() => renderRightActions(receipt)}
                                 rightThreshold={40}
                             >
-                                <TouchableOpacity
+                                <GHTouchableOpacity
                                     style={styles.receiptCard}
                                     onPress={() => {
                                         setSelectedReceipt(receipt);
                                         setShowModal(true);
                                     }}
+                                    activeOpacity={0.7}
                                 >
                                     <View style={styles.receiptInfo}>
                                         <Text style={styles.receiptName}>{receipt.receipt_name}</Text>
@@ -262,7 +264,7 @@ export default function History() {
                                     <Text style={styles.receiptTotal}>
                                         ${(receipt.total_amount || 0).toFixed(2)}
                                     </Text>
-                                </TouchableOpacity>
+                                </GHTouchableOpacity>
                             </Swipeable>
                         ))}
 
