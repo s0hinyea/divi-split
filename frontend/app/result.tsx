@@ -1,6 +1,7 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState, useEffect } from 'react';
-import { View, TextInput, ScrollView, StyleSheet, TouchableOpacity, Pressable, Image, Modal, Text } from 'react-native';
+import { View, TextInput, StyleSheet, TouchableOpacity, Pressable, Image, Modal, Text } from 'react-native';
+import { ScrollView } from 'react-native-gesture-handler';
 import { Button, Surface } from 'react-native-paper';
 import { useSplitStore, ReceiptItem } from '../stores/splitStore';
 import { TouchableOpacity as GHTouchableOpacity } from 'react-native-gesture-handler';

@@ -2,7 +2,6 @@ import {
     View,
     StyleSheet,
     TouchableOpacity,
-    ScrollView,
     Modal,
     RefreshControl,
     Alert,
@@ -14,7 +13,7 @@ import { useState, useCallback } from 'react';
 import { BlurView } from 'expo-blur';
 
 import { supabase } from '@/lib/supabase';
-import { TouchableOpacity as GHTouchableOpacity } from 'react-native-gesture-handler';
+import { TouchableOpacity as GHTouchableOpacity, ScrollView } from 'react-native-gesture-handler';
 import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import { MaterialIcons } from '@expo/vector-icons';
 import { colors, fonts, fontSizes, spacing, radii } from '@/styles/theme';
