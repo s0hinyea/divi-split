@@ -1,21 +1,33 @@
 {
   "expo": {
-    "name": "expense-splitter-mobile",
-    "slug": "expense-splitter-mobile",
+    "name": "Divi",
+    "slug": "divi",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "myapp",
+    "scheme": "divi",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.divi.app",
+      "infoDictionary": {
+        "NSCameraUsageDescription": "Divi needs access to your camera to scan receipts.",
+        "NSPhotoLibraryUsageDescription": "Divi needs access to your photos so you can upload receipts.",
+        "NSContactsUsageDescription": "Divi needs access to your contacts to quickly assign items to friends."
+      }
     },
     "android": {
+      "package": "com.divi.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "permissions": [
+        "CAMERA",
+        "READ_CONTACTS",
+        "READ_EXTERNAL_STORAGE"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -34,7 +46,25 @@
         }
       ],
       "expo-web-browser",
-      "expo-font"
+      "expo-font",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Divi needs access to your camera to scan receipts."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Divi needs access to your photos so you can upload receipts."
+        }
+      ],
+      [
+        "expo-contacts",
+        {
+          "contactsPermission": "Divi needs access to your contacts to let you quickly assign items to friends."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
