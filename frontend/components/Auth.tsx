@@ -12,8 +12,8 @@ import {
 	Keyboard,
 } from "react-native";
 import { supabase } from "../lib/supabase";
-import { useRouter } from "expo-router";
-import { colors, fonts, fontSizes, spacing, radii } from '@/styles/theme';
+import { useRouter, useLocalSearchParams } from "expo-router";
+import { colors, fonts, spacing } from '@/styles/theme';
 import { MaterialIcons, Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import Animated, { 
@@ -59,6 +59,8 @@ export default function Auth({ initialMode }: AuthProps) {
 	const [username, setUsername] = useState("");
 	const [venmo, setVenmo] = useState("");
 	const [cashapp, setCashapp] = useState("");
+	const [confirmPassword, setConfirmPassword] = useState("");
+	const [cooldown, setCooldown] = useState(0);
 	const [loading, setLoading] = useState(false);
 	const [showPassword, setShowPassword] = useState(false);
 	const [checkingUsername, setCheckingUsername] = useState(false);
@@ -69,13 +71,20 @@ export default function Auth({ initialMode }: AuthProps) {
 	const [touched, setTouched] = useState<Record<string, boolean>>({});
 	
 	const router = useRouter();
-	const isSignUp = initialMode === "signup";
+	const { mode: paramMode } = useLocalSearchParams<{ mode: string }>();
+	const mode = paramMode || initialMode;
+	
+	const isSignUp = mode === "signup";
+	const isForgotPassword = mode === "forgot-password";
+	const isResetPassword = mode === "reset-password";
 	const progress = useSharedValue(0.2);
 
 	useEffect(() => {
-		if (isSignUp) progress.value = withTiming(step / 5, { duration: 300 });
-		else progress.value = withTiming(1, { duration: 300 });
-	}, [step, isSignUp]);
+		if (cooldown > 0) {
+			const timer = setInterval(() => setCooldown(c => c - 1), 1000);
+			return () => clearInterval(timer);
+		}
+	}, [cooldown]);
 
 	// ──── Validation Helpers ────────────────────────────────
 
@@ -93,6 +102,45 @@ export default function Auth({ initialMode }: AuthProps) {
 
 	// Mark a field as touched (show errors after first interaction)
 	const touch = (field: string) => setTouched(prev => ({ ...prev, [field]: true }));
+
+	const requestPasswordReset = async () => {
+		if (!isValidEmail(email)) {
+			Alert.alert("Invalid Email", "Please enter a valid email address.");
+			return;
+		}
+		setLoading(true);
+		const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
+			redirectTo: 'divi://auth?mode=reset-password',
+		});
+		setLoading(false);
+		if (error) {
+			Alert.alert("Error", error.message);
+		} else {
+			setCooldown(60);
+			Alert.alert("Reset Email Sent ✉️", "Check your inbox for a link to reset your password.");
+			router.replace({ pathname: "/auth", params: { mode: "login" } });
+		}
+	};
+
+	const updatePassword = async () => {
+		if (!isPasswordValid) {
+			Alert.alert("Invalid Password", "Password does not meet requirements.");
+			return;
+		}
+		if (password !== confirmPassword) {
+			Alert.alert("Mismatch", "Passwords do not match.");
+			return;
+		}
+		setLoading(true);
+		const { error } = await supabase.auth.updateUser({ password });
+		setLoading(false);
+		if (error) {
+			Alert.alert("Error", error.message);
+		} else {
+			Alert.alert("Success! 🎉", "Your password has been updated. You can now log in.");
+			router.replace({ pathname: "/auth", params: { mode: "login" } });
+		}
+	};
 
 	// ──── Real-time Validation Effects ──────────────────────
 
@@ -188,9 +236,11 @@ export default function Auth({ initialMode }: AuthProps) {
 	};
 
 	const prevStep = () => {
-		if (step > 1) {
+		if (isSignUp && step > 1) {
 			setStep(s => s - 1);
 			Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+		} else if (isForgotPassword || isResetPassword) {
+			router.replace({ pathname: "/auth", params: { mode: "login" } });
 		} else {
 			router.back();
 		}
@@ -514,6 +564,9 @@ export default function Auth({ initialMode }: AuthProps) {
 						<Text style={styles.subtitle}>Enter your credentials to continue.</Text>
 						<TextInput style={styles.input} placeholder="Email" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" textContentType="emailAddress" />
 						<TextInput style={[styles.input, { marginTop: 15 }]} placeholder="Password" value={password} onChangeText={setPassword} secureTextEntry textContentType="password" />
+						<TouchableOpacity style={styles.forgotBtn} onPress={() => router.replace({ pathname: "/auth", params: { mode: "forgot-password" } })}>
+							<Text style={styles.forgotText}>Forgot password?</Text>
+						</TouchableOpacity>
 						<TouchableOpacity style={[styles.btn, loading && styles.btnDisabled]} onPress={performLogin} disabled={loading}>
 							{loading ? <ActivityIndicator color="#FFF" /> : <Text style={styles.btnText}>Log In</Text>}
 						</TouchableOpacity>
@@ -523,6 +576,89 @@ export default function Auth({ initialMode }: AuthProps) {
 								<Text style={styles.toggleLink}>Join Divi</Text>
 							</TouchableOpacity>
 						</View>
+					</Animated.View>
+				)}
+
+				{(isForgotPassword || isResetPassword) && (
+					<Animated.View entering={FadeIn} style={styles.stepContainer}>
+						<Text style={styles.title}>{isForgotPassword ? "Reset Password" : "Set New Password"}</Text>
+						<Text style={styles.subtitle}>
+							{isForgotPassword 
+								? "Enter your email to receive a password reset link." 
+								: "Choose a new strong password for your account."}
+						</Text>
+						
+						{isForgotPassword ? (
+							<TextInput 
+								style={styles.input} 
+								placeholder="Email" 
+								value={email} 
+								onChangeText={setEmail} 
+								autoCapitalize="none" 
+								keyboardType="email-address" 
+								textContentType="emailAddress" 
+							/>
+						) : (
+							<>
+								<View style={[styles.inputGroup, touched.password && errors.password ? styles.inputGroupError : null]}>
+									<TextInput
+										style={[styles.input, { flex: 1 }]}
+										placeholder="New Password"
+										value={password}
+										onChangeText={setPassword}
+										onBlur={() => touch('password')}
+										secureTextEntry={!showPassword}
+										autoFocus
+										textContentType="newPassword"
+									/>
+									<TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
+										<Feather name={showPassword ? "eye" : "eye-off"} size={20} color={colors.gray400} />
+									</TouchableOpacity>
+								</View>
+								<View style={styles.strengthMeter}>
+									{[1, 2, 3, 4].map(l => (
+										<View key={l} style={[styles.strengthBar, { backgroundColor: getPasswordStrength(password).level >= l ? getPasswordStrength(password).color : colors.gray200 }]} />
+									))}
+								</View>
+								{password.length > 0 && (
+									<View style={styles.checklistContainer}>
+										<Text style={[styles.checkItem, passwordChecks.length ? styles.checkPass : styles.checkFail]}>
+											{passwordChecks.length ? '✓' : '✗'} At least 8 characters
+										</Text>
+										<Text style={[styles.checkItem, passwordChecks.uppercase ? styles.checkPass : styles.checkFail]}>
+											{passwordChecks.uppercase ? '✓' : '✗'} One uppercase letter
+										</Text>
+										<Text style={[styles.checkItem, passwordChecks.number ? styles.checkPass : styles.checkFail]}>
+											{passwordChecks.number ? '✓' : '✗'} One number
+										</Text>
+										<Text style={[styles.checkItem, passwordChecks.special ? styles.checkPass : styles.checkFail]}>
+											{passwordChecks.special ? '✓' : '✗'} One special character (recommended)
+										</Text>
+									</View>
+								)}
+								{isResetPassword && isPasswordValid && (
+									<TextInput
+										style={[styles.input, { marginTop: 15 }, confirmPassword && password !== confirmPassword ? styles.inputError : null]}
+										placeholder="Confirm New Password"
+										value={confirmPassword}
+										onChangeText={setConfirmPassword}
+										secureTextEntry
+										textContentType="newPassword"
+									/>
+								)}
+								{confirmPassword && password !== confirmPassword && <Text style={styles.errorText}>Passwords do not match.</Text>}
+							</>
+						)}
+
+						<TouchableOpacity 
+							style={[styles.btn, (isResetPassword && (!isPasswordValid || password !== confirmPassword)) && styles.btnDisabled, (isForgotPassword && cooldown > 0) && styles.btnDisabled]} 
+							onPress={isForgotPassword ? requestPasswordReset : updatePassword} 
+							disabled={loading || (isResetPassword && (!isPasswordValid || password !== confirmPassword)) || (isForgotPassword && cooldown > 0)}
+						>
+							{loading ? <ActivityIndicator color="#FFF" /> : <Text style={styles.btnText}>
+								{isForgotPassword ? (cooldown > 0 ? `Wait ${cooldown}s` : "Send Link") : "Update Password"}
+							</Text>}
+						</TouchableOpacity>
 					</Animated.View>
 				)}
 			</View>
@@ -578,4 +714,6 @@ const styles = StyleSheet.create({
 	checkFail: { color: colors.gray400 },
 	skipBtn: { marginTop: 16, alignSelf: 'center', paddingVertical: 10 },
 	skipText: { fontSize: 15, color: colors.gray500, fontFamily: fonts.bodyMedium },
+	forgotBtn: { alignSelf: 'flex-end', marginTop: 10, paddingVertical: 5 },
+	forgotText: { color: colors.green, fontSize: 14, fontFamily: fonts.bodyMedium },
 });
