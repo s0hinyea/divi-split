@@ -558,7 +558,7 @@ export default function Auth({ initialMode }: AuthProps) {
 							</View>
 						)}
 					</Animated.View>
-				) : (
+				) : (!isForgotPassword && !isResetPassword) ? (
 					<Animated.View entering={FadeIn} style={styles.stepContainer}>
 						<Text style={styles.title}>Log In</Text>
 						<Text style={styles.subtitle}>Enter your credentials to continue.</Text>
@@ -577,7 +577,7 @@ export default function Auth({ initialMode }: AuthProps) {
 							</TouchableOpacity>
 						</View>
 					</Animated.View>
-				)}
+				) : null}
 
 				{(isForgotPassword || isResetPassword) && (
 					<Animated.View entering={FadeIn} style={styles.stepContainer}>
