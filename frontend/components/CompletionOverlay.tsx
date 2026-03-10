@@ -34,14 +34,14 @@ export default function CompletionOverlay() {
             // Single sequence for container: Fade in -> Hold -> Fade out
             containerOpacity.value = withSequence(
                 withTiming(1, { duration: 200 }),                          // Fade in the blur/overlay
-                withDelay(1400, withTiming(0, { duration: 300 }, () => {   // Hold then fade out
+                withDelay(1400, withTiming(0, { duration: 150 }, () => {   // Hold then fade out
                     runOnJS(clearCompletion)();
                 }))
             );
 
             // Pop in the checkmark
             contentScale.value = withSequence(
-                withTiming(1, { duration: 300 }),                          // Pop in
+                withTiming(1, { duration: 150 }),                          // Pop in
                 withDelay(1200, withTiming(0.9, { duration: 200 }))        // Stay then slight shrink
             );
         } else {

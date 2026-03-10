@@ -34,7 +34,7 @@ export default function NetworkBanner() {
                 // If we boot up offline, show the banner
                 if (!state.isConnected) {
                     setBannerState('offline');
-                    translateY.value = withTiming(0, { duration: 300 });
+                    translateY.value = withTiming(0, { duration: 150 });
                 }
                 return;
             }
@@ -42,13 +42,13 @@ export default function NetworkBanner() {
             if (!state.isConnected) {
                 // Lost connection
                 setBannerState('offline');
-                translateY.value = withTiming(0, { duration: 300 });
+                translateY.value = withTiming(0, { duration: 150 });
             } else if (bannerState === 'offline' || bannerState === 'back-online') {
                 // Regained connection
                 setBannerState('back-online');
                 translateY.value = withDelay(
                     2000,  // show "Back online" for 2s
-                    withTiming(-60, { duration: 300 }, () => {
+                    withTiming(-60, { duration: 150 }, () => {
                         runOnJS(setBannerState)('hidden');
                     })
                 );

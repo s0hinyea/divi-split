@@ -86,6 +86,11 @@ export default function Auth({ initialMode }: AuthProps) {
 		}
 	}, [cooldown]);
 
+	useEffect(() => {
+		if (isSignUp) progress.value = withTiming(step / 5, { duration: 150 });
+		else progress.value = withTiming(1, { duration: 150 });
+	}, [step, isSignUp]);
+
 	// ──── Validation Helpers ────────────────────────────────
 
 	const isValidEmail = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
@@ -371,7 +376,7 @@ export default function Auth({ initialMode }: AuthProps) {
 
 			<View style={styles.content}>
 				{isSignUp ? (
-					<Animated.View entering={FadeIn} exiting={FadeOut} style={styles.stepContainer} key={step}>
+					<Animated.View entering={FadeIn.duration(150)} exiting={FadeOut.duration(150)} style={styles.stepContainer} key={step}>
 						{/* Step 1: Name */}
 						{step === 1 && (
 							<>
@@ -559,7 +564,7 @@ export default function Auth({ initialMode }: AuthProps) {
 						)}
 					</Animated.View>
 				) : (!isForgotPassword && !isResetPassword) ? (
-					<Animated.View entering={FadeIn} style={styles.stepContainer}>
+					<Animated.View entering={FadeIn.duration(150)} style={styles.stepContainer}>
 						<Text style={styles.title}>Log In</Text>
 						<Text style={styles.subtitle}>Enter your credentials to continue.</Text>
 						<TextInput style={styles.input} placeholder="Email" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" textContentType="emailAddress" />
@@ -580,7 +585,7 @@ export default function Auth({ initialMode }: AuthProps) {
 				) : null}
 
 				{(isForgotPassword || isResetPassword) && (
-					<Animated.View entering={FadeIn} style={styles.stepContainer}>
+					<Animated.View entering={FadeIn.duration(150)} style={styles.stepContainer}>
 						<Text style={styles.title}>{isForgotPassword ? "Reset Password" : "Set New Password"}</Text>
 						<Text style={styles.subtitle}>
 							{isForgotPassword 
