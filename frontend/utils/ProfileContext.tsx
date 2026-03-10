@@ -34,7 +34,9 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
         }
 
         try {
-            setLoading(true);
+            // Only show loading on first fetch (no profile yet).
+            // Refreshes keep existing data visible.
+            if (!profile) setLoading(true);
             const { data, error } = await supabase
                 .from('profiles')
                 .select('*')

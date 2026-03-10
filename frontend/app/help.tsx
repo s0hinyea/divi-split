@@ -90,7 +90,7 @@ export default function HelpPage() {
           <MaterialIcons name="lightbulb-outline" size={32} color={colors.green} style={styles.introIcon} />
           <View style={styles.introTextContainer}>
             <Text style={styles.introTitle}>Need help?</Text>
-            <Text style={styles.introText}>Browse our frequently asked questions below to learn how to get the most out of Divi Split.</Text>
+            <Text style={styles.introText}>Browse our frequently asked questions below to learn how to get the most out of Divi.</Text>
           </View>
         </View>
 

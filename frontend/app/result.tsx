@@ -1,8 +1,10 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState, useEffect } from 'react';
-import { View, TextInput, ScrollView, StyleSheet, TouchableOpacity, Pressable, Image, Modal, Text } from 'react-native';
+import { View, TextInput, StyleSheet, TouchableOpacity, Pressable, Image, Modal, Text } from 'react-native';
+import { ScrollView } from 'react-native-gesture-handler';
 import { Button, Surface } from 'react-native-paper';
 import { useSplitStore, ReceiptItem } from '../stores/splitStore';
+import { TouchableOpacity as GHTouchableOpacity } from 'react-native-gesture-handler';
 import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useChange } from '../utils/ChangesContext';
@@ -100,6 +102,7 @@ export default function OCRResults() {
     const price = parseFloat(newPrice) || 0;
     const newItem: ReceiptItem = { id: newID, name: newName, price }
     addItem(newItem);
+    addChange({ type: 'ADD', id: newID, previous: newItem });
     isAdding(false);
     setNewName('');
     setNewPrice('');
@@ -165,7 +168,7 @@ export default function OCRResults() {
               <Text style={{ color: colors.green }}>Receipt</Text>
             </Text>
           </View>
-          <Text style={styles.headerSubtitle}>Tap to edit, swipe to delete</Text>
+          <Text style={styles.headerSubtitle}>Hold to edit, swipe to delete</Text>
         </View>
 
         {/* Horizontal Tax & Tip */}
@@ -249,14 +252,14 @@ export default function OCRResults() {
                   renderRightActions={() => renderRightActions(item.id, item)}
                   rightThreshold={40}
                 >
-                  <TouchableOpacity
+                  <GHTouchableOpacity
                     onPress={() => { startChange(item.id) }}
                     activeOpacity={0.7}
                     style={styles.itemRow}
                   >
                     <Text style={styles.itemName}>{item.name}</Text>
                     <Text style={styles.itemPrice}>${item.price.toFixed(2)}</Text>
-                  </TouchableOpacity>
+                  </GHTouchableOpacity>
                 </Swipeable>
               )
             ))}

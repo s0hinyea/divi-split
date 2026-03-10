@@ -6,6 +6,8 @@ export interface Receipt {
     id: string;
     receipt_name: string;
     total_amount: number;
+    tax_amount: number;
+    tip_amount: number;
     created_at: string;
     receipt_items: { id: string; item_name: string; item_price: number }[];
 }
@@ -14,6 +16,8 @@ type HistoryContextType = {
     receipts: Receipt[];
     loading: boolean;
     hasMore: boolean;
+    monthlyTotal: number;
+    totalCount: number;
     fetchReceipts: (loadMore?: boolean) => Promise<void>;
     addReceipt: (receipt: Receipt) => void;
     deleteReceipt: (id: string) => Promise<void>;
@@ -22,19 +26,47 @@ type HistoryContextType = {
 
 const HistoryContext = createContext<HistoryContextType | undefined>(undefined);
 
-const PAGE_LIMIT = 50;
+const PAGE_LIMIT = 5;
 
 export function HistoryProvider({ children }: { children: ReactNode }) {
     const { session } = useContext(SessionContext);
     const [receipts, setReceipts] = useState<Receipt[]>([]);
     const [loading, setLoading] = useState(false);
     const [hasMore, setHasMore] = useState(true);
+    const [monthlyTotal, setMonthlyTotal] = useState(0);
+    const [totalCount, setTotalCount] = useState(0);
+
+    // Lightweight query for Dashboard stats — independent of pagination
+    const fetchStats = async () => {
+        if (!session?.user) return;
+        try {
+            // Total count of all receipts
+            const { count } = await supabase
+                .from('receipts')
+                .select('id', { count: 'exact', head: true });
+            setTotalCount(count ?? 0);
+
+            // Sum of totals for current month
+            const now = new Date();
+            const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+            const { data: monthData } = await supabase
+                .from('receipts')
+                .select('total_amount')
+                .gte('created_at', startOfMonth);
+            const sum = (monthData ?? []).reduce((s, r) => s + (r.total_amount || 0), 0);
+            setMonthlyTotal(sum);
+        } catch (err) {
+            console.error('Error fetching stats:', err);
+        }
+    };
 
     const fetchReceipts = async (loadMore = false) => {
         if (!session?.user) return;
 
         try {
-            if (!loadMore) setLoading(true);
+            // Only show full loading state on first load (no data yet).
+            // On refresh, existing data stays visible while we fetch.
+            if (!loadMore && receipts.length === 0) setLoading(true);
 
             const offset = loadMore ? receipts.length : 0;
 
@@ -45,6 +77,8 @@ export function HistoryProvider({ children }: { children: ReactNode }) {
                     id,
                     receipt_name,
                     total_amount,
+                    tax_amount,
+                    tip_amount,
                     created_at,
                     receipt_items (
                         id,
@@ -78,7 +112,7 @@ export function HistoryProvider({ children }: { children: ReactNode }) {
     };
 
     const refreshReceipts = async () => {
-        await fetchReceipts(false);
+        await Promise.all([fetchReceipts(false), fetchStats()]);
     };
 
     const addReceipt = (newReceipt: Receipt) => {
@@ -118,8 +152,11 @@ export function HistoryProvider({ children }: { children: ReactNode }) {
     useEffect(() => {
         if (session?.user) {
             fetchReceipts();
+            fetchStats();
         } else {
             setReceipts([]);
+            setMonthlyTotal(0);
+            setTotalCount(0);
         }
     }, [session]);
 
@@ -128,6 +165,8 @@ export function HistoryProvider({ children }: { children: ReactNode }) {
             receipts,
             loading,
             hasMore,
+            monthlyTotal,
+            totalCount,
             fetchReceipts,
             addReceipt,
             deleteReceipt,

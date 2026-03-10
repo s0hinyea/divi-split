@@ -151,24 +151,42 @@ export const useSplitStore = create<SplitState>((set, get) => ({
 
             if (state.selected && state.selected.length > 0) {
                 for (const contact of state.selected) {
-                    const { data: insertedContact, error: contactError } =
+                    let insertedContact;
+                    const { data: existingContact, error: existingError } =
                         await supabase
                             .from("contacts")
-                            .insert({
-                                user_id: user.id,
-                                contact_name: contact.name,
-                                phone_number: contact.phoneNumber,
-                                contact_id: contact.id,
-                            })
-                            .select()
-                            .single();
+                            .select("id")
+                            .eq("user_id", user.id)
+                            .eq(
+                                "phone_number",
+                                contact.phoneNumber || "no-phone",
+                            )
+                            .limit(1)
+                            .maybeSingle();
 
-                    if (contactError) {
-                        console.error(
-                            "Contact insert error:",
-                            contactError.message,
-                        );
-                        continue;
+                    if (existingContact) {
+                        insertedContact = existingContact;
+                    } else {
+                        const { data: newContact, error: contactError } =
+                            await supabase
+                                .from("contacts")
+                                .insert({
+                                    user_id: user.id,
+                                    contact_name: contact.name,
+                                    phone_number: contact.phoneNumber,
+                                    contact_id: contact.id,
+                                })
+                                .select()
+                                .single();
+
+                        if (contactError) {
+                            console.error(
+                                "Contact insert error:",
+                                contactError.message,
+                            );
+                            continue;
+                        }
+                        insertedContact = newContact;
                     }
 
                     if (contact.items && contact.items.length > 0) {

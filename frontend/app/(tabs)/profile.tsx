@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, TouchableOpacity, ScrollView, Alert, TextInput, Switch, Image } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, StyleSheet, TouchableOpacity, ScrollView, Alert, TextInput, Switch, Image, RefreshControl } from 'react-native';
 import { Text, ActivityIndicator } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useContext } from 'react';
@@ -17,11 +17,16 @@ const ZelleLogo = require('@/assets/images/zelle.png');
 
 export default function Profile() {
     const { session } = useContext(SessionContext);
-    const { profile, loading, updateProfile } = useProfile();
+    const { profile, loading, updateProfile, refreshProfile } = useProfile();
     const router = useRouter();
 
-    const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-    const [darkMode, setDarkMode] = useState(false);
+    const [refreshing, setRefreshing] = useState(false);
+
+    const onRefresh = useCallback(async () => {
+        setRefreshing(true);
+        await refreshProfile();
+        setRefreshing(false);
+    }, []);
 
 
     const [isEditing, setIsEditing] = useState(false);
@@ -115,7 +120,17 @@ export default function Profile() {
                 </TouchableOpacity>
             </View>
 
-            <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
+            <ScrollView
+                style={styles.scrollView}
+                contentContainerStyle={styles.content}
+                refreshControl={
+                    <RefreshControl
+                        refreshing={refreshing}
+                        onRefresh={onRefresh}
+                        tintColor={colors.green}
+                    />
+                }
+            >
 
                 {/* 1. Hero / Identity Section */}
                 <View style={styles.section}>
@@ -232,30 +247,6 @@ export default function Profile() {
                 {/* 3. Settings */}
                 <Text style={styles.sectionTitle}>Settings</Text>
                 <View style={styles.card}>
-                    <View style={styles.row}>
-                        <View style={styles.iconContainer}>
-                            <MaterialIcons name="notifications" size={22} color={colors.black} />
-                        </View>
-                        <Text style={styles.settingLabel}>Notifications</Text>
-                        <Switch
-                            value={notificationsEnabled}
-                            onValueChange={setNotificationsEnabled}
-                            trackColor={{ false: colors.gray300, true: colors.green }}
-                        />
-                    </View>
-                    <View style={styles.divider} />
-                    <View style={styles.row}>
-                        <View style={styles.iconContainer}>
-                            <MaterialIcons name="dark-mode" size={22} color={colors.black} />
-                        </View>
-                        <Text style={styles.settingLabel}>Dark Mode</Text>
-                        <Switch
-                            value={darkMode}
-                            onValueChange={setDarkMode}
-                            trackColor={{ false: colors.gray300, true: colors.black }}
-                        />
-                    </View>
-                    <View style={styles.divider} />
                     <TouchableOpacity style={styles.row} onPress={() => router.push('/help')} activeOpacity={0.7}>
                         <View style={styles.iconContainer}>
                             <MaterialIcons name="help-outline" size={22} color={colors.black} />

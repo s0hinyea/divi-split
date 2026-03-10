@@ -5,6 +5,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import Svg, { Circle, Rect } from 'react-native-svg';
 import { useState, useRef } from 'react';
 import { colors, fonts, spacing, radii, animation } from '@/styles/theme';
+import NetworkBanner from '@/components/NetworkBanner';
 
 const GREEN = colors.green;
 const BLACK = colors.black;
@@ -67,6 +68,7 @@ export default function TabsLayout() {
 
     return (
         <>
+            <NetworkBanner />
             <Tabs
                 screenOptions={{
                     headerShown: false,

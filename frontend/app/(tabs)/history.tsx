@@ -2,26 +2,41 @@ import {
     View,
     StyleSheet,
     TouchableOpacity,
-    ScrollView,
     Modal,
+    RefreshControl,
+    Alert,
+    ActivityIndicator
 } from 'react-native';
 import { Text, Icon } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useState, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import { BlurView } from 'expo-blur';
 
 import { supabase } from '@/lib/supabase';
+import { TouchableOpacity as GHTouchableOpacity, ScrollView } from 'react-native-gesture-handler';
 import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import { MaterialIcons } from '@expo/vector-icons';
 import { colors, fonts, fontSizes, spacing, radii } from '@/styles/theme';
 
 import { useHistory, Receipt } from '@/utils/HistoryContext';
+import { useProfile } from '@/utils/ProfileContext';
+import * as SMS from 'expo-sms';
+import { allocateAmount } from '@/utils/mathUtil';
 
 export default function History() {
-    const { receipts, loading, hasMore, fetchReceipts, deleteReceipt: contextDeleteReceipt } = useHistory();
+    const { receipts, loading, hasMore, fetchReceipts, deleteReceipt: contextDeleteReceipt, refreshReceipts } = useHistory();
     const [selectedReceipt, setSelectedReceipt] = useState<Receipt | null>(null);
     const [loadingMore, setLoadingMore] = useState(false);
     const [showModal, setShowModal] = useState(false);
+    const [refreshing, setRefreshing] = useState(false);
+    const [resending, setResending] = useState(false);
+    const { profile } = useProfile();
+
+    const onRefresh = useCallback(async () => {
+        setRefreshing(true);
+        await refreshReceipts();
+        setRefreshing(false);
+    }, []);
 
     const handleLoadMore = async () => {
         if (!hasMore || loadingMore) return;
@@ -35,6 +50,157 @@ export default function History() {
             await contextDeleteReceipt(receiptId);
         } catch (error) {
             console.error('Error deleting receipt:', error);
+        }
+    };
+
+    const handleResendMessage = async () => {
+        if (!selectedReceipt) return;
+
+        try {
+            setResending(true);
+            const isAvailable = await SMS.isAvailableAsync();
+            if (!isAvailable) {
+                Alert.alert('SMS Not Available', 'This device cannot send text messages.');
+                return;
+            }
+
+            const itemIds = selectedReceipt.receipt_items.map(item => item.id);
+            if (itemIds.length === 0) {
+                Alert.alert('No Items', 'This receipt has no items to split.');
+                return;
+            }
+
+            const { data: assignments, error: assignError } = await supabase
+                .from('assignments')
+                .select(`
+                    item_id,
+                    contact_id,
+                    contacts (
+                        id,
+                        contact_name,
+                        phone_number
+                    )
+                `)
+                .in('item_id', itemIds);
+
+            if (assignError) {
+                console.error("Assign join error:", assignError);
+                throw assignError;
+            }
+
+            if (!assignments || assignments.length === 0) {
+                Alert.alert('No Assignments', 'No item assignments found for this receipt. The split data may not have been saved.');
+                return;
+            }
+
+            // Reconstruct who got what
+            const contactMap = new Map(); // id -> { name, phoneNumber, items[] }
+
+            for (const assignment of assignments || []) {
+                // Supabase joins single relations as an object or array depending on schema constraints.
+                let contact = assignment.contacts as any;
+                if (Array.isArray(contact)) {
+                    contact = contact[0];
+                }
+                if (!contact) continue;
+                
+                if (!contactMap.has(contact.id)) {
+                    contactMap.set(contact.id, {
+                        id: contact.id,
+                        name: contact.contact_name,
+                        phoneNumber: contact.phone_number,
+                        items: []
+                    });
+                }
+                
+                const item = selectedReceipt.receipt_items.find(i => i.id === assignment.item_id);
+                if (item) {
+                    contactMap.get(contact.id).items.push(item);
+                }
+            }
+
+            const selectedContacts = Array.from(contactMap.values());
+
+            const assignedItemIds = new Set(assignments?.map(a => a.item_id) || []);
+            const userItems = selectedReceipt.receipt_items.filter(i => !assignedItemIds.has(i.id));
+
+            const phoneNumbers = selectedContacts
+                .map(c => c.phoneNumber)
+                .filter((num): num is string => !!num);
+
+            if (phoneNumbers.length === 0) {
+                Alert.alert('No Phone Numbers', 'None of the assigned contacts have phone numbers.');
+                return;
+            }
+
+            const calculateTotal = (items: { item_price: number }[]) => {
+                return items.reduce((sum, item) => sum + item.item_price, 0);
+            };
+
+            const shares: { id: string; share: number }[] = [];
+            selectedContacts.forEach(contact => {
+                shares.push({ id: contact.id, share: calculateTotal(contact.items) });
+            });
+            if (userItems.length > 0) {
+                shares.push({ id: 'user', share: calculateTotal(userItems) });
+            }
+
+            const taxAmount = selectedReceipt.tax_amount || 0;
+            const tipAmount = selectedReceipt.tip_amount || 0;
+
+            const individualTaxes = allocateAmount(taxAmount, shares);
+
+            let individualTips: Record<string, number> = {};
+            if (tipAmount > 0) {
+                const tipShares: { id: string; share: number }[] = [];
+                selectedContacts.forEach(contact => tipShares.push({ id: contact.id, share: 1 }));
+                if (userItems.length > 0) tipShares.push({ id: 'user', share: 1 });
+                individualTips = allocateAmount(tipAmount, tipShares);
+            }
+
+            const name = selectedReceipt.receipt_name.trim() || 'Split';
+            const dateStr = new Date(selectedReceipt.created_at).toLocaleDateString('en-US', {
+                month: 'short', day: 'numeric', year: 'numeric'
+            });
+
+            let message = `🧾 Divi — ${name}\n📅 ${dateStr}\n\n`;
+
+            selectedContacts.forEach(contact => {
+                const contactMealTotal = calculateTotal(contact.items);
+                const contactTax = individualTaxes[contact.id] || 0;
+                const contactTip = individualTips[contact.id] || 0;
+                const contactTotal = contactMealTotal + contactTax + contactTip;
+
+                message += `• ${contact.name}: $${contactTotal.toFixed(2)}`;
+
+                const details: string[] = [];
+                details.push(`meal $${contactMealTotal.toFixed(2)}`);
+                if (contactTax > 0) details.push(`tax $${contactTax.toFixed(2)}`);
+                if (contactTip > 0) details.push(`tip $${contactTip.toFixed(2)}`);
+                message += ` (${details.join(' + ')})\n`;
+            });
+
+            const grandTotal = selectedReceipt.total_amount || 0;
+            message += `\nTotal: $${grandTotal.toFixed(2)}`;
+
+            if (profile?.venmo_handle) {
+                const handle = profile.venmo_handle.replace('@', '');
+                message += `\n\nPay me on Venmo:\nhttps://venmo.com/u/${handle}`;
+            }
+            if (profile?.cashapp_handle) {
+                const handle = profile.cashapp_handle.replace('$', '');
+                message += `\n\nPay me on Cash App:\nhttps://cash.app/$${handle}`;
+            }
+            if (profile?.zelle_number) {
+                message += `\n\nPay me on Zelle:\n${profile.zelle_number}`;
+            }
+
+            await SMS.sendSMSAsync(phoneNumbers, message);
+        } catch (error) {
+            console.error('Error resending message:', error);
+            Alert.alert('Error', 'Failed to formulate or send message.');
+        } finally {
+            setResending(false);
         }
     };
 
@@ -53,7 +219,17 @@ export default function History() {
                 <Text style={styles.title}>History</Text>
             </View>
 
-            <ScrollView style={styles.scrollContainer} contentContainerStyle={styles.scrollContent}>
+            <ScrollView
+                style={styles.scrollContainer}
+                contentContainerStyle={styles.scrollContent}
+                refreshControl={
+                    <RefreshControl
+                        refreshing={refreshing}
+                        onRefresh={onRefresh}
+                        tintColor={colors.green}
+                    />
+                }
+            >
                 {loading ? (
                     <Text style={styles.statusText}>Loading receipts...</Text>
                 ) : receipts.length === 0 ? (
@@ -70,12 +246,13 @@ export default function History() {
                                 renderRightActions={() => renderRightActions(receipt)}
                                 rightThreshold={40}
                             >
-                                <TouchableOpacity
+                                <GHTouchableOpacity
                                     style={styles.receiptCard}
                                     onPress={() => {
                                         setSelectedReceipt(receipt);
                                         setShowModal(true);
                                     }}
+                                    activeOpacity={0.7}
                                 >
                                     <View style={styles.receiptInfo}>
                                         <Text style={styles.receiptName}>{receipt.receipt_name}</Text>
@@ -86,7 +263,7 @@ export default function History() {
                                     <Text style={styles.receiptTotal}>
                                         ${(receipt.total_amount || 0).toFixed(2)}
                                     </Text>
-                                </TouchableOpacity>
+                                </GHTouchableOpacity>
                             </Swipeable>
                         ))}
 
@@ -152,13 +329,31 @@ export default function History() {
                             )}
                         </ScrollView>
 
-                        <TouchableOpacity
-                            style={styles.modalCloseButton}
-                            onPress={() => { setShowModal(false); setSelectedReceipt(null); }}
-                            activeOpacity={0.7}
-                        >
-                            <Text style={styles.modalCloseText}>Close</Text>
-                        </TouchableOpacity>
+                        <View style={styles.modalActions}>
+                            <TouchableOpacity
+                                style={styles.modalActionButton}
+                                onPress={handleResendMessage}
+                                disabled={resending}
+                                activeOpacity={0.7}
+                            >
+                                {resending ? (
+                                    <ActivityIndicator size="small" color={colors.white} />
+                                ) : (
+                                    <>
+                                        <Icon source="message-text" size={20} color={colors.white} />
+                                        <Text style={styles.modalActionText}>Resend SMS</Text>
+                                    </>
+                                )}
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={styles.modalCloseButton}
+                                onPress={() => { setShowModal(false); setSelectedReceipt(null); }}
+                                activeOpacity={0.7}
+                            >
+                                <Text style={styles.modalCloseText}>Close</Text>
+                            </TouchableOpacity>
+                        </View>
                     </View>
                 </BlurView>
             </Modal>
@@ -252,13 +447,22 @@ const styles = StyleSheet.create({
         borderTopColor: colors.black,
     },
     modalTotalLabel: { fontFamily: fonts.bodySemiBold, fontSize: fontSizes.lg, color: colors.black },
-    modalTotalAmount: { fontFamily: fonts.bodySemiBold, fontSize: fontSizes.lg, color: colors.green },
-    modalCloseButton: {
-        backgroundColor: colors.green,
-        paddingVertical: 14,
+    modalTotalAmount: { fontFamily: fonts.bodyBold, fontSize: fontSizes.lg, color: colors.black },
+    modalActions: { gap: spacing.md, marginTop: spacing.xxl },
+    modalActionButton: {
+        backgroundColor: colors.black,
+        flexDirection: 'row',
+        paddingVertical: spacing.md,
         borderRadius: radii.md,
         alignItems: 'center',
-        marginTop: spacing.lg,
+        justifyContent: 'center',
+        gap: spacing.sm,
     },
-    modalCloseText: { color: colors.white, fontSize: fontSizes.md, fontFamily: fonts.bodySemiBold },
+    modalActionText: {
+        fontFamily: fonts.bodySemiBold,
+        fontSize: fontSizes.md,
+        color: colors.white,
+    },
+    modalCloseButton: { backgroundColor: colors.gray200, paddingVertical: spacing.md, borderRadius: radii.md, alignItems: 'center' },
+    modalCloseText: { fontFamily: fonts.bodySemiBold, fontSize: fontSizes.md, color: colors.black },
 });

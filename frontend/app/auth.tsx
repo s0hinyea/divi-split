@@ -1,10 +1,10 @@
-import { View, StyleSheet, SafeAreaView, TouchableOpacity } from "react-native";
+import { View, StyleSheet, SafeAreaView, KeyboardAvoidingView, Platform, Keyboard, TouchableWithoutFeedback } from "react-native";
 import { useContext } from "react";
 import { SessionContext } from "./_layout";
 import Auth from "../components/Auth";
-import { Button, Icon, Text } from "react-native-paper";
 import { useRouter, useLocalSearchParams } from "expo-router";
-import { colors, fonts, fontSizes } from '@/styles/theme';
+import { colors, spacing } from '@/styles/theme';
+import { LinearGradient } from 'expo-linear-gradient';
 
 export default function AccountPage() {
 	const { session } = useContext(SessionContext);
@@ -13,27 +13,31 @@ export default function AccountPage() {
 
 	// Default to signup if no mode is provided
 	const authMode = (mode as string) || "signup";
-	const isSignUp = authMode === "signup";
-	const isLogin = authMode === "login";
 
 	return (
-		<SafeAreaView style={styles.container}>
-			<View style={styles.header}>
-				<TouchableOpacity
-					onPress={() => router.back()}
-					style={styles.backButton}
-				>
-					<Icon source="arrow-left" size={24} color="#101010" />
-				</TouchableOpacity>
-				<Text style={styles.headerTitle}>
-					{isLogin ? "Log In" : "Sign Up"}
-				</Text>
-			</View>
+		<View style={styles.container}>
+			<LinearGradient
+				colors={['#FFFFFF', '#F8FFF8', '#F2F9F2']}
+				style={StyleSheet.absoluteFillObject}
+			/>
 
-			<View style={styles.content}>
-				<Auth initialMode={authMode} />
-			</View>
-		</SafeAreaView>
+			<SafeAreaView style={styles.safeArea}>
+				<KeyboardAvoidingView
+					behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+					style={styles.keyboardView}
+				>
+					<TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+						<View style={styles.inner}>
+							{/* 
+								The Auth component now manages its own steps, 
+								titles, headers, and navigation between steps.
+							*/}
+							<Auth initialMode={authMode} />
+						</View>
+					</TouchableWithoutFeedback>
+				</KeyboardAvoidingView>
+			</SafeAreaView>
+		</View>
 	);
 }
 
@@ -42,21 +46,15 @@ const styles = StyleSheet.create({
 		flex: 1,
 		backgroundColor: "#FFFFFF",
 	},
-	header: {
-		flexDirection: "row",
-		alignItems: "center",
-		padding: 20,
-	},
-	backButton: {
-		marginRight: 20,
-	},
-	headerTitle: {
-		fontSize: fontSizes.lg,
-		fontFamily: fonts.bodyBold,
-		color: colors.black,
-	},
-	content: {
+	safeArea: {
 		flex: 1,
-		padding: 20,
+	},
+	keyboardView: {
+		flex: 1,
+	},
+	inner: {
+		flex: 1,
+		paddingHorizontal: spacing.lg,
+		paddingTop: spacing.md,
 	},
 });
