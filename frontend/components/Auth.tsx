@@ -61,6 +61,8 @@ export default function Auth({ initialMode }: AuthProps) {
 	const [venmo, setVenmo] = useState("");
 	const [cashapp, setCashapp] = useState("");
 	const [confirmPassword, setConfirmPassword] = useState("");
+	const [otpCode, setOtpCode] = useState("");
+	const [isAwaitingOtp, setIsAwaitingOtp] = useState(false);
 	const [cooldown, setCooldown] = useState(0);
 	const [loading, setLoading] = useState(false);
 	const [showPassword, setShowPassword] = useState(false);
@@ -115,18 +117,36 @@ export default function Auth({ initialMode }: AuthProps) {
 			return;
 		}
 		setLoading(true);
-		const resetUrl = Linking.createURL('/auth', { queryParams: { mode: 'reset-password' } });
 		
-		const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
-			redirectTo: resetUrl,
-		});
+		const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase());
 		setLoading(false);
 		if (error) {
 			Alert.alert("Error", error.message);
 		} else {
 			setCooldown(60);
-			Alert.alert("Reset Email Sent ✉️", "Check your inbox for a link to reset your password.");
-			router.replace({ pathname: "/auth", params: { mode: "login" } });
+			setIsAwaitingOtp(true);
+			Alert.alert("Reset Code Sent ✉️", "Check your inbox for a 6-digit reset code.");
+		}
+	};
+
+	const verifyResetOtp = async () => {
+		if (!otpCode || otpCode.length !== 6) {
+			Alert.alert("Invalid Code", "Please enter the 6-digit code sent to your email.");
+			return;
+		}
+		setLoading(true);
+		const { data, error } = await supabase.auth.verifyOtp({
+			email: email.trim().toLowerCase(),
+			token: otpCode.trim(),
+			type: 'recovery' // This signs them in securely
+		});
+		setLoading(false);
+		if (error) {
+			Alert.alert("Error", error.message);
+		} else {
+			// Now they have a session, move exactly to the reset-password screen to type new password
+			setIsAwaitingOtp(false);
+			router.replace({ pathname: "/auth", params: { mode: "reset-password" } });
 		}
 	};
 
@@ -597,15 +617,29 @@ export default function Auth({ initialMode }: AuthProps) {
 						</Text>
 						
 						{isForgotPassword ? (
-							<TextInput 
-								style={styles.input} 
-								placeholder="Email" 
-								value={email} 
-								onChangeText={setEmail} 
-								autoCapitalize="none" 
-								keyboardType="email-address" 
-								textContentType="emailAddress" 
-							/>
+							<>
+								<TextInput 
+									style={styles.input} 
+									placeholder="Email" 
+									value={email} 
+									onChangeText={setEmail} 
+									autoCapitalize="none" 
+									keyboardType="email-address" 
+									textContentType="emailAddress"
+									editable={!isAwaitingOtp} 
+								/>
+								{isAwaitingOtp && (
+									<TextInput 
+										style={[styles.input, { marginTop: 15, letterSpacing: 8, fontSize: 24, textAlign: 'center' }]} 
+										placeholder="000000" 
+										value={otpCode} 
+										onChangeText={setOtpCode}
+										keyboardType="number-pad" 
+										maxLength={6}
+										autoFocus
+									/>
+								)}
+							</>
 						) : (
 							<>
 								<View style={[styles.inputGroup, touched.password && errors.password ? styles.inputGroupError : null]}>
@@ -659,12 +693,16 @@ export default function Auth({ initialMode }: AuthProps) {
 						)}
 
 						<TouchableOpacity 
-							style={[styles.btn, (isResetPassword && (!isPasswordValid || password !== confirmPassword)) && styles.btnDisabled, (isForgotPassword && cooldown > 0) && styles.btnDisabled]} 
-							onPress={isForgotPassword ? requestPasswordReset : updatePassword} 
-							disabled={loading || (isResetPassword && (!isPasswordValid || password !== confirmPassword)) || (isForgotPassword && cooldown > 0)}
+							style={[styles.btn, (isResetPassword && (!isPasswordValid || password !== confirmPassword)) && styles.btnDisabled, (isForgotPassword && !isAwaitingOtp && cooldown > 0) && styles.btnDisabled]} 
+							onPress={isForgotPassword ? (isAwaitingOtp ? verifyResetOtp : requestPasswordReset) : updatePassword} 
+							disabled={loading || (isResetPassword && (!isPasswordValid || password !== confirmPassword)) || (isForgotPassword && !isAwaitingOtp && cooldown > 0)}
 						>
 							{loading ? <ActivityIndicator color="#FFF" /> : <Text style={styles.btnText}>
-								{isForgotPassword ? (cooldown > 0 ? `Wait ${cooldown}s` : "Send Link") : "Update Password"}
+								{isForgotPassword 
+									? (isAwaitingOtp 
+										? "Verify Code" 
+										: (cooldown > 0 ? `Wait ${cooldown}s` : "Send Code")) 
+									: "Update Password"}
 							</Text>}
 						</TouchableOpacity>
 					</Animated.View>
