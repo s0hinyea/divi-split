@@ -454,7 +454,7 @@ export default function Auth({ initialMode }: AuthProps) {
 								<Text style={styles.subtitle}>Create a strong password.</Text>
 								<View style={[styles.inputGroup, touched.password && errors.password ? styles.inputGroupError : null]}>
 									<TextInput
-										style={[styles.input, { flex: 1 }]}
+										style={[styles.input, { flex: 1, backgroundColor: 'transparent' }]}
 										placeholder="Password"
 										value={password}
 										onChangeText={setPassword}
@@ -548,7 +548,7 @@ export default function Auth({ initialMode }: AuthProps) {
 										maxLength={30}
 									/>
 								</View>
-								<View style={[styles.inputGroup, { marginTop: 15 }]}>
+								<View style={[styles.inputGroup, { marginTop: 16 }]}>
 									<Feather name="dollar-sign" size={20} color={colors.gray400} style={{ marginLeft: 15 }} />
 									<TextInput
 										style={[styles.input, { flex: 1, backgroundColor: 'transparent' }]}
@@ -591,7 +591,7 @@ export default function Auth({ initialMode }: AuthProps) {
 						<Text style={styles.title}>Log In</Text>
 						<Text style={styles.subtitle}>Enter your credentials to continue.</Text>
 						<TextInput style={styles.input} placeholder="Email" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" textContentType="emailAddress" />
-						<TextInput style={[styles.input, { marginTop: 15 }]} placeholder="Password" value={password} onChangeText={setPassword} secureTextEntry textContentType="password" />
+						<TextInput style={[styles.input, { marginTop: 16 }]} placeholder="Password" value={password} onChangeText={setPassword} secureTextEntry textContentType="password" />
 						<TouchableOpacity style={styles.forgotBtn} onPress={() => router.replace({ pathname: "/auth", params: { mode: "forgot-password" } })}>
 							<Text style={styles.forgotText}>Forgot password?</Text>
 						</TouchableOpacity>
@@ -630,7 +630,7 @@ export default function Auth({ initialMode }: AuthProps) {
 								/>
 								{isAwaitingOtp && (
 									<TextInput 
-										style={[styles.input, { marginTop: 15, letterSpacing: 8, fontSize: 24, textAlign: 'center' }]} 
+										style={[styles.input, { marginTop: 16, letterSpacing: 8, fontSize: 24, textAlign: 'center' }]} 
 										placeholder="00000000" 
 										value={otpCode} 
 										onChangeText={setOtpCode}
@@ -644,7 +644,7 @@ export default function Auth({ initialMode }: AuthProps) {
 							<>
 								<View style={[styles.inputGroup, touched.password && errors.password ? styles.inputGroupError : null]}>
 									<TextInput
-										style={[styles.input, { flex: 1 }]}
+										style={[styles.input, { flex: 1, backgroundColor: 'transparent' }]}
 										placeholder="New Password"
 										value={password}
 										onChangeText={setPassword}
@@ -680,7 +680,7 @@ export default function Auth({ initialMode }: AuthProps) {
 								)}
 								{isResetPassword && isPasswordValid && (
 									<TextInput
-										style={[styles.input, { marginTop: 15 }, confirmPassword && password !== confirmPassword ? styles.inputError : null]}
+										style={[styles.input, { marginTop: 16 }, confirmPassword && password !== confirmPassword ? styles.inputError : null]}
 										placeholder="Confirm New Password"
 										value={confirmPassword}
 										onChangeText={setConfirmPassword}
@@ -724,10 +724,10 @@ const styles = StyleSheet.create({
 	stepContainer: { flex: 1 },
 	title: { fontSize: 32, fontFamily: fonts.bodyBold, color: colors.black, marginBottom: 8, letterSpacing: -0.5 },
 	subtitle: { fontSize: 16, color: colors.gray600, marginBottom: spacing.xl, lineHeight: 22 },
-	input: { backgroundColor: colors.gray100, borderRadius: 12, padding: 18, fontSize: 17, fontFamily: fonts.body, color: colors.black },
-	inputGroup: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.gray100, borderRadius: 12 },
-	eyeIcon: { paddingRight: 18 },
-	prefix: { position: 'absolute', left: 18, fontSize: 17, color: colors.gray400, zIndex: 1 },
+	input: { backgroundColor: colors.gray100, borderRadius: 16, height: 60, paddingHorizontal: 20, fontSize: 16, fontFamily: fonts.body, color: colors.black },
+	inputGroup: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.gray100, borderRadius: 16, height: 60 },
+	eyeIcon: { paddingRight: 20 },
+	prefix: { position: 'absolute', left: 20, fontSize: 16, color: colors.gray400, zIndex: 1 },
 	spinner: { position: 'absolute', right: 18 },
 	status: { fontSize: 13, fontFamily: fonts.bodyMedium, marginTop: 10, marginLeft: 4 },
 	strengthMeter: { flexDirection: 'row', gap: 4, marginTop: 12, paddingHorizontal: 4 },
