@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase } from '../lib/supabase';
-import { SessionContext } from '../app/_layout';
+import { useSession } from './SessionContext';
 
 export interface Profile {
     id: string;
@@ -16,14 +16,14 @@ export interface Profile {
 type ProfileContextType = {
     profile: Profile | null;
     loading: boolean;
-    updateProfile: (updates: Partial<Profile>) => Promise<void>;
+    updateProfile: (updates: Partial<Profile>) => Promise<boolean>;
     refreshProfile: () => Promise<void>;
 };
 
 const ProfileContext = createContext<ProfileContextType | undefined>(undefined);
 
 export function ProfileProvider({ children }: { children: ReactNode }) {
-    const { session } = useContext(SessionContext);
+    const { session } = useSession();
     const [profile, setProfile] = useState<Profile | null>(null);
     const [loading, setLoading] = useState(!!session);
 
@@ -56,7 +56,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     };
 
     const updateProfile = async (updates: Partial<Profile>) => {
-        if (!session?.user) return;
+        if (!session?.user) return false;
 
         try {
             // Optimistic update
@@ -73,10 +73,12 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
             if (error) {
                 throw error;
             }
+
+            return true;
         } catch (error) {
             console.error('Error updating profile:', error);
-            // Revert optimistic update on error (optional, simplified here)
             await fetchProfile();
+            return false;
         }
     };
 

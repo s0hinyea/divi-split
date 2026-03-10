@@ -1,9 +1,7 @@
-import { View, StyleSheet, TouchableOpacity, Dimensions } from "react-native";
+import { View, StyleSheet, TouchableOpacity } from "react-native";
 import { useRouter } from "expo-router";
 import { Text } from "react-native-paper";
 import { LinearGradient } from "expo-linear-gradient";
-import { useContext } from "react";
-import { SessionContext } from "./_layout";
 import { colors, fonts, fontSizes } from '@/styles/theme';
 import Svg, { Circle, Rect } from "react-native-svg";
 import Animated, {
@@ -12,8 +10,6 @@ import Animated, {
 	withTiming,
 	interpolateColor,
 } from "react-native-reanimated";
-
-const { width: SCREEN_W } = Dimensions.get("window");
 
 const GREEN = colors.green;
 const BLACK = colors.black;
@@ -38,7 +34,6 @@ function DiviLogo({ size = 80 }: { size?: number }) {
 
 export default function Home() {
 	const router = useRouter();
-	const { session } = useContext(SessionContext);
 
 	// Animated button press (0 = default, 1 = pressed)
 	const buttonProgress = useSharedValue(0);

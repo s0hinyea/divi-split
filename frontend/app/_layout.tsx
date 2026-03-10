@@ -6,7 +6,7 @@ import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
-import { useEffect, useState, createContext } from "react";
+import { useEffect, useState } from "react";
 import "react-native-reanimated";
 import { PaperProvider } from "react-native-paper";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -14,19 +14,9 @@ import { ChangeProvider } from "@/utils/ChangesContext";
 import { OCRProvider } from "@/utils/OCRContext";
 import { ProfileProvider } from "@/utils/ProfileContext";
 import { HistoryProvider } from "@/utils/HistoryContext";
-import { Session } from "@supabase/supabase-js";
-import { supabase } from "../lib/supabase";
 import AnimatedSplash from "@/components/AnimatedSplash";
 import CompletionOverlay from "@/components/CompletionOverlay";
-
-
-export const SessionContext = createContext<{
-  session: Session | null;
-  isLoading: boolean;
-}>({
-  session: null,
-  isLoading: true,
-});
+import { SessionProvider, useSession } from "@/utils/SessionContext";
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync().catch(() => {
@@ -34,10 +24,6 @@ SplashScreen.preventAutoHideAsync().catch(() => {
 });
 
 export default function RootLayout() {
-  const [session, setSession] = useState<Session | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [splashComplete, setSplashComplete] = useState(false);
-
   const [loaded] = useFonts({
     SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
     // Inter - modern UI font
@@ -56,40 +42,28 @@ export default function RootLayout() {
     "WorkSans-Medium": require("../assets/fonts/WorkSans-Medium.ttf"),
   });
 
-  useEffect(() => {
+  if (!loaded) {
+    return null;
+  }
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setIsLoading(false);
-    });
+  return (
+    <SessionProvider>
+      <RootShell loaded={loaded} />
+    </SessionProvider>
+  );
+}
 
-    // Set up auth subscription
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
-      setSession(session);
-      
-      if (event === 'PASSWORD_RECOVERY') {
-        // Redirection handled by the router once it's ready, 
-        // but often we need a small delay or to check if we're on the auth page
-        console.log('Password recovery event detected');
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
+function RootShell({ loaded }: { loaded: boolean }) {
+  const { isLoading } = useSession();
+  const [splashComplete, setSplashComplete] = useState(false);
 
   useEffect(() => {
-    if (loaded) {
+    if (loaded && !isLoading) {
       SplashScreen.hideAsync().catch(() => {
         /* Ignore — native splash screen may not be registered yet in Expo Go */
       });
     }
-  }, [loaded]);
-
-  if (!loaded || isLoading) {
-    return null;
-  }
+  }, [loaded, isLoading]);
 
   if (!splashComplete) {
     return (
@@ -100,59 +74,61 @@ export default function RootLayout() {
     );
   }
 
+  if (isLoading) {
+    return null;
+  }
+
   return (
-    <SessionContext.Provider value={{ session, isLoading }}>
-      <ChangeProvider>
-        <OCRProvider>
-          <HistoryProvider>
-            <ProfileProvider>
-              <GestureHandlerRootView style={{ flex: 1 }}>
-                <PaperProvider>
-                  <ThemeProvider
-                    value={DefaultTheme}
+    <ChangeProvider>
+      <OCRProvider>
+        <HistoryProvider>
+          <ProfileProvider>
+            <GestureHandlerRootView style={{ flex: 1 }}>
+              <PaperProvider>
+                <ThemeProvider
+                  value={DefaultTheme}
+                >
+                  <Stack
+                    screenOptions={{
+                      headerShown: false,
+                      animation: "fade",
+                      animationDuration: 150,
+                    }}
                   >
-                    <Stack
-                      screenOptions={{
-                        headerShown: false,
-                        animation: "fade",
-                        animationDuration: 150,
+                    <Stack.Screen name="index" />
+                    <Stack.Screen name="home" />
+                    <Stack.Screen
+                      name="(tabs)"
+                      options={{
+                        gestureEnabled: false,
                       }}
-                    >
-                      <Stack.Screen name="index" />
-                      <Stack.Screen name="home" />
-                      <Stack.Screen
-                        name="(tabs)"
-                        options={{
-                          gestureEnabled: false,
-                        }}
-                      />
-                      <Stack.Screen name="auth" />
-                      <Stack.Screen name="scan" />
-                      <Stack.Screen name="library" />
-                      <Stack.Screen
-                        name="result"
-                        options={{ gestureEnabled: false }}
-                      />
-                      <Stack.Screen
-                        name="assign"
-                        options={{ gestureEnabled: false }}
-                      />
-                      <Stack.Screen name="contacts" />
-                      <Stack.Screen
-                        name="review"
-                        options={{ gestureEnabled: false }}
-                      />
-                      <Stack.Screen name="+not-found" />
-                    </Stack>
-                    <StatusBar style="dark" />
-                    <CompletionOverlay />
-                  </ThemeProvider>
-                </PaperProvider>
-              </GestureHandlerRootView>
-            </ProfileProvider>
-          </HistoryProvider>
-        </OCRProvider>
-      </ChangeProvider>
-    </SessionContext.Provider>
+                    />
+                    <Stack.Screen name="auth" />
+                    <Stack.Screen name="scan" />
+                    <Stack.Screen name="library" />
+                    <Stack.Screen
+                      name="result"
+                      options={{ gestureEnabled: false }}
+                    />
+                    <Stack.Screen
+                      name="assign"
+                      options={{ gestureEnabled: false }}
+                    />
+                    <Stack.Screen name="contacts" />
+                    <Stack.Screen
+                      name="review"
+                      options={{ gestureEnabled: false }}
+                    />
+                    <Stack.Screen name="+not-found" />
+                  </Stack>
+                  <StatusBar style="dark" />
+                  <CompletionOverlay />
+                </ThemeProvider>
+              </PaperProvider>
+            </GestureHandlerRootView>
+          </ProfileProvider>
+        </HistoryProvider>
+      </OCRProvider>
+    </ChangeProvider>
   );
 }

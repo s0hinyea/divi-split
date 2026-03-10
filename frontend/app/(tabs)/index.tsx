@@ -1,13 +1,13 @@
 import { View, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useContext, useState, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { useRouter } from 'expo-router';
 import { colors, fonts, fontSizes, spacing } from '@/styles/theme';
-import { SessionContext } from '@/app/_layout';
 import ReceiptCard from '@/components/ReceiptCard';
 import { useHistory } from '@/utils/HistoryContext';
 import { useProfile } from '@/utils/ProfileContext';
+import { useSession } from '@/utils/SessionContext';
 
 function ReceiptLines() {
     return (
@@ -21,7 +21,7 @@ function ReceiptLines() {
 
 export default function Dashboard() {
     const router = useRouter();
-    const { session } = useContext(SessionContext);
+    const { session } = useSession();
     const { receipts, loading, refreshReceipts, monthlyTotal, totalCount } = useHistory();
     const { profile, loading: profileLoading, refreshProfile } = useProfile();
     const [refreshing, setRefreshing] = useState(false);

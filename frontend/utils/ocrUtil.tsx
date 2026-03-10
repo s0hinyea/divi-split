@@ -3,6 +3,7 @@ import { OCRResponse } from "../stores/splitStore";
 import { Router } from "expo-router";
 import { supabase } from "@/lib/supabase";
 import * as ImageManipulator from 'expo-image-manipulator';
+import { isNetworkError } from "@/utils/network";
 
 export const handleOCR = async (
 	imageUri: string,
@@ -86,7 +87,7 @@ export const handleOCR = async (
 			buttons = [
 				{ text: 'Sign In', onPress: () => router.replace('/auth') },
 			];
-		} else if (message.includes('network') || message.includes('fetch')) {
+		} else if (isNetworkError(err) || message.includes('network') || message.includes('fetch')) {
 			title = 'No Connection';
 			body = "Couldn't reach the server. Check your internet connection and try again.";
 		}
