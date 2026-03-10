@@ -1,22 +1,23 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, StyleSheet, TouchableOpacity, ScrollView, Alert, TextInput, Switch, Image, RefreshControl } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, ScrollView, Alert, TextInput, Image, RefreshControl, Linking } from 'react-native';
 import { Text, ActivityIndicator } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useContext } from 'react';
 import { useRouter } from 'expo-router';
-import { SessionContext } from '@/app/_layout';
 import { supabase } from '@/lib/supabase';
-import { MaterialIcons, FontAwesome5 } from '@expo/vector-icons';
+import { MaterialIcons } from '@expo/vector-icons';
 import { colors, fonts, fontSizes, spacing, radii, shadows } from '@/styles/theme';
 import { useProfile } from '@/utils/ProfileContext';
 import * as ImagePicker from 'expo-image-picker';
+import { useSession } from '@/utils/SessionContext';
+import { getUserFacingErrorMessage } from '@/utils/network';
+import { privacyPolicyUrl } from '@/constants/appConfig';
 
 const VenmoLogo = require('@/assets/images/venmo.png');
 const CashAppLogo = require('@/assets/images/cashapp.png');
 const ZelleLogo = require('@/assets/images/zelle.png');
 
 export default function Profile() {
-    const { session } = useContext(SessionContext);
+    const { session } = useSession();
     const { profile, loading, updateProfile, refreshProfile } = useProfile();
     const router = useRouter();
 
@@ -24,8 +25,11 @@ export default function Profile() {
 
     const onRefresh = useCallback(async () => {
         setRefreshing(true);
-        await refreshProfile();
-        setRefreshing(false);
+        try {
+            await refreshProfile();
+        } finally {
+            setRefreshing(false);
+        }
     }, []);
 
 
@@ -51,9 +55,17 @@ export default function Profile() {
     }, [profile]);
 
     const handleSignOut = async () => {
-        const { error } = await supabase.auth.signOut();
-        if (error) Alert.alert("Error signing out", error.message);
-        router.replace('/home');
+        try {
+            const { error } = await supabase.auth.signOut();
+
+            if (error) {
+                throw error;
+            }
+
+            router.replace('/home');
+        } catch (error) {
+            Alert.alert('Error signing out', getUserFacingErrorMessage(error, 'Unable to sign out right now.'));
+        }
     };
 
     const handleSave = async () => {
@@ -75,30 +87,59 @@ export default function Profile() {
         if (isEditing) {
             // Optimistic update with formatted data
             setFormData(prev => ({ ...prev, username: cleanUsername }));
-            await updateProfile(dataToSave);
-            setIsEditing(false);
-            Alert.alert("Success", "Profile updated!");
+            const didSave = await updateProfile(dataToSave);
+
+            if (didSave) {
+                setIsEditing(false);
+                Alert.alert('Success', 'Profile updated.');
+            } else {
+                Alert.alert('Update failed', 'We could not save your profile changes.');
+            }
         }
     };
 
     const pickImage = async () => {
-        const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (permissionResult.granted === false) {
-            Alert.alert("Permission to access camera roll is required!");
+        try {
+            const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+            if (permissionResult.granted === false) {
+                Alert.alert('Permission required', 'Photo library access is required to update your avatar.');
+                return;
+            }
+
+            const result = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                allowsEditing: true,
+                aspect: [1, 1],
+                quality: 0.5,
+                base64: true,
+            });
+
+            if (!result.canceled && result.assets[0].base64) {
+                const base64Data = `data:image/jpeg;base64,${result.assets[0].base64}`;
+                const didSave = await updateProfile({ avatar_url: base64Data });
+
+                if (!didSave) {
+                    Alert.alert('Upload failed', 'We could not update your avatar.');
+                }
+            }
+        } catch (error) {
+            Alert.alert('Upload failed', getUserFacingErrorMessage(error, 'We could not open your photo library.'));
+        }
+    };
+
+    const openPrivacyPolicy = async () => {
+        if (!privacyPolicyUrl) {
+            Alert.alert(
+                'Privacy policy missing',
+                'Set EXPO_PUBLIC_PRIVACY_POLICY_URL to a public policy page before submitting to Apple.'
+            );
             return;
         }
 
-        const result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ImagePicker.MediaTypeOptions.Images,
-            allowsEditing: true,
-            aspect: [1, 1],
-            quality: 0.5,
-            base64: true,
-        });
-
-        if (!result.canceled && result.assets[0].base64) {
-            const base64Data = `data:image/jpeg;base64,${result.assets[0].base64}`;
-            await updateProfile({ avatar_url: base64Data }); // In a real app, upload to storage bucket
+        try {
+            await Linking.openURL(privacyPolicyUrl);
+        } catch {
+            Alert.alert('Link unavailable', 'We could not open the privacy policy right now.');
         }
     };
 
@@ -253,6 +294,14 @@ export default function Profile() {
                         </View>
                         <Text style={styles.settingLabel}>Help & FAQ</Text>
                         <MaterialIcons name="chevron-right" size={24} color={colors.gray400} />
+                    </TouchableOpacity>
+                    <View style={styles.divider} />
+                    <TouchableOpacity style={styles.row} onPress={openPrivacyPolicy} activeOpacity={0.7}>
+                        <View style={styles.iconContainer}>
+                            <MaterialIcons name="privacy-tip" size={22} color={colors.black} />
+                        </View>
+                        <Text style={styles.settingLabel}>Privacy Policy</Text>
+                        <MaterialIcons name="open-in-new" size={20} color={colors.gray400} />
                     </TouchableOpacity>
                 </View>
 

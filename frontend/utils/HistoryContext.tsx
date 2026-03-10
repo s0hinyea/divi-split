@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase } from '../lib/supabase';
-import { SessionContext } from '../app/_layout';
+import { useSession } from './SessionContext';
 
 export interface Receipt {
     id: string;
@@ -29,7 +29,7 @@ const HistoryContext = createContext<HistoryContextType | undefined>(undefined);
 const PAGE_LIMIT = 5;
 
 export function HistoryProvider({ children }: { children: ReactNode }) {
-    const { session } = useContext(SessionContext);
+    const { session } = useSession();
     const [receipts, setReceipts] = useState<Receipt[]>([]);
     const [loading, setLoading] = useState(false);
     const [hasMore, setHasMore] = useState(true);

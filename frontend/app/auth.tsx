@@ -1,14 +1,10 @@
 import { View, StyleSheet, SafeAreaView, KeyboardAvoidingView, Platform, Keyboard, TouchableWithoutFeedback } from "react-native";
-import { useContext } from "react";
-import { SessionContext } from "./_layout";
 import Auth from "../components/Auth";
-import { useRouter, useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams } from "expo-router";
 import { colors, spacing } from '@/styles/theme';
 import { LinearGradient } from 'expo-linear-gradient';
 
 export default function AccountPage() {
-	const { session } = useContext(SessionContext);
-	const router = useRouter();
 	const { mode } = useLocalSearchParams();
 
 	// Default to signup if no mode is provided

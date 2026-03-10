@@ -1,5 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createClient } from "@supabase/supabase-js";
+import { offlineAwareFetch } from "@/utils/network";
 
 // Expo automatically exposes EXPO_PUBLIC_ prefixed env variables
 // No need for dotenv - it doesn't work in React Native anyway
@@ -16,6 +17,7 @@ export const supabase = createClient(supabaseUrl!, supabaseAnonKey!, {
 		debug: false,
 	},
 	global: {
+		fetch: offlineAwareFetch,
 		headers: {
 			'X-Client-Info': 'divi-app',
 		},

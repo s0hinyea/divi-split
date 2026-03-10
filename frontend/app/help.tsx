@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, LayoutAnimation, UIManager, Platform } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, LayoutAnimation, UIManager, Platform, Alert, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { colors, fonts, fontSizes, spacing, radii, shadows } from '@/styles/theme';
+import { privacyPolicyUrl } from '@/constants/appConfig';
 
 // Enable LayoutAnimation for Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -39,6 +40,22 @@ const FAQItem = ({ question, answer }: { question: string, answer: string }) => 
 
 export default function HelpPage() {
   const router = useRouter();
+
+  const openPrivacyPolicy = async () => {
+    if (!privacyPolicyUrl) {
+      Alert.alert(
+        'Privacy policy missing',
+        'Set EXPO_PUBLIC_PRIVACY_POLICY_URL to a public policy page before submitting to Apple.'
+      );
+      return;
+    }
+
+    try {
+      await Linking.openURL(privacyPolicyUrl);
+    } catch {
+      Alert.alert('Link unavailable', 'We could not open the privacy policy right now.');
+    }
+  };
 
   const faqs = [
     {
@@ -105,6 +122,9 @@ export default function HelpPage() {
         <View style={styles.contactSupport}>
           <Text style={styles.supportTitle}>Still have questions?</Text>
           <Text style={styles.supportText}>Reach out to our support team.</Text>
+          <TouchableOpacity style={styles.policyButton} activeOpacity={0.8} onPress={openPrivacyPolicy}>
+            <Text style={styles.policyButtonText}>Privacy Policy</Text>
+          </TouchableOpacity>
           <TouchableOpacity style={styles.supportButton} activeOpacity={0.8}>
             <Text style={styles.supportButtonText}>Contact Support</Text>
           </TouchableOpacity>
@@ -227,7 +247,17 @@ const styles = StyleSheet.create({
     fontFamily: fonts.body,
     fontSize: fontSizes.md,
     color: colors.gray500,
-    marginBottom: spacing.lg,
+    marginBottom: spacing.md,
+  },
+  policyButton: {
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    marginBottom: spacing.md,
+  },
+  policyButtonText: {
+    fontFamily: fonts.bodySemiBold,
+    fontSize: fontSizes.sm,
+    color: colors.green,
   },
   supportButton: {
     backgroundColor: colors.black,

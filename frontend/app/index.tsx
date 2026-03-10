@@ -1,9 +1,8 @@
 import { Redirect } from 'expo-router';
-import { useContext } from 'react';
-import { SessionContext } from './_layout';
+import { useSession } from '@/utils/SessionContext';
 
 export default function Index() {
-  const { session } = useContext(SessionContext);
+  const { session } = useSession();
 
   // If user is already logged in, skip to the main app (tabs)
   if (session) {

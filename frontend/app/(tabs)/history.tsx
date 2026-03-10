@@ -22,6 +22,7 @@ import { useHistory, Receipt } from '@/utils/HistoryContext';
 import { useProfile } from '@/utils/ProfileContext';
 import * as SMS from 'expo-sms';
 import { allocateAmount } from '@/utils/mathUtil';
+import { getUserFacingErrorMessage } from '@/utils/network';
 
 export default function History() {
     const { receipts, loading, hasMore, fetchReceipts, deleteReceipt: contextDeleteReceipt, refreshReceipts } = useHistory();
@@ -50,6 +51,7 @@ export default function History() {
             await contextDeleteReceipt(receiptId);
         } catch (error) {
             console.error('Error deleting receipt:', error);
+            Alert.alert('Delete failed', getUserFacingErrorMessage(error, 'We could not delete that receipt right now.'));
         }
     };
 
@@ -198,7 +200,7 @@ export default function History() {
             await SMS.sendSMSAsync(phoneNumbers, message);
         } catch (error) {
             console.error('Error resending message:', error);
-            Alert.alert('Error', 'Failed to formulate or send message.');
+            Alert.alert('Error', getUserFacingErrorMessage(error, 'Failed to formulate or send message.'));
         } finally {
             setResending(false);
         }

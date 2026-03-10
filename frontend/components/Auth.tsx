@@ -8,15 +8,12 @@ import {
 	Text,
 	TextInput,
 	ActivityIndicator,
-	Dimensions,
-	Keyboard,
 } from "react-native";
 import { supabase } from "../lib/supabase";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { colors, fonts, spacing } from '@/styles/theme';
 import { MaterialIcons, Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import * as Linking from 'expo-linking';
 import Animated, { 
 	useSharedValue, 
 	useAnimatedStyle, 
@@ -24,8 +21,7 @@ import Animated, {
 	FadeIn, 
 	FadeOut,
 } from 'react-native-reanimated';
-
-const { width: SCREEN_W } = Dimensions.get('window');
+import { getUserFacingErrorMessage, hasInternetConnection } from '@/utils/network';
 
 // Automatically refresh if foreground
 AppState.addEventListener("change", (state) => {
@@ -68,8 +64,6 @@ export default function Auth({ initialMode }: AuthProps) {
 	const [showPassword, setShowPassword] = useState(false);
 	const [checkingUsername, setCheckingUsername] = useState(false);
 	const [isUsernameTaken, setIsUsernameTaken] = useState(false);
-	const [checkingEmail, setCheckingEmail] = useState(false);
-	const [isEmailTaken, setIsEmailTaken] = useState(false);
 	const [errors, setErrors] = useState<Record<string, string>>({});
 	const [touched, setTouched] = useState<Record<string, boolean>>({});
 	
@@ -117,15 +111,21 @@ export default function Auth({ initialMode }: AuthProps) {
 			return;
 		}
 		setLoading(true);
-		
-		const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase());
-		setLoading(false);
-		if (error) {
-			Alert.alert("Error", error.message);
-		} else {
+
+		try {
+			const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase());
+			if (error) {
+				Alert.alert("Error", error.message);
+				return;
+			}
+
 			setCooldown(60);
 			setIsAwaitingOtp(true);
 			Alert.alert("Reset Code Sent ✉️", "Check your inbox for your reset code.");
+		} catch (error) {
+			Alert.alert("Error", getUserFacingErrorMessage(error, "We couldn't send a reset code right now."));
+		} finally {
+			setLoading(false);
 		}
 	};
 
@@ -135,18 +135,25 @@ export default function Auth({ initialMode }: AuthProps) {
 			return;
 		}
 		setLoading(true);
-		const { data, error } = await supabase.auth.verifyOtp({
-			email: email.trim().toLowerCase(),
-			token: otpCode.trim(),
-			type: 'recovery' // This signs them in securely
-		});
-		setLoading(false);
-		if (error) {
-			Alert.alert("Error", error.message);
-		} else {
-			// Now they have a session, move exactly to the reset-password screen to type new password
+
+		try {
+			const { error } = await supabase.auth.verifyOtp({
+				email: email.trim().toLowerCase(),
+				token: otpCode.trim(),
+				type: 'recovery' // This signs them in securely
+			});
+
+			if (error) {
+				Alert.alert("Error", error.message);
+				return;
+			}
+
 			setIsAwaitingOtp(false);
 			router.replace({ pathname: "/auth", params: { mode: "reset-password" } });
+		} catch (error) {
+			Alert.alert("Error", getUserFacingErrorMessage(error, "We couldn't verify that code right now."));
+		} finally {
+			setLoading(false);
 		}
 	};
 
@@ -160,13 +167,20 @@ export default function Auth({ initialMode }: AuthProps) {
 			return;
 		}
 		setLoading(true);
-		const { error } = await supabase.auth.updateUser({ password });
-		setLoading(false);
-		if (error) {
-			Alert.alert("Error", error.message);
-		} else {
+
+		try {
+			const { error } = await supabase.auth.updateUser({ password });
+			if (error) {
+				Alert.alert("Error", error.message);
+				return;
+			}
+
 			Alert.alert("Success!", "Your password has been updated. You can now log in.");
 			router.replace({ pathname: "/auth", params: { mode: "login" } });
+		} catch (error) {
+			Alert.alert("Error", getUserFacingErrorMessage(error, "We couldn't update your password right now."));
+		} finally {
+			setLoading(false);
 		}
 	};
 
@@ -187,16 +201,6 @@ export default function Auth({ initialMode }: AuthProps) {
 		if (!email.trim()) { setErrors(p => ({ ...p, email: 'Email is required.' })); return; }
 		if (!isValidEmail(email)) { setErrors(p => ({ ...p, email: 'Enter a valid email address.' })); return; }
 		setErrors(p => { const { email: _, ...rest } = p; return rest; });
-
-		// Check if email is already registered (debounced)
-		if (!isSignUp) return;
-		const timer = setTimeout(async () => {
-			setCheckingEmail(true);
-			// Use signInWithOtp dry-run approach: try to sign up and check for "already registered"
-			// Actually, we'll just let the final signup handle this — remove the check here
-			setCheckingEmail(false);
-		}, 600);
-		return () => clearTimeout(timer);
 	}, [email, touched.email]);
 
 	// Password validation
@@ -212,13 +216,29 @@ export default function Auth({ initialMode }: AuthProps) {
 		if (username.length < 3) { setIsUsernameTaken(false); return; }
 		setCheckingUsername(true);
 		const timer = setTimeout(async () => {
-			const { data } = await supabase
-				.from('profiles')
-				.select('id')
-				.eq('username', username.toLowerCase())
-				.maybeSingle();
-			setIsUsernameTaken(!!data);
-			setCheckingUsername(false);
+			try {
+				if (!(await hasInternetConnection())) {
+					setIsUsernameTaken(false);
+					return;
+				}
+
+				const { data, error } = await supabase
+					.from('profiles')
+					.select('id')
+					.eq('username', username.toLowerCase())
+					.maybeSingle();
+
+				if (error) {
+					throw error;
+				}
+
+				setIsUsernameTaken(!!data);
+			} catch (error) {
+				console.error('Username check failed:', error);
+				setIsUsernameTaken(false);
+			} finally {
+				setCheckingUsername(false);
+			}
 		}, 500);
 		return () => clearTimeout(timer);
 	}, [username]);
@@ -284,49 +304,62 @@ export default function Auth({ initialMode }: AuthProps) {
 
 	const performSignUp = async () => {
 		setLoading(true);
-		const { data: { user }, error } = await supabase.auth.signUp({
-			email: email.trim().toLowerCase(),
-			password,
-			options: {
-				data: {
-					full_name: fullName.trim(),
-					username: username.toLowerCase().trim(),
-					venmo_handle: sanitizeHandle(venmo, '@'),
-					cashapp_handle: sanitizeHandle(cashapp, '$'),
+		try {
+			const { data: { user }, error } = await supabase.auth.signUp({
+				email: email.trim().toLowerCase(),
+				password,
+				options: {
+					data: {
+						full_name: fullName.trim(),
+						username: username.toLowerCase().trim(),
+						venmo_handle: sanitizeHandle(venmo, '@'),
+						cashapp_handle: sanitizeHandle(cashapp, '$'),
+					}
+				}
+			});
+
+			if (error) {
+				if (error.message.includes("already registered")) {
+					Alert.alert("Account Exists", "This email is already registered. Try logging in instead.", [
+						{ text: "Go to Login", onPress: () => router.replace({ pathname: "/auth", params: { mode: "login" } }) },
+						{ text: "Cancel", style: "cancel" },
+					]);
+				} else if (error.message.includes("unique") || error.message.includes("duplicate")) {
+					Alert.alert("Username Taken", "This username was just claimed. Please go back and pick another.");
+				} else {
+					Alert.alert("Error", error.message);
+				}
+			} else if (user) {
+				Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+				if (user.email_confirmed_at) {
+					router.replace("/(tabs)");
+				} else {
+					Alert.alert(
+						"Check Your Email ✉️",
+						"We sent a verification link to your inbox. Once verified, come back and log in!",
+						[{ text: "Go to Login", onPress: () => router.replace({ pathname: "/auth", params: { mode: "login" } }) }]
+					);
 				}
 			}
-		});
-
-		if (error) {
-			if (error.message.includes("already registered")) {
-				Alert.alert("Account Exists", "This email is already registered. Try logging in instead.", [
-					{ text: "Go to Login", onPress: () => router.replace({ pathname: "/auth", params: { mode: "login" } }) },
-					{ text: "Cancel", style: "cancel" },
-				]);
-			} else if (error.message.includes("unique") || error.message.includes("duplicate")) {
-				Alert.alert("Username Taken", "This username was just claimed. Please go back and pick another.");
-			} else {
-				Alert.alert("Error", error.message);
-			}
-		} else if (user) {
-			Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-			if (user.email_confirmed_at) {
-				router.replace("/(tabs)");
-			} else {
-				Alert.alert(
-					"Check Your Email ✉️",
-					"We sent a verification link to your inbox. Once verified, come back and log in!",
-					[{ text: "Go to Login", onPress: () => router.replace({ pathname: "/auth", params: { mode: "login" } }) }]
-				);
-			}
+		} catch (error) {
+			Alert.alert("Error", getUserFacingErrorMessage(error, "We couldn't create your account right now."));
+		} finally {
+			setLoading(false);
 		}
-		setLoading(false);
 	};
 
 	const resendVerification = async () => {
-		const { error } = await supabase.auth.resend({ type: 'signup', email: email.trim() });
-		if (error) Alert.alert("Error", error.message);
-		else Alert.alert("Email Sent ✉️", "Check your inbox for a new verification link.");
+		try {
+			const { error } = await supabase.auth.resend({ type: 'signup', email: email.trim() });
+			if (error) {
+				Alert.alert("Error", error.message);
+				return;
+			}
+
+			Alert.alert("Email Sent ✉️", "Check your inbox for a new verification link.");
+		} catch (error) {
+			Alert.alert("Error", getUserFacingErrorMessage(error, "We couldn't resend the verification email right now."));
+		}
 	};
 
 	const performLogin = async () => {
@@ -336,27 +369,32 @@ export default function Auth({ initialMode }: AuthProps) {
 		if (!password) { Alert.alert("Missing Password", "Please enter your password."); return; }
 
 		setLoading(true);
-		const { error } = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password });
-		
-		if (error) {
-			if (error.message.includes("Email not confirmed")) {
-				Alert.alert(
-					"Email Not Verified",
-					"You need to verify your email before logging in. Check your inbox or resend the link.",
-					[
-						{ text: "Resend Email", onPress: resendVerification },
-						{ text: "OK", style: "cancel" },
-					]
-				);
-			} else if (error.message.includes("Invalid login")) {
-				Alert.alert("Login Failed", "Incorrect email or password. Please try again.");
+		try {
+			const { error } = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password });
+
+			if (error) {
+				if (error.message.includes("Email not confirmed")) {
+					Alert.alert(
+						"Email Not Verified",
+						"You need to verify your email before logging in. Check your inbox or resend the link.",
+						[
+							{ text: "Resend Email", onPress: resendVerification },
+							{ text: "OK", style: "cancel" },
+						]
+					);
+				} else if (error.message.includes("Invalid login")) {
+					Alert.alert("Login Failed", "Incorrect email or password. Please try again.");
+				} else {
+					Alert.alert("Login Failed", error.message);
+				}
 			} else {
-				Alert.alert("Login Failed", error.message);
+				router.replace("/(tabs)");
 			}
-		} else {
-			router.replace("/(tabs)");
+		} catch (error) {
+			Alert.alert("Login Failed", getUserFacingErrorMessage(error, "We couldn't sign you in right now."));
+		} finally {
+			setLoading(false);
 		}
-		setLoading(false);
 	};
 
 	const progressStyle = useAnimatedStyle(() => ({
