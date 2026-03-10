@@ -125,13 +125,13 @@ export default function Auth({ initialMode }: AuthProps) {
 		} else {
 			setCooldown(60);
 			setIsAwaitingOtp(true);
-			Alert.alert("Reset Code Sent ✉️", "Check your inbox for a 6-digit reset code.");
+			Alert.alert("Reset Code Sent ✉️", "Check your inbox for your reset code.");
 		}
 	};
 
 	const verifyResetOtp = async () => {
-		if (!otpCode || otpCode.length !== 6) {
-			Alert.alert("Invalid Code", "Please enter the 6-digit code sent to your email.");
+		if (!otpCode || otpCode.length < 6) {
+			Alert.alert("Invalid Code", "Please enter the code sent to your email.");
 			return;
 		}
 		setLoading(true);
@@ -165,7 +165,7 @@ export default function Auth({ initialMode }: AuthProps) {
 		if (error) {
 			Alert.alert("Error", error.message);
 		} else {
-			Alert.alert("Success! 🎉", "Your password has been updated. You can now log in.");
+			Alert.alert("Success!", "Your password has been updated. You can now log in.");
 			router.replace({ pathname: "/auth", params: { mode: "login" } });
 		}
 	};
@@ -631,11 +631,11 @@ export default function Auth({ initialMode }: AuthProps) {
 								{isAwaitingOtp && (
 									<TextInput 
 										style={[styles.input, { marginTop: 15, letterSpacing: 8, fontSize: 24, textAlign: 'center' }]} 
-										placeholder="000000" 
+										placeholder="00000000" 
 										value={otpCode} 
 										onChangeText={setOtpCode}
 										keyboardType="number-pad" 
-										maxLength={6}
+										maxLength={8}
 										autoFocus
 									/>
 								)}
