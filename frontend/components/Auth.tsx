@@ -16,6 +16,7 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import { colors, fonts, spacing } from '@/styles/theme';
 import { MaterialIcons, Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import * as Linking from 'expo-linking';
 import Animated, { 
 	useSharedValue, 
 	useAnimatedStyle, 
@@ -114,8 +115,10 @@ export default function Auth({ initialMode }: AuthProps) {
 			return;
 		}
 		setLoading(true);
+		const resetUrl = Linking.createURL('/auth', { queryParams: { mode: 'reset-password' } });
+		
 		const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
-			redirectTo: 'divi://auth?mode=reset-password',
+			redirectTo: resetUrl,
 		});
 		setLoading(false);
 		if (error) {
