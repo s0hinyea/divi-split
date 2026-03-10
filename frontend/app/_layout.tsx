@@ -66,8 +66,14 @@ export default function RootLayout() {
     // Set up auth subscription
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session);
+      
+      if (event === 'PASSWORD_RECOVERY') {
+        // Redirection handled by the router once it's ready, 
+        // but often we need a small delay or to check if we're on the auth page
+        console.log('Password recovery event detected');
+      }
     });
 
     return () => subscription.unsubscribe();
