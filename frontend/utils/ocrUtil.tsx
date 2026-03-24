@@ -80,10 +80,6 @@ export const handleOCR = async (
 
 		let title = 'Scan Failed';
 		let body = 'Something went wrong while processing your receipt.';
-		let buttons: any[] = [
-			{ text: 'Go Home', style: 'cancel', onPress: () => router.replace('/(tabs)') },
-			{ text: 'Try Again', onPress: () => router.replace('/(tabs)') },
-		];
 
 		if (message === 'TIMEOUT') {
 			title = 'Request Timed Out';
@@ -101,16 +97,24 @@ export const handleOCR = async (
 		} else if (message.includes('session') || message.includes('Unauthorized') || message.includes('auth')) {
 			title = 'Session Expired';
 			body = 'Your login session has expired. Please sign in again.';
-			buttons = [
-				{ text: 'Sign In', onPress: () => router.replace('/auth') },
-			];
 		} else if (isNetworkError(err) || message.includes('network') || message.includes('fetch')) {
 			title = 'No Connection';
 			body = "Couldn't reach the server. Check your internet connection and try again.";
 		}
 
 		setError(body);
-		Alert.alert(title, body, buttons);
+		
+		// Bounce them back to the scanner immediately
+		if (router.canGoBack()) {
+			router.back();
+		} else {
+			router.replace('/scan');
+		}
+
+		// Show a simple native alert they can dismiss to try again
+		setTimeout(() => {
+			Alert.alert(title, body, [{ text: 'OK' }]);
+		}, 300);
 	} finally {
 		setIsProcessing(false);
 		setStatus("");
