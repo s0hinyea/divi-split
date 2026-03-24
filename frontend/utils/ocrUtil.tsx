@@ -38,13 +38,18 @@ export const handleOCR = async (
 
 		if (error) {
 			let errorMessage = error.message;
+			let notReceiptReason = '';
 			try {
 				if (error.context && typeof error.context.json === 'function') {
 					const errorBody = await error.context.json();
 					errorMessage = errorBody?.error || errorMessage;
+					if (errorBody?.reason) notReceiptReason = errorBody.reason;
 				}
 			} catch (_) {}
 
+			if (errorMessage === 'NOT_RECEIPT' || errorMessage.includes('NOT_RECEIPT')) {
+				throw new Error('NOT_RECEIPT:' + (notReceiptReason || 'This image does not appear to be a receipt.'));
+			}
 			if (errorMessage.includes('timed out') || errorMessage.includes('timeout')) {
 				throw new Error('TIMEOUT');
 			}
@@ -83,6 +88,10 @@ export const handleOCR = async (
 		if (message === 'TIMEOUT') {
 			title = 'Request Timed Out';
 			body = 'The server took too long to respond. This can happen with large or blurry images. Try again with a clearer photo.';
+		} else if (message.startsWith('NOT_RECEIPT:')) {
+			title = 'Not a Receipt 🧾';
+			const reason = message.replace('NOT_RECEIPT:', '');
+			body = reason || "That doesn't look like a receipt. Point your camera at a printed bill or check and try again.";
 		} else if (message === 'NO_ITEMS') {
 			title = 'No Items Found';
 			body = "We couldn't detect any items on this receipt. Make sure the receipt is well-lit and fully visible, then try again.";
