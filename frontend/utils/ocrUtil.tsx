@@ -55,6 +55,14 @@ export const handleOCR = async (
 
 		if (extractedData && "items" in extractedData && extractedData.items.length > 0) {
 			updateReceiptData(extractedData);
+
+			// Warn if server detected a math mismatch
+			if (extractedData.confidence === "low") {
+				Alert.alert(
+					"Double-Check Numbers ⚠️",
+					"The item prices don't perfectly add up to the receipt total. Please review the amounts before splitting."
+				);
+			}
 		} else if (extractedData && "items" in extractedData && extractedData.items.length === 0) {
 			throw new Error('NO_ITEMS');
 		} else if (extractedData && "error" in extractedData) {
