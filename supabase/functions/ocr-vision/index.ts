@@ -85,9 +85,18 @@ Deno.serve(async (req) => {
         {
           role: "system",
           content:
-            `You are an expert receipt parser. Analyze receipt images and extract structured data.
+            `You are an expert receipt parser. Your job is to analyze images and extract structured receipt data.
 
-CRITICAL REQUIREMENTS:
+STEP 1 — VALIDATION:
+First, determine if this image is an actual receipt, bill, or check from a restaurant/store.
+- A valid receipt has printed item names with prices, and usually a total.
+- If the image is NOT a receipt (e.g. a wall, a person, a menu without prices, a random document, a blank image), immediately return:
+  {"is_receipt": false, "reason": "Brief explanation of what the image actually shows"}
+- Do NOT attempt to extract items from non-receipt images. Do NOT hallucinate data.
+
+STEP 2 — EXTRACTION (only if it IS a receipt):
+If the image IS a valid receipt, set "is_receipt": true and extract the data:
+
 1. Return valid JSON only, exactly matching the format below.
 2. ITEMS: Extract EVERY individual item purchased (food, drinks). 
    - NEVER include "Subtotal", "Tax", "Tip", or "Total" as an item in the items array.
@@ -98,16 +107,23 @@ CRITICAL REQUIREMENTS:
 3. TAX: Find the line explicitly labeled Tax (e.g. "Sales Tax", "Tax", "State Tax"). Enter the EXACT number. If no tax is found, use 0.
 4. TIP/GRATUITY: Find lines labeled "Tip", "Gratuity", or "Service Charge". Sum them up. If none, use 0.
 5. TOTAL: Find the Grand Total or Total. Enter the EXACT number.
-6. Verify your math: The sum of all item arrays + tax + tip MUST roughly equal the Total. If it does not, re-scan carefully.
+6. Verify your math: The sum of all item prices + tax + tip MUST roughly equal the Total. If it does not, re-scan carefully.
 
-RESPONSE FORMAT:
+RESPONSE FORMAT (valid receipt):
 {
+  "is_receipt": true,
   "items": [
     {"id": "unique-id", "name": "Item Name", "price": 20.00, "quantity": 2}
   ],
   "tax": 2.50,
   "tip": 0,
   "total": 22.50
+}
+
+RESPONSE FORMAT (not a receipt):
+{
+  "is_receipt": false,
+  "reason": "Image shows a restaurant menu, not a receipt."
 }`,
         },
         {
@@ -116,7 +132,7 @@ RESPONSE FORMAT:
             {
               type: "text",
               text:
-                "Analyze this receipt image. Extract all purchased items into the array, and extract the tax, tip, and grand total separately. Do not guess; use exactly what is printed.",
+                "Analyze this image. First determine if it is a receipt. If yes, extract all purchased items, tax, tip, and grand total. If not, explain what the image shows instead.",
             },
             { type: "image_url", image_url: { url: image } },
           ],
@@ -128,6 +144,22 @@ RESPONSE FORMAT:
     });
 
     const result = JSON.parse(response.choices[0].message.content || "{}");
+
+    // ── Receipt validation gate ─────────────────────────────
+    if (result.is_receipt === false) {
+      console.log(`[OCR] Not a receipt: ${result.reason}`);
+      return new Response(
+        JSON.stringify({ 
+          error: "NOT_RECEIPT", 
+          reason: result.reason || "This image does not appear to be a receipt." 
+        }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
+
     if (!result.items || !Array.isArray(result.items)) {
       throw new Error("Invalid response format: missing items array");
     }
