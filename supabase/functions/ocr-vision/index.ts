@@ -151,12 +151,29 @@ RESPONSE FORMAT:
       }
     });
 
+    // ── Math validation ──────────────────────────────────────
+    const itemsSum = expandedItems.reduce((sum: number, item: any) => sum + item.price, 0);
+    const computedTotal = itemsSum + (result.tax || 0) + (result.tip || 0);
+    const reportedTotal = result.total || 0;
+    const discrepancy = reportedTotal > 0
+      ? Math.abs(computedTotal - reportedTotal) / reportedTotal
+      : 0;
+
+    // If items + tax + tip differs from reported total by >10%, flag it
+    const confidence = discrepancy > 0.10 ? "low" : "high";
+    if (confidence === "low") {
+      console.warn(
+        `[OCR] Math mismatch: items(${itemsSum.toFixed(2)}) + tax(${(result.tax || 0).toFixed(2)}) + tip(${(result.tip || 0).toFixed(2)}) = ${computedTotal.toFixed(2)}, but total = ${reportedTotal.toFixed(2)} (${(discrepancy * 100).toFixed(1)}% off)`
+      );
+    }
+
     return new Response(
       JSON.stringify({
         items: expandedItems,
         tax: result.tax || 0,
         tip: result.tip || 0,
         total: result.total || 0,
+        confidence,
         source: "openai-vision-edge",
       }),
       {
