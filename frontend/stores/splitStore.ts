@@ -103,116 +103,39 @@ export const useSplitStore = create<SplitState>((set, get) => ({
     saveReceipt: async (receiptName: string, receiptDate?: Date) => {
         const state = get();
         try {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) {
-                console.error("No authenticated user");
-                return false;
-            }
+            // Build the full payload for the server-side transaction
+            const payload = {
+                receipt_name: receiptName || "Untitled Receipt",
+                total_amount: state.receiptData.total || 0,
+                tax_amount: state.receiptData.tax || 0,
+                tip_amount: state.receiptData.tip || 0,
+                created_at: receiptDate?.toISOString() || new Date().toISOString(),
 
-            // 1. Insert receipt
-            const { data: receipt, error: receiptError } = await supabase
-                .from("receipts")
-                .insert({
-                    user_id: user.id,
-                    receipt_name: receiptName || "Untitled Receipt",
-                    total_amount: state.receiptData.total || 0,
-                    tax_amount: state.receiptData.tax || 0,
-                    tip_amount: state.receiptData.tip || 0,
-                    created_at: receiptDate?.toISOString() ||
-                        new Date().toISOString(),
-                })
-                .select()
-                .single();
+                // All line items
+                items: (state.receiptData.items || []).map((item) => ({
+                    id: item.id,       // frontend id for mapping
+                    name: item.name,
+                    price: item.price,
+                })),
 
-            if (receiptError) throw receiptError;
+                // All contacts with their assigned item ids
+                contacts: (state.selected || []).map((contact) => ({
+                    frontend_id: contact.id,
+                    name: contact.name,
+                    phone_number: contact.phoneNumber || "no-phone",
+                    item_ids: (contact.items || []).map((item) => item.id),
+                })),
+            };
 
-            let frontendToDbItemMap: Record<string, string> = {};
-            if (state.receiptData.items && state.receiptData.items.length > 0) {
-                const itemsToInsert = state.receiptData.items.map((item) => ({
-                    receipt_id: receipt.id,
-                    item_name: item.name,
-                    item_price: item.price,
-                }));
+            // Single atomic RPC call — everything saves or nothing does
+            const { data, error } = await supabase.rpc(
+                "save_receipt_transaction",
+                { payload },
+            );
 
-                const { data: insertedItems, error: itemsError } =
-                    await supabase
-                        .from("receipt_items")
-                        .insert(itemsToInsert)
-                        .select();
+            if (error) throw error;
 
-                if (itemsError) throw itemsError;
-
-                state.receiptData.items.forEach((item, index) => {
-                    if (insertedItems?.[index]) {
-                        frontendToDbItemMap[item.id] = insertedItems[index].id;
-                    }
-                });
-            }
-
-            if (state.selected && state.selected.length > 0) {
-                for (const contact of state.selected) {
-                    let insertedContact;
-                    const { data: existingContact, error: existingError } =
-                        await supabase
-                            .from("contacts")
-                            .select("id")
-                            .eq("user_id", user.id)
-                            .eq(
-                                "phone_number",
-                                contact.phoneNumber || "no-phone",
-                            )
-                            .limit(1)
-                            .maybeSingle();
-
-                    if (existingContact) {
-                        insertedContact = existingContact;
-                    } else {
-                        const { data: newContact, error: contactError } =
-                            await supabase
-                                .from("contacts")
-                                .insert({
-                                    user_id: user.id,
-                                    contact_name: contact.name,
-                                    phone_number: contact.phoneNumber,
-                                    contact_id: contact.id,
-                                })
-                                .select()
-                                .single();
-
-                        if (contactError) {
-                            console.error(
-                                "Contact insert error:",
-                                contactError.message,
-                            );
-                            continue;
-                        }
-                        insertedContact = newContact;
-                    }
-
-                    if (contact.items && contact.items.length > 0) {
-                        const assignments = contact.items
-                            .map((item) => ({
-                                item_id: frontendToDbItemMap[item.id],
-                                contact_id: insertedContact.id,
-                            }))
-                            .filter((a) => a.item_id);
-
-                        if (assignments.length > 0) {
-                            const { error: assignmentError } = await supabase
-                                .from("assignments")
-                                .insert(assignments);
-                            if (assignmentError) {
-                                console.error(
-                                    "Assignment error:",
-                                    assignmentError.message,
-                                );
-                            }
-                        }
-                    }
-                }
-            }
-
-            console.log("Receipt saved successfully via Zustand state");
+            console.log("Receipt saved atomically:", data);
             return true;
         } catch (error) {
             console.error("Save receipt error:", error);
