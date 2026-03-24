@@ -36,6 +36,7 @@ export const handleOCR = async (
 			body: { image: base64DataUrl },
 		});
 
+		// 1. Handle network-level or 500-level errors
 		if (error) {
 			let errorMessage = error.message;
 			let notReceiptReason = '';
@@ -50,10 +51,22 @@ export const handleOCR = async (
 			if (errorMessage === 'NOT_RECEIPT' || errorMessage.includes('NOT_RECEIPT')) {
 				throw new Error('NOT_RECEIPT:' + (notReceiptReason || 'This image does not appear to be a receipt.'));
 			}
-			if (errorMessage.includes('timed out') || errorMessage.includes('timeout')) {
+			if (errorMessage.includes('timed out') || errorMessage.includes('timeout') || errorMessage.includes('non-2xx')) {
+				// If we get a generic non-2xx but no context, it's likely a 500 or 401
+				if (errorMessage.includes('non-2xx')) {
+					throw new Error('SERVER_ERROR: ' + errorMessage);
+				}
 				throw new Error('TIMEOUT');
 			}
 			throw new Error(errorMessage);
+		}
+
+		// 2. Handle 200 OK responses that contain graceful errors (like NOT_RECEIPT)
+		if (extractedData?.error) {
+			if (extractedData.error === 'NOT_RECEIPT') {
+				throw new Error('NOT_RECEIPT:' + (extractedData.reason || 'This image does not appear to be a receipt.'));
+			}
+			throw new Error(extractedData.error);
 		}
 
 		setStatus("Extracting items...");
@@ -76,6 +89,7 @@ export const handleOCR = async (
 			throw new Error('UNRECOGNIZED');
 		}
 	} catch (err: any) {
+		console.error("🚨 Full OCR Error:", err);
 		const message = err?.message || '';
 
 		let title = 'Scan Failed';
