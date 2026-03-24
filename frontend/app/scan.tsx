@@ -8,6 +8,7 @@ import { useSplitStore } from '../stores/splitStore';
 import { useOCR } from '../utils/OCRContext';
 import { ActivityIndicator } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import * as ImageManipulator from 'expo-image-manipulator';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -42,17 +43,74 @@ export default function Scan() {
 
   const flashIcon = flash === 'off' ? 'flash-off' : flash === 'on' ? 'flash-on' : 'flash-auto';
 
+  // ── Image quality gate ───────────────────────────────────
+  // Downscale to a tiny thumbnail and check average brightness.
+  // Returns 'ok' | 'too-dark' | 'too-bright'
+  const checkImageQuality = async (uri: string): Promise<'ok' | 'too-dark' | 'too-bright'> => {
+    try {
+      const thumb = await ImageManipulator.manipulateAsync(
+        uri,
+        [{ resize: { width: 64 } }],
+        { compress: 0.5, format: ImageManipulator.SaveFormat.JPEG, base64: true }
+      );
+      if (!thumb.base64) return 'ok';
+
+      // Decode base64 → raw bytes and compute average brightness
+      const raw = atob(thumb.base64);
+      let sum = 0;
+      for (let i = 0; i < raw.length; i++) {
+        sum += raw.charCodeAt(i);
+      }
+      const avgBrightness = sum / raw.length; // 0–255 scale (approximate)
+
+      if (avgBrightness < 40) return 'too-dark';
+      if (avgBrightness > 240) return 'too-bright';
+      return 'ok';
+    } catch {
+      return 'ok'; // If check fails, don't block the user
+    }
+  };
+
   const takePicture = async () => {
     if (!cameraRef.current || capturing || !cameraReady) return;
 
     setCapturing(true);
     try {
       const photo = await cameraRef.current.takePictureAsync({
-        quality: 1, // Capture at high quality, compress later
+        quality: 1,
       });
 
       if (photo?.uri) {
-        console.log('Photo captured successfully');
+        // Quick quality check before burning an OCR API call
+        const quality = await checkImageQuality(photo.uri);
+
+        if (quality === 'too-dark') {
+          Alert.alert(
+            'Image Too Dark 🌑',
+            'The photo is very dark and may not scan accurately. Try turning on the flash or moving to better lighting.',
+            [
+              { text: 'Retake', style: 'cancel' },
+              { text: 'Use Anyway', onPress: () => handleOCR(photo.uri, updateReceiptData, setIsProcessing, setStatus, setError, router) },
+            ]
+          );
+          setCapturing(false);
+          return;
+        }
+
+        if (quality === 'too-bright') {
+          Alert.alert(
+            'Image Too Bright ☀️',
+            'The photo looks washed out. Try moving away from direct light or glare.',
+            [
+              { text: 'Retake', style: 'cancel' },
+              { text: 'Use Anyway', onPress: () => handleOCR(photo.uri, updateReceiptData, setIsProcessing, setStatus, setError, router) },
+            ]
+          );
+          setCapturing(false);
+          return;
+        }
+
+        console.log('Photo quality check passed');
         await handleOCR(photo.uri, updateReceiptData, setIsProcessing, setStatus, setError, router);
       }
     } catch (error) {
