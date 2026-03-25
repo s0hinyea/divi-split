@@ -1,226 +1,97 @@
-import { useState, useRef, useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Dimensions, Alert } from 'react-native';
+import { useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Alert, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
-import { CameraView, useCameraPermissions } from 'expo-camera';
-import { MaterialIcons } from '@expo/vector-icons';
 import { handleOCR } from '../utils/ocrUtil';
 import { useSplitStore } from '../stores/splitStore';
 import { useOCR } from '../utils/OCRContext';
 import { ActivityIndicator } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import * as ImageManipulator from 'expo-image-manipulator';
-
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
-
-// Guide frame dimensions (receipt-shaped — taller than wide)
-const FRAME_WIDTH = SCREEN_WIDTH * 0.82;
-const FRAME_HEIGHT = SCREEN_HEIGHT * 0.52;
-const FRAME_LEFT = (SCREEN_WIDTH - FRAME_WIDTH) / 2;
-const FRAME_TOP = (SCREEN_HEIGHT - FRAME_HEIGHT) / 2 - 40; // Shift up a bit to make room for capture button
-const CORNER_SIZE = 28;
-const CORNER_THICKNESS = 4;
-
-type FlashMode = 'off' | 'on' | 'auto';
+import { MaterialIcons } from '@expo/vector-icons';
+import DocumentScanner from 'react-native-document-scanner-plugin';
 
 export default function Scan() {
   const router = useRouter();
-  const cameraRef = useRef<CameraView>(null);
-  const [permission, requestPermission] = useCameraPermissions();
-  const [flash, setFlash] = useState<FlashMode>('off');
-  const [capturing, setCapturing] = useState(false);
-  const [cameraReady, setCameraReady] = useState(false);
+  const [launching, setLaunching] = useState(false);
   const updateReceiptData = useSplitStore((state) => state.updateReceiptData);
   const { setIsProcessing, setStatus, setError } = useOCR();
 
-  // Cycle flash: off → on → auto → off
-  const cycleFlash = () => {
-    setFlash((prev) => {
-      if (prev === 'off') return 'on';
-      if (prev === 'on') return 'auto';
-      return 'off';
-    });
-  };
+  // Launch the native document scanner automatically when screen loads
+  useEffect(() => {
+    launchScanner();
+  }, []);
 
-  const flashIcon = flash === 'off' ? 'flash-off' : flash === 'on' ? 'flash-on' : 'flash-auto';
+  const launchScanner = async () => {
+    if (launching) return;
+    setLaunching(true);
 
-  // ── Image quality gate ───────────────────────────────────
-  // Downscale to a tiny thumbnail and check average brightness.
-  // Returns 'ok' | 'too-dark' | 'too-bright'
-  const checkImageQuality = async (uri: string): Promise<'ok' | 'too-dark' | 'too-bright'> => {
     try {
-      const thumb = await ImageManipulator.manipulateAsync(
-        uri,
-        [{ resize: { width: 64 } }],
-        { compress: 0.5, format: ImageManipulator.SaveFormat.JPEG, base64: true }
-      );
-      if (!thumb.base64) return 'ok';
-
-      // Decode base64 → raw bytes and compute average brightness
-      const raw = atob(thumb.base64);
-      let sum = 0;
-      for (let i = 0; i < raw.length; i++) {
-        sum += raw.charCodeAt(i);
-      }
-      const avgBrightness = sum / raw.length; // 0–255 scale (approximate)
-
-      if (avgBrightness < 40) return 'too-dark';
-      if (avgBrightness > 240) return 'too-bright';
-      return 'ok';
-    } catch {
-      return 'ok'; // If check fails, don't block the user
-    }
-  };
-
-  const takePicture = async () => {
-    if (!cameraRef.current || capturing || !cameraReady) return;
-
-    setCapturing(true);
-    try {
-      const photo = await cameraRef.current.takePictureAsync({
-        quality: 1,
+      // Open Apple VisionKit's native document scanner
+      // It handles: edge detection, auto-capture, perspective correction, cropping
+      const result = await DocumentScanner.scanDocument({
+        // Max 1 page per scan session (one receipt)
+        maxNumDocuments: 1,
       });
 
-      if (photo?.uri) {
-        // Quick quality check before burning an OCR API call
-        const quality = await checkImageQuality(photo.uri);
+      if (result?.scannedImages && result.scannedImages.length > 0) {
+        const scannedUri = result.scannedImages[0];
+        console.log('Document scanned successfully:', scannedUri);
 
-        if (quality === 'too-dark') {
-          Alert.alert(
-            'Image Too Dark 🌑',
-            'The photo is very dark and may not scan accurately. Try turning on the flash or moving to better lighting.',
-            [
-              { text: 'Retake', style: 'cancel' },
-              { text: 'Use Anyway', onPress: () => handleOCR(photo.uri, updateReceiptData, setIsProcessing, setStatus, setError, router) },
-            ]
-          );
-          setCapturing(false);
-          return;
+        // Feed the cropped, perspective-corrected image into our existing OCR pipeline
+        await handleOCR(scannedUri, updateReceiptData, setIsProcessing, setStatus, setError, router);
+      } else {
+        // User cancelled the scanner — go back
+        console.log('Scanner cancelled by user');
+        if (router.canGoBack()) {
+          router.back();
+        } else {
+          router.replace('/(tabs)');
         }
-
-        if (quality === 'too-bright') {
-          Alert.alert(
-            'Image Too Bright ☀️',
-            'The photo looks washed out. Try moving away from direct light or glare.',
-            [
-              { text: 'Retake', style: 'cancel' },
-              { text: 'Use Anyway', onPress: () => handleOCR(photo.uri, updateReceiptData, setIsProcessing, setStatus, setError, router) },
-            ]
-          );
-          setCapturing(false);
-          return;
-        }
-
-        console.log('Photo quality check passed');
-        await handleOCR(photo.uri, updateReceiptData, setIsProcessing, setStatus, setError, router);
       }
-    } catch (error) {
-      console.error('Capture error:', error);
-      Alert.alert('Error', 'Failed to capture photo');
+    } catch (error: any) {
+      console.error('Document scanner error:', error);
+
+      // If the scanner plugin isn't available (e.g. running in Expo Go), fall back
+      if (error?.message?.includes('not available') || error?.message?.includes('null')) {
+        Alert.alert(
+          'Scanner Not Available',
+          'The document scanner requires a custom build. Please run "npx expo run:ios" to build the app with native modules.',
+          [{ text: 'OK', onPress: () => router.back() }]
+        );
+      } else {
+        Alert.alert('Scanner Error', error?.message || 'Something went wrong.', [
+          { text: 'OK', onPress: () => router.back() },
+        ]);
+      }
     } finally {
-      setCapturing(false);
+      setLaunching(false);
     }
   };
 
-  // ─── Permission states ───
-  if (!permission) {
-    // Still loading permission status
-    return (
-      <View style={s.centered}>
-        <ActivityIndicator size="large" />
-      </View>
-    );
-  }
-
-  if (!permission.granted) {
-    return (
-      <SafeAreaView style={s.permissionContainer}>
-        <MaterialIcons name="camera-alt" size={64} color="#888" />
-        <Text style={s.permissionTitle}>Camera Access Needed</Text>
-        <Text style={s.permissionSubtext}>
-          Divi needs camera access to scan your receipts.
-        </Text>
-        <TouchableOpacity style={s.permissionButton} onPress={requestPermission}>
-          <Text style={s.permissionButtonText}>Grant Access</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={s.backLink} onPress={() => router.back()}>
-          <Text style={s.backLinkText}>Go Back</Text>
-        </TouchableOpacity>
-      </SafeAreaView>
-    );
-  }
-
-  // ─── Camera view ───
+  // This screen is mostly a passthrough — the native scanner UI covers the screen.
+  // This fallback UI shows briefly while the scanner is launching.
   return (
-    <View style={s.container}>
-      {/* Camera feed */}
-      <CameraView
-        ref={cameraRef}
-        style={StyleSheet.absoluteFill}
-        facing="back"
-        flash={flash}
-        mode="picture"
-        onCameraReady={() => setCameraReady(true)}
-      />
-
-      {/* ─── Overlay layer (absolutely positioned on top of camera) ─── */}
-      <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
-
-        {/* Semi-transparent mask — top */}
-        <View style={[s.mask, { top: 0, left: 0, right: 0, height: FRAME_TOP }]} />
-        {/* Mask — bottom */}
-        <View style={[s.mask, { top: FRAME_TOP + FRAME_HEIGHT, left: 0, right: 0, bottom: 0 }]} />
-        {/* Mask — left */}
-        <View style={[s.mask, { top: FRAME_TOP, left: 0, width: FRAME_LEFT, height: FRAME_HEIGHT }]} />
-        {/* Mask — right */}
-        <View style={[s.mask, { top: FRAME_TOP, right: 0, width: FRAME_LEFT, height: FRAME_HEIGHT }]} />
-
-        {/* Corner brackets */}
-        {/* Top-left */}
-        <View style={[s.corner, { top: FRAME_TOP, left: FRAME_LEFT, borderTopWidth: CORNER_THICKNESS, borderLeftWidth: CORNER_THICKNESS }]} />
-        {/* Top-right */}
-        <View style={[s.corner, { top: FRAME_TOP, left: FRAME_LEFT + FRAME_WIDTH - CORNER_SIZE, borderTopWidth: CORNER_THICKNESS, borderRightWidth: CORNER_THICKNESS }]} />
-        {/* Bottom-left */}
-        <View style={[s.corner, { top: FRAME_TOP + FRAME_HEIGHT - CORNER_SIZE, left: FRAME_LEFT, borderBottomWidth: CORNER_THICKNESS, borderLeftWidth: CORNER_THICKNESS }]} />
-        {/* Bottom-right */}
-        <View style={[s.corner, { top: FRAME_TOP + FRAME_HEIGHT - CORNER_SIZE, left: FRAME_LEFT + FRAME_WIDTH - CORNER_SIZE, borderBottomWidth: CORNER_THICKNESS, borderRightWidth: CORNER_THICKNESS }]} />
-
-        {/* Hint text */}
-        <View style={[s.hintContainer, { top: FRAME_TOP - 40 }]}>
-          <Text style={s.hintText}>Position receipt within the frame</Text>
-        </View>
-
-        {/* ─── Top bar: back button & flash toggle ─── */}
-        <SafeAreaView style={s.topBar}>
-          <TouchableOpacity onPress={() => router.back()} style={s.topButton}>
-            <MaterialIcons name="arrow-back" size={28} color="white" />
-          </TouchableOpacity>
-
-          <TouchableOpacity onPress={cycleFlash} style={s.topButton}>
-            <MaterialIcons name={flashIcon} size={28} color="white" />
-          </TouchableOpacity>
-        </SafeAreaView>
-
-        {/* ─── Bottom bar: capture button ─── */}
-        <View style={s.bottomBar}>
-          <TouchableOpacity
-            style={[s.captureButton, capturing && s.captureButtonDisabled]}
-            onPress={takePicture}
-            disabled={capturing || !cameraReady}
-            activeOpacity={0.7}
-          >
-            {capturing ? (
-              <ActivityIndicator size="small" color="#333" />
-            ) : (
-              <View style={s.captureButtonInner} />
-            )}
-          </TouchableOpacity>
-        </View>
+    <SafeAreaView style={s.container}>
+      <View style={s.centered}>
+        <ActivityIndicator size="large" color="#205237" />
+        <Text style={s.loadingText}>Opening scanner...</Text>
       </View>
-    </View>
+
+      {/* Manual re-launch button in case user returns without scanning */}
+      {!launching && (
+        <View style={s.bottomBar}>
+          <TouchableOpacity style={s.retryButton} onPress={launchScanner} activeOpacity={0.7}>
+            <MaterialIcons name="document-scanner" size={24} color="#fff" />
+            <Text style={s.retryText}>Open Scanner</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={s.backButton} onPress={() => router.back()} activeOpacity={0.7}>
+            <Text style={s.backText}>Go Back</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+    </SafeAreaView>
   );
 }
 
-// ─── Styles ───
 const s = StyleSheet.create({
   container: {
     flex: 1,
@@ -230,126 +101,40 @@ const s = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#000',
+    gap: 16,
   },
-
-  // Permission screen
-  permissionContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#111',
-    paddingHorizontal: 32,
-  },
-  permissionTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#fff',
-    marginTop: 20,
-    marginBottom: 8,
-  },
-  permissionSubtext: {
-    fontSize: 15,
-    color: '#aaa',
-    textAlign: 'center',
-    marginBottom: 28,
-    lineHeight: 22,
-  },
-  permissionButton: {
-    backgroundColor: '#205237',
-    paddingVertical: 14,
-    paddingHorizontal: 36,
-    borderRadius: 12,
-    marginBottom: 16,
-  },
-  permissionButtonText: {
-    color: '#fff',
+  loadingText: {
+    color: 'rgba(255,255,255,0.7)',
     fontSize: 16,
-    fontWeight: '600',
-  },
-  backLink: {
-    padding: 8,
-  },
-  backLinkText: {
-    color: '#888',
-    fontSize: 14,
-  },
-
-  // Overlay mask
-  mask: {
-    position: 'absolute',
-    backgroundColor: 'rgba(0, 0, 0, 0.55)',
-  },
-
-  // Corner brackets
-  corner: {
-    position: 'absolute',
-    width: CORNER_SIZE,
-    height: CORNER_SIZE,
-    borderColor: '#fff',
-  },
-
-  // Hint
-  hintContainer: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-  },
-  hintText: {
-    color: 'rgba(255, 255, 255, 0.85)',
-    fontSize: 15,
     fontWeight: '500',
-    textShadowColor: 'rgba(0, 0, 0, 0.6)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
   },
-
-  // Top bar
-  topBar: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingTop: 8,
-  },
-  topButton: {
-    backgroundColor: 'rgba(0, 0, 0, 0.35)',
-    borderRadius: 22,
-    width: 44,
-    height: 44,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-
-  // Bottom bar
   bottomBar: {
     position: 'absolute',
     bottom: 50,
     left: 0,
     right: 0,
     alignItems: 'center',
+    gap: 12,
   },
-  captureButton: {
-    width: 76,
-    height: 76,
-    borderRadius: 38,
-    backgroundColor: '#fff',
-    justifyContent: 'center',
+  retryButton: {
+    flexDirection: 'row',
+    backgroundColor: '#205237',
+    paddingVertical: 14,
+    paddingHorizontal: 28,
+    borderRadius: 14,
     alignItems: 'center',
-    borderWidth: 4,
-    borderColor: 'rgba(255, 255, 255, 0.4)',
+    gap: 8,
   },
-  captureButtonDisabled: {
-    opacity: 0.5,
+  retryText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
-  captureButtonInner: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#fff',
+  backButton: {
+    padding: 8,
+  },
+  backText: {
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 14,
   },
 });
