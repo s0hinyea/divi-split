@@ -34,6 +34,9 @@ export const handleOCR = async (
 		setStatus("Analyzing receipt...");
 		const { data: extractedData, error } = await supabase.functions.invoke('ocr-vision', {
 			body: { image: base64DataUrl },
+			headers: {
+				Authorization: `Bearer ${session.access_token}`,
+			},
 		});
 
 		// 1. Handle network-level or 500-level errors

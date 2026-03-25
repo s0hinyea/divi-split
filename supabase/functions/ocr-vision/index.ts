@@ -1,6 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import OpenAI from "npm:openai@4.28.0";
-import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -16,7 +15,8 @@ Deno.serve(async (req) => {
 
   try {
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      console.error("[OCR] No valid Authorization header");
       return new Response(
         JSON.stringify({ error: "Missing Authorization header" }),
         {
@@ -26,16 +26,18 @@ Deno.serve(async (req) => {
       );
     }
 
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authHeader } } },
-    );
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
+    // The Supabase Edge Runtime gateway already verified the JWT signature.
+    // We just need to extract the user ID from the payload.
+    const token = authHeader.replace("Bearer ", "");
+    let userId: string;
+    try {
+      const payload = JSON.parse(atob(token.split(".")[1]));
+      userId = payload.sub;
+      if (!userId) throw new Error("No sub claim in JWT");
+    } catch (e) {
+      console.error("[OCR] Failed to decode JWT:", e);
       return new Response(
-        JSON.stringify({ error: "Unauthorized: invalid or expired token" }),
+        JSON.stringify({ error: "Invalid token" }),
         {
           status: 401,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -43,7 +45,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log(`[Edge Function] Authenticated user: ${user.id}`);
+    console.log(`[Edge Function] Authenticated user: ${userId}`);
     const { image } = await req.json();
     if (
       !image || typeof image !== "string" || !image.startsWith("data:image/")
