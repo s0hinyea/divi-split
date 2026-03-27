@@ -50,3 +50,5 @@ backend/node_modules/
 
 # Personal
 resume.md
+frontend/ios/
+frontend/android/
