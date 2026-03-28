@@ -1,5 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import OpenAI from "npm:openai@4.28.0";
+import OpenAI from "npm:openai@4.60.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -87,54 +87,17 @@ Deno.serve(async (req) => {
         {
           role: "system",
           content:
-            `You are an expert receipt parser. Your job is to analyze images and extract structured receipt data.
-
-STEP 1 — VALIDATION:
-First, determine if this image is an actual receipt, bill, or check from a restaurant/store.
-- A valid receipt has printed item names with prices, and usually a total.
-- If the image is NOT a receipt (e.g. a wall, a person, a menu without prices, a random document, a blank image), immediately return:
-  {"is_receipt": false, "reason": "Brief explanation of what the image actually shows"}
-- Do NOT attempt to extract items from non-receipt images. Do NOT hallucinate data.
-
-STEP 2 — EXTRACTION (only if it IS a receipt):
-If the image IS a valid receipt, set "is_receipt": true and extract the data:
-
-1. Return valid JSON only, exactly matching the format below.
-2. ITEMS: Extract EVERY individual item purchased (food, drinks). 
-   - NEVER include "Subtotal", "Tax", "Tip", or "Total" as an item in the items array.
-   - For names: Clean text, remove extra characters/symbols, but keep the item name descriptive.
-   - For quantity: Extract the number of items if shown (e.g., "2x Burgers" = quantity 2). If not specified, default to 1.
-   - Price MUST be the LINE TOTAL. (e.g., "2 Burgers @ 10.00 = 20.00" -> price: 20.00, quantity: 2).
-   - Use only numbers for prices (e.g., 12.99, not $12.99).
-3. TAX: Find the line explicitly labeled Tax (e.g. "Sales Tax", "Tax", "State Tax"). Enter the EXACT number. If no tax is found, use 0.
-4. TIP/GRATUITY: Find lines labeled "Tip", "Gratuity", or "Service Charge". Sum them up. If none, use 0.
-5. TOTAL: Find the Grand Total or Total. Enter the EXACT number.
-6. Verify your math: The sum of all item prices + tax + tip MUST roughly equal the Total. If it does not, re-scan carefully.
-
-RESPONSE FORMAT (valid receipt):
-{
-  "is_receipt": true,
-  "items": [
-    {"id": "unique-id", "name": "Item Name", "price": 20.00, "quantity": 2}
-  ],
-  "tax": 2.50,
-  "tip": 0,
-  "total": 22.50
-}
-
-RESPONSE FORMAT (not a receipt):
-{
-  "is_receipt": false,
-  "reason": "Image shows a restaurant menu, not a receipt."
-}`,
+            `You are an expert receipt parser. Analyze the image and extract structured receipt data according to the schema.
+- If the image is NOT a valid receipt (e.g. a person, wall, blank image), set is_receipt to false.
+- Do NOT include 'Subtotal', 'Tax', 'Tip', or 'Total' as items.
+- Price MUST be the LINE TOTAL for that item.`
         },
         {
           role: "user",
           content: [
             {
               type: "text",
-              text:
-                "Analyze this image. First determine if it is a receipt. If yes, extract all purchased items, tax, tip, and grand total. If not, explain what the image shows instead.",
+              text: "Extract all purchased items, tax, tip, and grand total.",
             },
             { type: "image_url", image_url: { url: image } },
           ],
@@ -142,7 +105,40 @@ RESPONSE FORMAT (not a receipt):
       ],
       max_tokens: 1000,
       temperature: 0.1,
-      response_format: { type: "json_object" },
+      response_format: {
+        type: "json_schema",
+        json_schema: {
+          name: "receipt_extraction",
+          strict: true,
+          schema: {
+            type: "object",
+            properties: {
+              is_receipt: { type: "boolean", description: "True if image is a valid receipt." },
+              reason: { type: "string", description: "If is_receipt is false, briefly explain what the image is." },
+              items: {
+                type: "array",
+                description: "Every individual item purchased. NEVER include Subtotal, Tax, Tip, or Total.",
+                items: {
+                  type: "object",
+                  properties: {
+                    id: { type: "string" },
+                    name: { type: "string", description: "Cleaned item name" },
+                    price: { type: "number", description: "The LINE TOTAL using only numbers" },
+                    quantity: { type: "number", description: "The number of items shown. Default 1" }
+                  },
+                  required: ["id", "name", "price", "quantity"],
+                  additionalProperties: false
+                }
+              },
+              tax: { type: "number", description: "Exact tax amount. 0 if none." },
+              tip: { type: "number", description: "Exact tip amount. 0 if none." },
+              total: { type: "number", description: "The grand total. 0 if none." }
+            },
+            required: ["is_receipt", "reason", "items", "tax", "tip", "total"],
+            additionalProperties: false
+          }
+        }
+      },
     });
 
     const result = JSON.parse(response.choices[0].message.content || "{}");

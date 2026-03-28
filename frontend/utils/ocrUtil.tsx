@@ -21,8 +21,8 @@ export const handleOCR = async (
 		setStatus("Compressing image...");
 		const manipulatedImage = await ImageManipulator.manipulateAsync(
 			imageUri,
-			[{ resize: { width: 2048 } }],
-			{ compress: 0.85, format: ImageManipulator.SaveFormat.JPEG, base64: true }
+			[{ resize: { width: 1024 } }],
+			{ compress: 0.7, format: ImageManipulator.SaveFormat.JPEG, base64: true }
 		);
 		const base64DataUrl = `data:image/jpeg;base64,${manipulatedImage.base64}`;
 
