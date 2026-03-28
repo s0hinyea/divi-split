@@ -146,6 +146,11 @@ RESPONSE FORMAT (not a receipt):
     });
 
     const result = JSON.parse(response.choices[0].message.content || "{}");
+    const usage = response.usage || { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 };
+    
+    // Cost calculation (gpt-4o-mini: $0.150/1M input, $0.600/1M output)
+    const costInCents = ((usage.prompt_tokens / 1_000_000) * 0.15 + (usage.completion_tokens / 1_000_000) * 0.60) * 100;
+    console.log(`[OCR] Usage: ${usage.total_tokens} tokens | Cost: ¢${costInCents.toFixed(4)}`);
 
     // ── Receipt validation gate ─────────────────────────────
     if (result.is_receipt === false) {
@@ -209,6 +214,10 @@ RESPONSE FORMAT (not a receipt):
         total: result.total || 0,
         confidence,
         source: "openai-vision-edge",
+        usage: {
+          totalTokens: usage.total_tokens,
+          costCents: costInCents,
+        }
       }),
       {
         status: 200,

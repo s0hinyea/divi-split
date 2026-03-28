@@ -89,13 +89,17 @@ async function runTest({ name, image, expected }) {
     throw new Error(`HTTP ${res.status} — ${JSON.stringify(body)}`);
   }
 
-  const { items = [], tax, tip, total, confidence } = body;
+  const { items = [], tax, tip, total, confidence, usage } = body;
 
   console.log(`  items      : ${items.length}`);
   console.log(`  tax        : ${tax}`);
   console.log(`  tip        : ${tip}`);
   console.log(`  total      : ${total}`);
   console.log(`  confidence : ${confidence}`);
+  if (usage) {
+    console.log(`  tokens     : ${usage.totalTokens}`);
+    console.log(`  cost       : ¢${usage.costCents.toFixed(4)}`);
+  }
 
   assert.equal(
     items.length,
