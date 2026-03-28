@@ -13,11 +13,12 @@
   "devDependencies": {
     "@types/react": "~19.1.10",
     "concurrently": "^8.2.2",
+    "docx": "^9.6.1",
     "typescript": "~5.9.2"
   },
   "dependencies": {
+    "expo": "latest",
     "react": "^19.1.0",
-    "react-native": "^0.80.0",
-    "expo": "latest"
+    "react-native": "^0.80.0"
   }
 }

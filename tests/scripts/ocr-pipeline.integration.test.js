@@ -74,6 +74,7 @@ async function runTest({ name, image, expected }) {
   const base64 = imageToBase64DataUrl(image);
   const token = process.env.TEST_JWT ?? makeFakeJwt();
 
+  const startTime = performance.now();
   const res = await fetch(FUNCTION_URL, {
     method: 'POST',
     headers: {
@@ -84,6 +85,7 @@ async function runTest({ name, image, expected }) {
   });
 
   const body = await res.json();
+  const durationMs = Math.round(performance.now() - startTime);
 
   if (!res.ok) {
     throw new Error(`HTTP ${res.status} — ${JSON.stringify(body)}`);
@@ -100,6 +102,7 @@ async function runTest({ name, image, expected }) {
     console.log(`  tokens     : ${usage.totalTokens}`);
     console.log(`  cost       : ¢${usage.costCents.toFixed(4)}`);
   }
+  console.log(`  time       : ${durationMs}ms`);
 
   assert.equal(
     items.length,
