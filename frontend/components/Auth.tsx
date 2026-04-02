@@ -330,6 +330,24 @@ export default function Auth({ initialMode }: AuthProps) {
 					Alert.alert("Error", error.message);
 				}
 			} else if (user) {
+				// Save profile data directly into the profiles table
+				// (Supabase Auth only stores it in raw_user_meta_data, which ProfileContext doesn't read)
+				const { error: profileError } = await supabase
+					.from('profiles')
+					.upsert({
+						id: user.id,
+						full_name: fullName.trim(),
+						username: username.toLowerCase().trim(),
+						venmo_handle: sanitizeHandle(venmo, '@'),
+						cashapp_handle: sanitizeHandle(cashapp, '$'),
+						updated_at: new Date().toISOString(),
+					});
+
+				if (profileError) {
+					console.warn('Profile upsert after signup failed:', profileError);
+					// Non-blocking — the account was still created successfully
+				}
+
 				Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 				if (user.email_confirmed_at) {
 					router.replace("/(tabs)");
