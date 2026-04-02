@@ -16,6 +16,7 @@ import { ProfileProvider } from "@/utils/ProfileContext";
 import { HistoryProvider } from "@/utils/HistoryContext";
 import AnimatedSplash from "@/components/AnimatedSplash";
 import CompletionOverlay from "@/components/CompletionOverlay";
+import NetworkBanner from "@/components/NetworkBanner";
 import { SessionProvider, useSession } from "@/utils/SessionContext";
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
@@ -122,6 +123,7 @@ function RootShell({ loaded }: { loaded: boolean }) {
                     <Stack.Screen name="+not-found" />
                   </Stack>
                   <StatusBar style="dark" />
+                  <NetworkBanner />
                   <CompletionOverlay />
                 </ThemeProvider>
               </PaperProvider>

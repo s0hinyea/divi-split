@@ -1,4 +1,5 @@
-import { View, StyleSheet, SafeAreaView, KeyboardAvoidingView, Platform, Keyboard, TouchableWithoutFeedback } from "react-native";
+import { View, StyleSheet, KeyboardAvoidingView, Platform, Keyboard, TouchableWithoutFeedback } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import Auth from "../components/Auth";
 import { useLocalSearchParams } from "expo-router";
 import { colors, spacing } from '@/styles/theme';

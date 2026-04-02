@@ -68,6 +68,23 @@ export default function Profile() {
         }
     };
 
+    const handleAccountDeletion = () => {
+        Alert.alert(
+            "Delete Account",
+            "To permanently delete your account and all associated receipt data, please email us from the email associated with your account.\n\nWe will process the deletion within 30 days.",
+            [
+                {text: "Cancel", style: "cancel"},
+                {
+                    text: "Email Support",
+                    style: "destructive",
+                    onPress: () => {
+                        Linking.openURL(`mailto:suppport@divi.app?subject=Account Deletion Request&body=Please delete my account associated with this email address: ${session?.user?.email}`);
+                    }
+                }
+            ]
+        );
+    };
+
     const handleSave = async () => {
         // Validation
         const cleanUsername = formData.username.replace('@', '').trim();
@@ -312,7 +329,7 @@ export default function Profile() {
                         <Text style={styles.signOutText}>Sign Out</Text>
                     </TouchableOpacity>
 
-                    <TouchableOpacity style={{ marginTop: spacing.md }}>
+                    <TouchableOpacity style={{ marginTop: spacing.md }} onPress={handleAccountDeletion}>
                         <Text style={styles.deleteText}>Delete Account</Text>
                     </TouchableOpacity>
                 </View>
