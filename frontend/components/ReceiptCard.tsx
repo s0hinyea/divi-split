@@ -1,7 +1,8 @@
 import { View, StyleSheet } from 'react-native';
 import { useState } from 'react';
 import Svg, { Path } from 'react-native-svg';
-import { colors, spacing } from '@/styles/theme';
+import { spacing } from '@/styles/theme';
+import { useThemeColors } from '@/utils/ThemeContext';
 
 interface ReceiptCardProps {
     children: React.ReactNode;
@@ -16,6 +17,7 @@ export default function ReceiptCard({
     showTopZigzag = true,
     showBottomZigzag = true
 }: ReceiptCardProps) {
+    const C = useThemeColors();
     const [dimensions, setDimensions] = useState({ width: 300, height: 200 });
     const zigzagHeight = 10;
     const zigzagWidth = 16;
@@ -80,8 +82,8 @@ export default function ReceiptCard({
             >
                 <Path
                     d={createZigzagPath()}
-                    fill={colors.white}
-                    stroke={colors.black}
+                    fill={C.white}
+                    stroke={C.gray300}
                     strokeWidth={2}
                 />
             </Svg>

@@ -5,26 +5,132 @@ import {
     Modal,
     RefreshControl,
     Alert,
-    ActivityIndicator
+    ActivityIndicator,
 } from 'react-native';
 import { Text, Icon } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { BlurView } from 'expo-blur';
 
 import { supabase } from '@/lib/supabase';
 import { TouchableOpacity as GHTouchableOpacity, ScrollView } from 'react-native-gesture-handler';
 import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import { MaterialIcons } from '@expo/vector-icons';
-import { colors, fonts, fontSizes, spacing, radii } from '@/styles/theme';
+import { fonts, fontSizes, spacing, radii } from '@/styles/theme';
+import { useThemeColors } from '@/utils/ThemeContext';
 
 import { useHistory, Receipt } from '@/utils/HistoryContext';
 import { useProfile } from '@/utils/ProfileContext';
 import * as SMS from 'expo-sms';
 import { allocateAmount } from '@/utils/mathUtil';
 import { getUserFacingErrorMessage } from '@/utils/network';
+import { HistorySkeleton } from '@/components/SkeletonLoader';
+
+function createStyles(C: ReturnType<typeof useThemeColors>) {
+    return StyleSheet.create({
+        container: { flex: 1, backgroundColor: C.gray100 },
+        header: { padding: spacing.lg, paddingBottom: spacing.md },
+        title: {
+            fontFamily: fonts.bodyBold,
+            fontSize: fontSizes.xxl,
+            color: C.black,
+        },
+        scrollContainer: { flex: 1 },
+        scrollContent: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxxl },
+
+        emptyState: { alignItems: 'center', paddingVertical: spacing.xxl },
+        emptyTitle: { fontFamily: fonts.body, fontSize: fontSizes.md, color: C.gray600, fontWeight: '600' },
+        emptySubtitle: { fontFamily: fonts.body, fontSize: fontSizes.sm, color: C.gray400, marginTop: spacing.xs },
+
+        swipeHint: { fontSize: fontSizes.sm, color: C.gray400, marginBottom: spacing.md, fontStyle: 'italic', fontFamily: fonts.body },
+
+        receiptCard: {
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            backgroundColor: C.white,
+            padding: spacing.md,
+            borderRadius: radii.md,
+            marginBottom: spacing.sm,
+        },
+        receiptInfo: { flex: 1 },
+        receiptName: { fontFamily: fonts.bodySemiBold, fontSize: fontSizes.md, color: C.black },
+        receiptDate: { fontFamily: fonts.body, fontSize: fontSizes.xs, color: C.gray600, marginTop: 2 },
+        receiptTotal: { fontFamily: fonts.bodySemiBold, fontSize: fontSizes.lg, color: C.green },
+
+        deleteAction: {
+            backgroundColor: C.error,
+            justifyContent: 'center',
+            alignItems: 'center',
+            width: 80,
+            borderRadius: radii.md,
+            marginBottom: spacing.sm,
+        },
+
+        loadMoreButton: { padding: spacing.md, alignItems: 'center', marginVertical: spacing.sm },
+        loadMoreText: { color: C.green, fontSize: fontSizes.md, fontFamily: fonts.body },
+
+        modalOverlay: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+        modalContainer: {
+            backgroundColor: C.white,
+            borderRadius: radii.lg,
+            width: '85%',
+            maxHeight: '70%',
+            padding: spacing.lg,
+        },
+        modalHeader: {
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: spacing.md,
+        },
+        modalTitle: { fontFamily: fonts.bodyBold, fontSize: fontSizes.xl, color: C.black, flex: 1 },
+        closeButton: { padding: spacing.xs },
+        modalContent: { maxHeight: 300 },
+        modalDate: { fontSize: fontSizes.sm, color: C.gray600, marginBottom: spacing.md, fontFamily: fonts.body },
+        modalItem: {
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            paddingVertical: spacing.sm,
+            borderBottomWidth: 1,
+            borderBottomColor: C.gray200,
+        },
+        modalItemName: { fontFamily: fonts.body, fontSize: fontSizes.md, color: C.black },
+        modalItemPrice: { fontFamily: fonts.body, fontSize: fontSizes.md, color: C.gray800 },
+        modalTotal: {
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            paddingTop: spacing.md,
+            marginTop: spacing.sm,
+            borderTopWidth: 2,
+            borderTopColor: C.gray200,
+        },
+        modalTotalLabel: { fontFamily: fonts.bodySemiBold, fontSize: fontSizes.lg, color: C.black },
+        modalTotalAmount: { fontFamily: fonts.bodyBold, fontSize: fontSizes.lg, color: C.black },
+        modalActions: { gap: spacing.md, marginTop: spacing.xxl },
+        modalActionButton: {
+            backgroundColor: C.black,
+            flexDirection: 'row',
+            paddingVertical: spacing.md,
+            borderRadius: radii.md,
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: spacing.sm,
+        },
+        modalActionText: {
+            fontFamily: fonts.bodySemiBold,
+            fontSize: fontSizes.md,
+            color: C.gray100,
+        },
+        modalCloseButton: { backgroundColor: C.gray200, paddingVertical: spacing.md, borderRadius: radii.md, alignItems: 'center' },
+        modalCloseText: { fontFamily: fonts.bodySemiBold, fontSize: fontSizes.md, color: C.black },
+    });
+}
 
 export default function History() {
+    const C = useThemeColors();
+    const styles = useMemo(() => createStyles(C), [C]);
+
     const { receipts, loading, hasMore, fetchReceipts, deleteReceipt: contextDeleteReceipt, refreshReceipts } = useHistory();
     const [selectedReceipt, setSelectedReceipt] = useState<Receipt | null>(null);
     const [loadingMore, setLoadingMore] = useState(false);
@@ -95,17 +201,15 @@ export default function History() {
                 return;
             }
 
-            // Reconstruct who got what
-            const contactMap = new Map(); // id -> { name, phoneNumber, items[] }
+            const contactMap = new Map();
 
             for (const assignment of assignments || []) {
-                // Supabase joins single relations as an object or array depending on schema constraints.
                 let contact = assignment.contacts as any;
                 if (Array.isArray(contact)) {
                     contact = contact[0];
                 }
                 if (!contact) continue;
-                
+
                 if (!contactMap.has(contact.id)) {
                     contactMap.set(contact.id, {
                         id: contact.id,
@@ -114,7 +218,7 @@ export default function History() {
                         items: []
                     });
                 }
-                
+
                 const item = selectedReceipt.receipt_items.find(i => i.id === assignment.item_id);
                 if (item) {
                     contactMap.get(contact.id).items.push(item);
@@ -211,7 +315,7 @@ export default function History() {
             style={styles.deleteAction}
             onPress={() => handleDelete(receipt.id)}
         >
-            <MaterialIcons name="delete" size={28} color={colors.white} />
+            <MaterialIcons name="delete" size={28} color="#FFFFFF" />
         </TouchableOpacity>
     );
 
@@ -228,12 +332,12 @@ export default function History() {
                     <RefreshControl
                         refreshing={refreshing}
                         onRefresh={onRefresh}
-                        tintColor={colors.green}
+                        tintColor={C.green}
                     />
                 }
             >
                 {loading ? (
-                    <Text style={styles.statusText}>Loading receipts...</Text>
+                    <HistorySkeleton />
                 ) : receipts.length === 0 ? (
                     <View style={styles.emptyState}>
                         <Text style={styles.emptyTitle}>No receipts yet</Text>
@@ -301,7 +405,7 @@ export default function History() {
                                 onPress={() => { setShowModal(false); setSelectedReceipt(null); }}
                                 style={styles.closeButton}
                             >
-                                <Icon source="close" size={24} color={colors.gray600} />
+                                <Icon source="close" size={24} color={C.gray600} />
                             </TouchableOpacity>
                         </View>
 
@@ -339,10 +443,10 @@ export default function History() {
                                 activeOpacity={0.7}
                             >
                                 {resending ? (
-                                    <ActivityIndicator size="small" color={colors.white} />
+                                    <ActivityIndicator size="small" color={C.gray100} />
                                 ) : (
                                     <>
-                                        <Icon source="message-text" size={20} color={colors.white} />
+                                        <Icon source="message-text" size={20} color={C.gray100} />
                                         <Text style={styles.modalActionText}>Resend SMS</Text>
                                     </>
                                 )}
@@ -362,109 +466,3 @@ export default function History() {
         </SafeAreaView>
     );
 }
-
-const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: colors.gray100 },
-    header: { padding: spacing.lg, paddingBottom: spacing.md },
-    title: {
-        fontFamily: fonts.bodyBold,
-        fontSize: fontSizes.xxl,
-        color: colors.black,
-    },
-    scrollContainer: { flex: 1 },
-    scrollContent: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxxl },
-
-
-    emptyState: { alignItems: 'center', paddingVertical: spacing.xxl },
-    emptyTitle: { fontFamily: fonts.body, fontSize: fontSizes.md, color: colors.gray600, fontWeight: '600' },
-    emptySubtitle: { fontFamily: fonts.body, fontSize: fontSizes.sm, color: colors.gray400, marginTop: spacing.xs },
-
-
-    statusText: { fontFamily: fonts.body, fontSize: fontSizes.sm, color: colors.gray400, textAlign: 'center', paddingVertical: spacing.xl },
-    swipeHint: { fontSize: fontSizes.sm, color: colors.gray400, marginBottom: spacing.md, fontStyle: 'italic', fontFamily: fonts.body },
-
-
-    receiptCard: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        backgroundColor: colors.white,
-        padding: spacing.md,
-        borderRadius: radii.md,
-        marginBottom: spacing.sm,
-    },
-    receiptInfo: { flex: 1 },
-    receiptName: { fontFamily: fonts.bodySemiBold, fontSize: fontSizes.md, color: colors.black },
-    receiptDate: { fontFamily: fonts.body, fontSize: fontSizes.xs, color: colors.gray600, marginTop: 2 },
-    receiptTotal: { fontFamily: fonts.bodySemiBold, fontSize: fontSizes.lg, color: colors.green },
-
-
-    deleteAction: {
-        backgroundColor: colors.error,
-        justifyContent: 'center',
-        alignItems: 'center',
-        width: 80,
-        borderRadius: radii.md,
-        marginBottom: spacing.sm,
-    },
-
-
-    loadMoreButton: { padding: spacing.md, alignItems: 'center', marginVertical: spacing.sm },
-    loadMoreText: { color: colors.green, fontSize: fontSizes.md, fontFamily: fonts.body },
-
-
-    modalOverlay: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-    modalContainer: {
-        backgroundColor: colors.white,
-        borderRadius: radii.lg,
-        width: '85%',
-        maxHeight: '70%',
-        padding: spacing.lg,
-    },
-    modalHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: spacing.md,
-    },
-    modalTitle: { fontFamily: fonts.bodyBold, fontSize: fontSizes.xl, color: colors.black, flex: 1 },
-    closeButton: { padding: spacing.xs },
-    modalContent: { maxHeight: 300 },
-    modalDate: { fontSize: fontSizes.sm, color: colors.gray600, marginBottom: spacing.md, fontFamily: fonts.body },
-    modalItem: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        paddingVertical: spacing.sm,
-        borderBottomWidth: 1,
-        borderBottomColor: colors.gray200,
-    },
-    modalItemName: { fontFamily: fonts.body, fontSize: fontSizes.md, color: colors.black },
-    modalItemPrice: { fontFamily: fonts.body, fontSize: fontSizes.md, color: colors.gray800 },
-    modalTotal: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        paddingTop: spacing.md,
-        marginTop: spacing.sm,
-        borderTopWidth: 2,
-        borderTopColor: colors.black,
-    },
-    modalTotalLabel: { fontFamily: fonts.bodySemiBold, fontSize: fontSizes.lg, color: colors.black },
-    modalTotalAmount: { fontFamily: fonts.bodyBold, fontSize: fontSizes.lg, color: colors.black },
-    modalActions: { gap: spacing.md, marginTop: spacing.xxl },
-    modalActionButton: {
-        backgroundColor: colors.black,
-        flexDirection: 'row',
-        paddingVertical: spacing.md,
-        borderRadius: radii.md,
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: spacing.sm,
-    },
-    modalActionText: {
-        fontFamily: fonts.bodySemiBold,
-        fontSize: fontSizes.md,
-        color: colors.white,
-    },
-    modalCloseButton: { backgroundColor: colors.gray200, paddingVertical: spacing.md, borderRadius: radii.md, alignItems: 'center' },
-    modalCloseText: { fontFamily: fonts.bodySemiBold, fontSize: fontSizes.md, color: colors.black },
-});

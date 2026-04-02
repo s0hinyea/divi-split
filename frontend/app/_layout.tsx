@@ -1,5 +1,6 @@
 import {
   DefaultTheme,
+  DarkTheme,
   ThemeProvider,
 } from "@react-navigation/native";
 import { useFonts } from "expo-font";
@@ -18,6 +19,7 @@ import AnimatedSplash from "@/components/AnimatedSplash";
 import CompletionOverlay from "@/components/CompletionOverlay";
 import NetworkBanner from "@/components/NetworkBanner";
 import { SessionProvider, useSession } from "@/utils/SessionContext";
+import { AppThemeProvider, useIsDark } from "@/utils/ThemeContext";
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync().catch(() => {
@@ -48,14 +50,17 @@ export default function RootLayout() {
   }
 
   return (
-    <SessionProvider>
-      <RootShell loaded={loaded} />
-    </SessionProvider>
+    <AppThemeProvider>
+      <SessionProvider>
+        <RootShell loaded={loaded} />
+      </SessionProvider>
+    </AppThemeProvider>
   );
 }
 
 function RootShell({ loaded }: { loaded: boolean }) {
   const { isLoading } = useSession();
+  const isDark = useIsDark();
   const [splashComplete, setSplashComplete] = useState(false);
 
   useEffect(() => {
@@ -87,7 +92,7 @@ function RootShell({ loaded }: { loaded: boolean }) {
             <GestureHandlerRootView style={{ flex: 1 }}>
               <PaperProvider>
                 <ThemeProvider
-                  value={DefaultTheme}
+                  value={isDark ? DarkTheme : DefaultTheme}
                 >
                   <Stack
                     screenOptions={{
@@ -122,7 +127,7 @@ function RootShell({ loaded }: { loaded: boolean }) {
                     />
                     <Stack.Screen name="+not-found" />
                   </Stack>
-                  <StatusBar style="dark" />
+                  <StatusBar style={isDark ? "light" : "dark"} />
                   <NetworkBanner />
                   <CompletionOverlay />
                 </ThemeProvider>

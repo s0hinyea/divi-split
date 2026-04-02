@@ -1,11 +1,12 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, StyleSheet, TouchableOpacity, ScrollView, Alert, TextInput, Image, RefreshControl, Linking } from 'react-native';
 import { Text, ActivityIndicator } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { MaterialIcons } from '@expo/vector-icons';
-import { colors, fonts, fontSizes, spacing, radii, shadows } from '@/styles/theme';
+import { fonts, fontSizes, spacing, radii } from '@/styles/theme';
+import { useThemeColors } from '@/utils/ThemeContext';
 import { useProfile } from '@/utils/ProfileContext';
 import * as ImagePicker from 'expo-image-picker';
 import { useSession } from '@/utils/SessionContext';
@@ -16,10 +17,115 @@ const VenmoLogo = require('@/assets/images/venmo.png');
 const CashAppLogo = require('@/assets/images/cashapp.png');
 const ZelleLogo = require('@/assets/images/zelle.png');
 
+function createStyles(C: ReturnType<typeof useThemeColors>) {
+    return StyleSheet.create({
+        container: { flex: 1, backgroundColor: C.gray100 },
+        centered: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: C.gray100 },
+        header: {
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            paddingHorizontal: spacing.lg,
+            paddingVertical: spacing.md,
+        },
+        title: { fontFamily: fonts.bodyBold, fontSize: 28, color: C.black },
+        editButton: { fontFamily: fonts.bodyBold, fontSize: fontSizes.md, color: C.green },
+
+        scrollView: { flex: 1 },
+        content: { padding: spacing.lg, paddingBottom: 100 },
+
+        // Hero
+        section: { marginBottom: spacing.xl },
+        heroContainer: { alignItems: 'center' },
+        avatarContainer: { position: 'relative', marginBottom: spacing.md },
+        avatar: { width: 100, height: 100, borderRadius: 50 },
+        avatarPlaceholder: {
+            backgroundColor: C.white,
+            justifyContent: 'center' as const,
+            alignItems: 'center' as const,
+            borderWidth: 1,
+            borderColor: C.gray200,
+        },
+        cameraIcon: {
+            position: 'absolute', bottom: 0, right: 0,
+            backgroundColor: C.black, padding: 6, borderRadius: radii.full,
+            borderWidth: 2, borderColor: C.gray100,
+        },
+        heroTextContainer: { alignItems: 'center' },
+        heroName: { fontFamily: fonts.bodyBold, fontSize: fontSizes.xl, color: C.black, marginBottom: 4 },
+        heroUsername: { fontFamily: fonts.body, fontSize: fontSizes.md, color: C.gray500 },
+
+        editHeroInputs: { width: '100%', alignItems: 'center' as const, gap: 8 },
+        heroInputName: {
+            fontFamily: fonts.bodyBold, fontSize: fontSizes.xl,
+            color: C.black, textAlign: 'center' as const,
+            borderBottomWidth: 1, borderBottomColor: C.gray300,
+            paddingBottom: 4, width: '60%',
+        },
+        heroInputUser: {
+            fontFamily: fonts.body, fontSize: fontSizes.md,
+            color: C.gray600, textAlign: 'center' as const,
+            borderBottomWidth: 1, borderBottomColor: C.gray300,
+            width: '40%',
+        },
+
+        // Sections
+        sectionTitle: { fontFamily: fonts.bodyBold, fontSize: fontSizes.lg, color: C.gray600, marginBottom: spacing.sm, marginLeft: spacing.xs },
+        card: {
+            backgroundColor: C.white,
+            borderRadius: radii.lg,
+            padding: spacing.md,
+            marginBottom: spacing.xl,
+            shadowColor: '#000000',
+            shadowOffset: { width: 0, height: 1 },
+            shadowOpacity: 0.05,
+            shadowRadius: 2,
+            elevation: 2,
+        },
+        row: { flexDirection: 'row' as const, alignItems: 'center' as const, paddingVertical: spacing.sm },
+        divider: { height: 1, backgroundColor: C.gray200, marginVertical: spacing.xs },
+
+        iconContainer: {
+            width: 36, height: 36, borderRadius: radii.md,
+            backgroundColor: C.white,
+            justifyContent: 'center' as const, alignItems: 'center' as const,
+            marginRight: spacing.md,
+            borderWidth: 1, borderColor: C.gray200,
+        },
+        venmoIcon: { width: 45, height: 45 },
+        cashAppIcon: { width: 26, height: 26 },
+        zelleIcon: { width: 32, height: 32 },
+        inputWrapper: { flex: 1 },
+        label: { fontFamily: fonts.bodyBold, fontSize: 12, color: C.gray500, marginBottom: 2 },
+        value: { fontFamily: fonts.bodySemiBold, fontSize: fontSizes.md, color: C.black },
+        input: {
+            fontFamily: fonts.body, fontSize: fontSizes.md, color: C.black,
+            borderBottomWidth: 1, borderBottomColor: C.green, paddingVertical: 0,
+        },
+
+        // Settings
+        settingLabel: { flex: 1, fontFamily: fonts.bodySemiBold, fontSize: fontSizes.md, color: C.black },
+
+        // Footer
+        footer: { alignItems: 'center' as const, marginTop: spacing.lg },
+        email: { fontFamily: fonts.body, fontSize: fontSizes.sm, color: C.gray400, marginBottom: spacing.lg },
+        signOutButton: {
+            width: '100%', backgroundColor: C.white,
+            paddingVertical: 14, borderRadius: radii.md,
+            borderWidth: 1, borderColor: C.gray300,
+            alignItems: 'center' as const,
+        },
+        signOutText: { fontFamily: fonts.bodySemiBold, fontSize: fontSizes.md, color: C.black },
+        deleteText: { fontFamily: fonts.body, fontSize: fontSizes.sm, color: C.error },
+    });
+}
+
 export default function Profile() {
     const { session } = useSession();
     const { profile, loading, updateProfile, refreshProfile } = useProfile();
     const router = useRouter();
+    const C = useThemeColors();
+    const styles = useMemo(() => createStyles(C), [C]);
 
     const [refreshing, setRefreshing] = useState(false);
 
@@ -31,7 +137,6 @@ export default function Profile() {
             setRefreshing(false);
         }
     }, []);
-
 
     const [isEditing, setIsEditing] = useState(false);
     const [formData, setFormData] = useState({
@@ -57,11 +162,7 @@ export default function Profile() {
     const handleSignOut = async () => {
         try {
             const { error } = await supabase.auth.signOut();
-
-            if (error) {
-                throw error;
-            }
-
+            if (error) throw error;
             router.replace('/home');
         } catch (error) {
             Alert.alert('Error signing out', getUserFacingErrorMessage(error, 'Unable to sign out right now.'));
@@ -73,7 +174,7 @@ export default function Profile() {
             "Delete Account",
             "To permanently delete your account and all associated receipt data, please email us from the email associated with your account.\n\nWe will process the deletion within 30 days.",
             [
-                {text: "Cancel", style: "cancel"},
+                { text: "Cancel", style: "cancel" },
                 {
                     text: "Email Support",
                     style: "destructive",
@@ -86,7 +187,6 @@ export default function Profile() {
     };
 
     const handleSave = async () => {
-        // Validation
         const cleanUsername = formData.username.replace('@', '').trim();
 
         if (cleanUsername.length < 3) {
@@ -94,23 +194,17 @@ export default function Profile() {
             return;
         }
 
-        // Prepare data for save (remove @ from username for storage if needed, or keep it consistent)
-        // Here we store it without @ to be clean
-        const dataToSave = {
-            ...formData,
-            username: cleanUsername
-        };
+        const dataToSave = { ...formData, username: cleanUsername };
 
         if (isEditing) {
-            // Optimistic update with formatted data
             setFormData(prev => ({ ...prev, username: cleanUsername }));
-            const didSave = await updateProfile(dataToSave);
+            const errorMsg = await updateProfile(dataToSave);
 
-            if (didSave) {
+            if (!errorMsg) {
                 setIsEditing(false);
                 Alert.alert('Success', 'Profile updated.');
             } else {
-                Alert.alert('Update failed', 'We could not save your profile changes.');
+                Alert.alert('Update failed', errorMsg);
             }
         }
     };
@@ -133,10 +227,9 @@ export default function Profile() {
 
             if (!result.canceled && result.assets[0].base64) {
                 const base64Data = `data:image/jpeg;base64,${result.assets[0].base64}`;
-                const didSave = await updateProfile({ avatar_url: base64Data });
-
-                if (!didSave) {
-                    Alert.alert('Upload failed', 'We could not update your avatar.');
+                const errorMsg = await updateProfile({ avatar_url: base64Data });
+                if (errorMsg) {
+                    Alert.alert('Upload failed', errorMsg);
                 }
             }
         } catch (error) {
@@ -163,7 +256,7 @@ export default function Profile() {
     if (loading && !profile) {
         return (
             <View style={styles.centered}>
-                <ActivityIndicator size="large" color={colors.green} />
+                <ActivityIndicator size="large" color={C.green} />
             </View>
         );
     }
@@ -185,7 +278,7 @@ export default function Profile() {
                     <RefreshControl
                         refreshing={refreshing}
                         onRefresh={onRefresh}
-                        tintColor={colors.green}
+                        tintColor={C.green}
                     />
                 }
             >
@@ -198,11 +291,11 @@ export default function Profile() {
                                 <Image source={{ uri: profile.avatar_url }} style={styles.avatar} />
                             ) : (
                                 <View style={[styles.avatar, styles.avatarPlaceholder]}>
-                                    <MaterialIcons name="person" size={48} color={colors.gray400} />
+                                    <MaterialIcons name="person" size={48} color={C.gray400} />
                                 </View>
                             )}
                             <View style={styles.cameraIcon}>
-                                <MaterialIcons name="camera-alt" size={16} color={colors.white} />
+                                <MaterialIcons name="camera-alt" size={16} color={C.gray100} />
                             </View>
                         </TouchableOpacity>
 
@@ -213,14 +306,14 @@ export default function Profile() {
                                     value={formData.full_name}
                                     onChangeText={(t) => setFormData({ ...formData, full_name: t })}
                                     placeholder="Full Name"
-                                    placeholderTextColor={colors.gray400}
+                                    placeholderTextColor={C.gray400}
                                 />
                                 <TextInput
                                     style={styles.heroInputUser}
                                     value={formData.username}
                                     onChangeText={(t) => setFormData({ ...formData, username: t })}
                                     placeholder="@username"
-                                    placeholderTextColor={colors.gray400}
+                                    placeholderTextColor={C.gray400}
                                     autoCapitalize="none"
                                 />
                             </View>
@@ -249,7 +342,7 @@ export default function Profile() {
                                     value={formData.venmo_handle}
                                     onChangeText={(t) => setFormData({ ...formData, venmo_handle: t })}
                                     placeholder="@username"
-                                    placeholderTextColor={colors.gray400}
+                                    placeholderTextColor={C.gray400}
                                 />
                             ) : (
                                 <Text style={styles.value}>{profile?.venmo_handle || 'Not set'}</Text>
@@ -271,7 +364,7 @@ export default function Profile() {
                                     value={formData.cashapp_handle}
                                     onChangeText={(t) => setFormData({ ...formData, cashapp_handle: t })}
                                     placeholder="$cashtag"
-                                    placeholderTextColor={colors.gray400}
+                                    placeholderTextColor={C.gray400}
                                 />
                             ) : (
                                 <Text style={styles.value}>{profile?.cashapp_handle || 'Not set'}</Text>
@@ -293,7 +386,7 @@ export default function Profile() {
                                     value={formData.zelle_number}
                                     onChangeText={(t) => setFormData({ ...formData, zelle_number: t })}
                                     placeholder="Phone or Email"
-                                    placeholderTextColor={colors.gray400}
+                                    placeholderTextColor={C.gray400}
                                 />
                             ) : (
                                 <Text style={styles.value}>{profile?.zelle_number || 'Not set'}</Text>
@@ -307,18 +400,18 @@ export default function Profile() {
                 <View style={styles.card}>
                     <TouchableOpacity style={styles.row} onPress={() => router.push('/help')} activeOpacity={0.7}>
                         <View style={styles.iconContainer}>
-                            <MaterialIcons name="help-outline" size={22} color={colors.black} />
+                            <MaterialIcons name="help-outline" size={22} color={C.black} />
                         </View>
                         <Text style={styles.settingLabel}>Help & FAQ</Text>
-                        <MaterialIcons name="chevron-right" size={24} color={colors.gray400} />
+                        <MaterialIcons name="chevron-right" size={24} color={C.gray400} />
                     </TouchableOpacity>
                     <View style={styles.divider} />
                     <TouchableOpacity style={styles.row} onPress={openPrivacyPolicy} activeOpacity={0.7}>
                         <View style={styles.iconContainer}>
-                            <MaterialIcons name="privacy-tip" size={22} color={colors.black} />
+                            <MaterialIcons name="privacy-tip" size={22} color={C.black} />
                         </View>
                         <Text style={styles.settingLabel}>Privacy Policy</Text>
-                        <MaterialIcons name="open-in-new" size={20} color={colors.gray400} />
+                        <MaterialIcons name="open-in-new" size={20} color={C.gray400} />
                     </TouchableOpacity>
                 </View>
 
@@ -338,107 +431,3 @@ export default function Profile() {
         </SafeAreaView>
     );
 }
-
-const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: colors.gray100 },
-    centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-    header: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingHorizontal: spacing.lg,
-        paddingVertical: spacing.md,
-    },
-    title: { fontFamily: fonts.bodyBold, fontSize: 28, color: colors.black },
-    editButton: { fontFamily: fonts.bodyBold, fontSize: fontSizes.md, color: colors.green },
-
-    scrollView: { flex: 1 },
-    content: { padding: spacing.lg, paddingBottom: 100 },
-
-    // Hero
-    section: { marginBottom: spacing.xl },
-    heroContainer: { alignItems: 'center' },
-    avatarContainer: { position: 'relative', marginBottom: spacing.md },
-    avatar: { width: 100, height: 100, borderRadius: 50 },
-    avatarPlaceholder: { backgroundColor: colors.white, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: colors.gray200 },
-    cameraIcon: {
-        position: 'absolute', bottom: 0, right: 0,
-        backgroundColor: colors.black, padding: 6, borderRadius: radii.full,
-        borderWidth: 2, borderColor: colors.white
-    },
-    heroTextContainer: { alignItems: 'center' },
-    heroName: { fontFamily: fonts.bodyBold, fontSize: fontSizes.xl, color: colors.black, marginBottom: 4 },
-    heroUsername: { fontFamily: fonts.body, fontSize: fontSizes.md, color: colors.gray500 },
-
-    editHeroInputs: { width: '100%', alignItems: 'center', gap: 8 },
-    heroInputName: {
-        fontFamily: fonts.bodyBold, fontSize: fontSizes.xl,
-        color: colors.black, textAlign: 'center',
-        borderBottomWidth: 1, borderBottomColor: colors.gray300,
-        paddingBottom: 4, width: '60%'
-    },
-    heroInputUser: {
-        fontFamily: fonts.body, fontSize: fontSizes.md,
-        color: colors.gray600, textAlign: 'center',
-        borderBottomWidth: 1, borderBottomColor: colors.gray300,
-        width: '40%'
-    },
-
-    // Sections
-    sectionTitle: { fontFamily: fonts.bodyBold, fontSize: fontSizes.lg, color: colors.gray600, marginBottom: spacing.sm, marginLeft: spacing.xs },
-    card: {
-        backgroundColor: colors.white,
-        borderRadius: radii.lg,
-        padding: spacing.md,
-        marginBottom: spacing.xl,
-        shadowColor: colors.black,
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.05,
-        shadowRadius: 2,
-        elevation: 2,
-    },
-    row: { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.sm },
-    divider: { height: 1, backgroundColor: colors.gray100, marginVertical: spacing.xs },
-
-    iconContainer: {
-        width: 36, height: 36, borderRadius: radii.md,
-        backgroundColor: colors.white,
-        justifyContent: 'center', alignItems: 'center',
-        marginRight: spacing.md,
-        borderWidth: 1, borderColor: colors.gray100
-    },
-    venmoIcon: {
-        width: 45,
-        height: 45,
-    },
-    cashAppIcon: {
-        width: 26,
-        height: 26,
-    },
-    zelleIcon: {
-        width: 32,
-        height: 32,
-    },
-    inputWrapper: { flex: 1 },
-    label: { fontFamily: fonts.bodyBold, fontSize: 12, color: colors.gray500, marginBottom: 2 },
-    value: { fontFamily: fonts.bodySemiBold, fontSize: fontSizes.md, color: colors.black },
-    input: {
-        fontFamily: fonts.body, fontSize: fontSizes.md, color: colors.black,
-        borderBottomWidth: 1, borderBottomColor: colors.green, paddingVertical: 0
-    },
-
-    // Settings
-    settingLabel: { flex: 1, fontFamily: fonts.bodySemiBold, fontSize: fontSizes.md, color: colors.black },
-
-    // Footer
-    footer: { alignItems: 'center', marginTop: spacing.lg },
-    email: { fontFamily: fonts.body, fontSize: fontSizes.sm, color: colors.gray400, marginBottom: spacing.lg },
-    signOutButton: {
-        width: '100%', backgroundColor: colors.white,
-        paddingVertical: 14, borderRadius: radii.md,
-        borderWidth: 1, borderColor: colors.gray300,
-        alignItems: 'center'
-    },
-    signOutText: { fontFamily: fonts.bodySemiBold, fontSize: fontSizes.md, color: colors.black },
-    deleteText: { fontFamily: fonts.body, fontSize: fontSizes.sm, color: colors.error },
-});

@@ -52,15 +52,17 @@ export default function CompletionOverlay() {
 
     const containerStyle = useAnimatedStyle(() => ({
         opacity: containerOpacity.value,
-        pointerEvents: containerOpacity.value > 0 ? 'auto' as const : 'none' as const,
     }));
 
     const contentStyle = useAnimatedStyle(() => ({
         transform: [{ scale: contentScale.value }],
     }));
 
+    // Only render when visible to prevent blocking touches
+    if (!visible) return null;
+
     return (
-        <Animated.View style={[styles.overlay, containerStyle]}>
+        <Animated.View style={[styles.overlay, containerStyle]} pointerEvents="auto">
             {/* Immediate light fallback to prevent black frame while blur initializes */}
             <View style={styles.fallbackLight} />
             <BlurView intensity={50} tint="light" style={StyleSheet.absoluteFill} />

@@ -118,6 +118,28 @@ export const shadows = {
     },
 } as const;
 
+// ─── Dark Mode Colors ──────────────────────────────────────
+export const darkColors = {
+    green: '#34C759',        // iOS system green (pops on dark bg)
+    black: '#F2F2F7',        // primary text on dark
+    white: '#1C1C1E',        // card / surface backgrounds
+
+    gray100: '#000000',      // app background (OLED-friendly true black)
+    gray200: '#2C2C2E',      // borders, dividers
+    gray300: '#3A3A3C',      // disabled states
+    gray400: '#636366',      // placeholder text
+    gray500: '#8E8E93',      // secondary text
+    gray600: '#AEAEB2',      // tertiary text
+    gray800: '#F2F2F7',      // near-white primary text
+
+    error: '#FF453A',        // iOS dark-mode red
+    success: '#34C759',
+    warning: '#FFD60A',
+
+    overlay: 'rgba(0, 0, 0, 0.8)',
+    overlayLight: 'rgba(0, 0, 0, 0.5)',
+} as const;
+
 // ─── Hit Slop (minimum 44px tap targets) ───────────────────
 export const hitSlop = {
     standard: { top: 10, bottom: 10, left: 10, right: 10 },

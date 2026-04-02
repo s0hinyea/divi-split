@@ -16,7 +16,8 @@ export interface Profile {
 type ProfileContextType = {
     profile: Profile | null;
     loading: boolean;
-    updateProfile: (updates: Partial<Profile>) => Promise<boolean>;
+    /** Returns null on success, or an error message string on failure. */
+    updateProfile: (updates: Partial<Profile>) => Promise<string | null>;
     refreshProfile: () => Promise<void>;
 };
 
@@ -54,13 +55,13 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
         }
     };
 
-    const updateProfile = async (updates: Partial<Profile>) => {
-        if (!session?.user) return false;
+    const updateProfile = async (updates: Partial<Profile>): Promise<string | null> => {
+        if (!session?.user) return 'Not signed in.';
+
+        // Optimistic update
+        setProfile((prev) => prev ? { ...prev, ...updates } : null);
 
         try {
-            // Optimistic update
-            setProfile((prev) => prev ? { ...prev, ...updates } : null);
-
             const { error } = await supabase
                 .from('profiles')
                 .upsert({
@@ -70,14 +71,19 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
                 });
 
             if (error) {
+                // Postgres unique-constraint violation (username already taken)
+                if (error.code === '23505') {
+                    await fetchProfile(); // revert optimistic update
+                    return 'That username is already taken. Please choose a different one.';
+                }
                 throw error;
             }
 
-            return true;
+            return null;
         } catch (error) {
             console.error('Error updating profile:', error);
-            await fetchProfile();
-            return false;
+            await fetchProfile(); // revert optimistic update
+            return 'We could not save your profile changes. Please try again.';
         }
     };
 

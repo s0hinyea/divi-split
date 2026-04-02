@@ -68,6 +68,7 @@ export default function NetworkBanner() {
 
     return (
         <Animated.View
+            pointerEvents="box-none"
             style={[
                 styles.banner,
                 { paddingTop: insets.top + 4 },
