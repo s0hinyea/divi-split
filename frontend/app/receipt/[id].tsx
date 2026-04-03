@@ -214,6 +214,19 @@ export default function ReceiptDetail() {
                 message += ` (${details.join(' + ')})\n`;
             });
 
+            if (unassignedItems.length > 0) {
+                const userMealTotal = unassignedItems.reduce((s, i) => s + i.item_price, 0);
+                const userTax = individualTaxes['user'] || 0;
+                const userTip = individualTips['user'] || 0;
+                const userTotal = userMealTotal + userTax + userTip;
+
+                message += `• ${profile?.full_name || 'You'}: $${userTotal.toFixed(2)}`;
+                const details: string[] = [`meal $${userMealTotal.toFixed(2)}`];
+                if (userTax > 0) details.push(`tax $${userTax.toFixed(2)}`);
+                if (userTip > 0) details.push(`tip $${userTip.toFixed(2)}`);
+                message += ` (${details.join(' + ')})\n`;
+            }
+
             message += `\nTotal: $${(receipt.total_amount || 0).toFixed(2)}`;
 
             if (profile?.venmo_handle) {
