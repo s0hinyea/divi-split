@@ -52,16 +52,13 @@ function createStyles(C: ReturnType<typeof useThemeColors>) {
         receiptDate: { fontFamily: fonts.body, fontSize: fontSizes.xs, color: C.gray600, marginTop: 2 },
         receiptTotal: { fontFamily: fonts.bodySemiBold, fontSize: fontSizes.lg, color: C.green },
 
+        receiptCardPressed: {
+            backgroundColor: `${C.green}18`,
+            borderColor: C.green,
+            borderWidth: 1,
+        },
         deleteAction: {
             backgroundColor: C.error,
-            justifyContent: 'center',
-            alignItems: 'center',
-            width: 80,
-            borderRadius: radii.md,
-            marginBottom: spacing.sm,
-        },
-        viewAction: {
-            backgroundColor: C.green,
             justifyContent: 'center',
             alignItems: 'center',
             width: 80,
@@ -82,6 +79,7 @@ export default function History() {
     const { receipts, loading, hasMore, fetchReceipts, deleteReceipt: contextDeleteReceipt, refreshReceipts } = useHistory();
     const [loadingMore, setLoadingMore] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
+    const [pressedId, setPressedId] = useState<string | null>(null);
 
     const onRefresh = useCallback(async () => {
         setRefreshing(true);
@@ -104,15 +102,6 @@ export default function History() {
             Alert.alert('Delete failed', getUserFacingErrorMessage(error, 'We could not delete that receipt right now.'));
         }
     };
-
-    const renderLeftActions = (receipt: Receipt) => (
-        <TouchableOpacity
-            style={styles.viewAction}
-            onPress={() => router.push(`/receipt/${receipt.id}`)}
-        >
-            <MaterialIcons name="open-in-new" size={28} color="#FFFFFF" />
-        </TouchableOpacity>
-    );
 
     const renderRightActions = (receipt: Receipt) => (
         <TouchableOpacity
@@ -149,18 +138,20 @@ export default function History() {
                     </View>
                 ) : (
                     <>
-                        <Text style={styles.swipeHint}>Swipe right to view, left to delete</Text>
+                        <Text style={styles.swipeHint}>Hold to view details, swipe left to delete</Text>
                         {receipts.map((receipt) => (
                             <Swipeable
                                 key={receipt.id}
-                                renderLeftActions={() => renderLeftActions(receipt)}
                                 renderRightActions={() => renderRightActions(receipt)}
-                                leftThreshold={40}
                                 rightThreshold={40}
                             >
                                 <GHTouchableOpacity
-                                    style={styles.receiptCard}
-                                    activeOpacity={0.7}
+                                    style={[styles.receiptCard, pressedId === receipt.id && styles.receiptCardPressed]}
+                                    onLongPress={() => { setPressedId(null); router.push(`/receipt/${receipt.id}`); }}
+                                    delayLongPress={250}
+                                    onPressIn={() => setPressedId(receipt.id)}
+                                    onPressOut={() => setPressedId(null)}
+                                    activeOpacity={1}
                                 >
                                     <View style={styles.receiptInfo}>
                                         <Text style={styles.receiptName}>{receipt.receipt_name}</Text>
