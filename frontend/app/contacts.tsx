@@ -75,10 +75,15 @@ export default function ChooseContacts() {
     manageContacts(contact);
   };
 
-  const filteredContacts = contacts.filter(
-    (contact) =>
-      contact.name?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false
-  );
+  const filteredContacts = contacts
+    .filter((contact) => contact.name?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false)
+    .sort((a, b) => {
+      const aSelected = selected.some((c) => c.id === a.id);
+      const bSelected = selected.some((c) => c.id === b.id);
+      if (aSelected && !bSelected) return -1;
+      if (!aSelected && bSelected) return 1;
+      return 0;
+    });
 
   if (loading) {
     return (
