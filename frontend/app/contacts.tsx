@@ -15,6 +15,7 @@ import { useOCR } from "../utils/OCRContext";
 import { useSplitStore, Contact } from '../stores/splitStore';
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Icon } from "react-native-paper";
+import { MaterialIcons } from "@expo/vector-icons";
 import { colors, fonts, fontSizes, spacing, radii, shadows } from '@/styles/theme';
 
 export default function ChooseContacts() {
@@ -92,10 +93,15 @@ export default function ChooseContacts() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>
-          <Text style={{ color: colors.black }}>Choose </Text>
-          <Text style={{ color: colors.green }}>Recipients</Text>
-        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+          <TouchableOpacity onPress={() => router.replace('/(tabs)')} style={{ marginRight: spacing.sm }}>
+            <MaterialIcons name="arrow-back" size={28} color={colors.black} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>
+            <Text style={{ color: colors.black }}>Choose </Text>
+            <Text style={{ color: colors.green }}>Recipients</Text>
+          </Text>
+        </View>
         <Text style={styles.headerSubtitle}>Select who to split this with</Text>
       </View>
 
