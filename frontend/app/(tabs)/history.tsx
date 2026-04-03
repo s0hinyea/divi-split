@@ -60,6 +60,14 @@ function createStyles(C: ReturnType<typeof useThemeColors>) {
             borderRadius: radii.md,
             marginBottom: spacing.sm,
         },
+        viewAction: {
+            backgroundColor: C.green,
+            justifyContent: 'center',
+            alignItems: 'center',
+            width: 80,
+            borderRadius: radii.md,
+            marginBottom: spacing.sm,
+        },
 
         loadMoreButton: { padding: spacing.md, alignItems: 'center', marginVertical: spacing.sm },
         loadMoreText: { color: C.green, fontSize: fontSizes.md, fontFamily: fonts.body },
@@ -97,6 +105,15 @@ export default function History() {
         }
     };
 
+    const renderLeftActions = (receipt: Receipt) => (
+        <TouchableOpacity
+            style={styles.viewAction}
+            onPress={() => router.push(`/receipt/${receipt.id}`)}
+        >
+            <MaterialIcons name="open-in-new" size={28} color="#FFFFFF" />
+        </TouchableOpacity>
+    );
+
     const renderRightActions = (receipt: Receipt) => (
         <TouchableOpacity
             style={styles.deleteAction}
@@ -132,16 +149,17 @@ export default function History() {
                     </View>
                 ) : (
                     <>
-                        <Text style={styles.swipeHint}>Swipe left to delete</Text>
+                        <Text style={styles.swipeHint}>Swipe right to view, left to delete</Text>
                         {receipts.map((receipt) => (
                             <Swipeable
                                 key={receipt.id}
+                                renderLeftActions={() => renderLeftActions(receipt)}
                                 renderRightActions={() => renderRightActions(receipt)}
+                                leftThreshold={40}
                                 rightThreshold={40}
                             >
                                 <GHTouchableOpacity
                                     style={styles.receiptCard}
-                                    onPress={() => router.push(`/receipt/${receipt.id}`)}
                                     activeOpacity={0.7}
                                 >
                                     <View style={styles.receiptInfo}>
