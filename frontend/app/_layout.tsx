@@ -125,6 +125,7 @@ function RootShell({ loaded }: { loaded: boolean }) {
                       name="review"
                       options={{ gestureEnabled: false }}
                     />
+                    <Stack.Screen name="receipt/[id]" />
                     <Stack.Screen name="+not-found" />
                   </Stack>
                   <StatusBar style={isDark ? "light" : "dark"} />

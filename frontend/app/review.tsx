@@ -15,22 +15,26 @@ import { allocateAmount } from '../utils/mathUtil';
 export default function ReviewPage() {
   const router = useRouter();
   const selected = useSplitStore((state) => state.selected);
-  const clearItems = useSplitStore((state) => state.clearItems);
-  const clearSelected = useSplitStore((state) => state.clearSelected);
   const receiptData = useSplitStore((state) => state.receiptData);
-  const setUserItems = useSplitStore((state) => state.setUserItems);
   const updateReceiptData = useSplitStore((state) => state.updateReceiptData);
   const calculateTotal = useSplitStore((state) => state.calculateTotal);
   const saveReceipt = useSplitStore((state) => state.saveReceipt);
+  const updateReceipt = useSplitStore((state) => state.updateReceipt);
   const updateContactName = useSplitStore((state) => state.updateContactName);
+  const resetStore = useSplitStore((state) => state.resetStore);
+  const editingReceiptId = useSplitStore((state) => state.editingReceiptId);
+  const editingReceiptName = useSplitStore((state) => state.editingReceiptName);
+  const editingReceiptCreatedAt = useSplitStore((state) => state.editingReceiptCreatedAt);
   const { refreshReceipts } = useHistory();
   const { profile } = useProfile();
   // Modal state
   const [showSmsModal, setShowSmsModal] = useState(false);
 
-  // Receipt name and date states
-  const [receiptName, setReceiptName] = useState('');
-  const [receiptDate, setReceiptDate] = useState(new Date());
+  // Receipt name and date states — pre-populated when editing an existing receipt
+  const [receiptName, setReceiptName] = useState(editingReceiptName || '');
+  const [receiptDate, setReceiptDate] = useState(
+    editingReceiptCreatedAt ? new Date(editingReceiptCreatedAt) : new Date()
+  );
   const [showDatePicker, setShowDatePicker] = useState(false);
 
   useEffect(() => {
@@ -179,13 +183,11 @@ export default function ReviewPage() {
   const triggerCompletion = () => {
     const { triggerCompletion: showOverlay } = useSplitStore.getState();
     showOverlay();              // overlay appears instantly over current screen
-    
+
     // Give the overlay 50ms to mount and render its first opaque frame
     // before we trigger the heavy layout transition of navigation.
     setTimeout(() => {
-      clearItems();
-      clearSelected();
-      setUserItems([]);
+      resetStore();
       router.replace('/(tabs)');
     }, 50);
   };
@@ -197,11 +199,13 @@ export default function ReviewPage() {
       setReceiptDate(selectedDate);
     }
   };
-  // Handle finish - save receipt via ReceiptContext (which calls backend)
+  // Handle finish — save (new) or update (edit) receipt, then prompt for SMS
   const handleFinish = async () => {
-    // Use custom name or default
     const name = receiptName.trim() || `Split - ${receiptDate.toLocaleDateString()}`;
-    const success = await saveReceipt(name, receiptDate);
+
+    const success = editingReceiptId
+      ? await updateReceipt(editingReceiptId, name, receiptDate)
+      : await saveReceipt(name, receiptDate);
 
     if (success) {
       await refreshReceipts();

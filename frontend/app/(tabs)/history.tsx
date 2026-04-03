@@ -2,17 +2,14 @@ import {
     View,
     StyleSheet,
     TouchableOpacity,
-    Modal,
     RefreshControl,
     Alert,
-    ActivityIndicator,
 } from 'react-native';
-import { Text, Icon } from 'react-native-paper';
+import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useCallback, useMemo } from 'react';
-import { BlurView } from 'expo-blur';
+import { useRouter } from 'expo-router';
 
-import { supabase } from '@/lib/supabase';
 import { TouchableOpacity as GHTouchableOpacity, ScrollView } from 'react-native-gesture-handler';
 import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -20,9 +17,6 @@ import { fonts, fontSizes, spacing, radii } from '@/styles/theme';
 import { useThemeColors } from '@/utils/ThemeContext';
 
 import { useHistory, Receipt } from '@/utils/HistoryContext';
-import { useProfile } from '@/utils/ProfileContext';
-import * as SMS from 'expo-sms';
-import { allocateAmount } from '@/utils/mathUtil';
 import { getUserFacingErrorMessage } from '@/utils/network';
 import { HistorySkeleton } from '@/components/SkeletonLoader';
 
@@ -69,75 +63,17 @@ function createStyles(C: ReturnType<typeof useThemeColors>) {
 
         loadMoreButton: { padding: spacing.md, alignItems: 'center', marginVertical: spacing.sm },
         loadMoreText: { color: C.green, fontSize: fontSizes.md, fontFamily: fonts.body },
-
-        modalOverlay: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-        modalContainer: {
-            backgroundColor: C.white,
-            borderRadius: radii.lg,
-            width: '85%',
-            maxHeight: '70%',
-            padding: spacing.lg,
-        },
-        modalHeader: {
-            flexDirection: 'row',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: spacing.md,
-        },
-        modalTitle: { fontFamily: fonts.bodyBold, fontSize: fontSizes.xl, color: C.black, flex: 1 },
-        closeButton: { padding: spacing.xs },
-        modalContent: { maxHeight: 300 },
-        modalDate: { fontSize: fontSizes.sm, color: C.gray600, marginBottom: spacing.md, fontFamily: fonts.body },
-        modalItem: {
-            flexDirection: 'row',
-            justifyContent: 'space-between',
-            paddingVertical: spacing.sm,
-            borderBottomWidth: 1,
-            borderBottomColor: C.gray200,
-        },
-        modalItemName: { fontFamily: fonts.body, fontSize: fontSizes.md, color: C.black },
-        modalItemPrice: { fontFamily: fonts.body, fontSize: fontSizes.md, color: C.gray800 },
-        modalTotal: {
-            flexDirection: 'row',
-            justifyContent: 'space-between',
-            paddingTop: spacing.md,
-            marginTop: spacing.sm,
-            borderTopWidth: 2,
-            borderTopColor: C.gray200,
-        },
-        modalTotalLabel: { fontFamily: fonts.bodySemiBold, fontSize: fontSizes.lg, color: C.black },
-        modalTotalAmount: { fontFamily: fonts.bodyBold, fontSize: fontSizes.lg, color: C.black },
-        modalActions: { gap: spacing.md, marginTop: spacing.xxl },
-        modalActionButton: {
-            backgroundColor: C.black,
-            flexDirection: 'row',
-            paddingVertical: spacing.md,
-            borderRadius: radii.md,
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: spacing.sm,
-        },
-        modalActionText: {
-            fontFamily: fonts.bodySemiBold,
-            fontSize: fontSizes.md,
-            color: C.gray100,
-        },
-        modalCloseButton: { backgroundColor: C.gray200, paddingVertical: spacing.md, borderRadius: radii.md, alignItems: 'center' },
-        modalCloseText: { fontFamily: fonts.bodySemiBold, fontSize: fontSizes.md, color: C.black },
     });
 }
 
 export default function History() {
     const C = useThemeColors();
     const styles = useMemo(() => createStyles(C), [C]);
+    const router = useRouter();
 
     const { receipts, loading, hasMore, fetchReceipts, deleteReceipt: contextDeleteReceipt, refreshReceipts } = useHistory();
-    const [selectedReceipt, setSelectedReceipt] = useState<Receipt | null>(null);
     const [loadingMore, setLoadingMore] = useState(false);
-    const [showModal, setShowModal] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
-    const [resending, setResending] = useState(false);
-    const { profile } = useProfile();
 
     const onRefresh = useCallback(async () => {
         setRefreshing(true);
@@ -158,155 +94,6 @@ export default function History() {
         } catch (error) {
             console.error('Error deleting receipt:', error);
             Alert.alert('Delete failed', getUserFacingErrorMessage(error, 'We could not delete that receipt right now.'));
-        }
-    };
-
-    const handleResendMessage = async () => {
-        if (!selectedReceipt) return;
-
-        try {
-            setResending(true);
-            const isAvailable = await SMS.isAvailableAsync();
-            if (!isAvailable) {
-                Alert.alert('SMS Not Available', 'This device cannot send text messages.');
-                return;
-            }
-
-            const itemIds = selectedReceipt.receipt_items.map(item => item.id);
-            if (itemIds.length === 0) {
-                Alert.alert('No Items', 'This receipt has no items to split.');
-                return;
-            }
-
-            const { data: assignments, error: assignError } = await supabase
-                .from('assignments')
-                .select(`
-                    item_id,
-                    contact_id,
-                    contacts (
-                        id,
-                        contact_name,
-                        phone_number
-                    )
-                `)
-                .in('item_id', itemIds);
-
-            if (assignError) {
-                console.error("Assign join error:", assignError);
-                throw assignError;
-            }
-
-            if (!assignments || assignments.length === 0) {
-                Alert.alert('No Assignments', 'No item assignments found for this receipt. The split data may not have been saved.');
-                return;
-            }
-
-            const contactMap = new Map();
-
-            for (const assignment of assignments || []) {
-                let contact = assignment.contacts as any;
-                if (Array.isArray(contact)) {
-                    contact = contact[0];
-                }
-                if (!contact) continue;
-
-                if (!contactMap.has(contact.id)) {
-                    contactMap.set(contact.id, {
-                        id: contact.id,
-                        name: contact.contact_name,
-                        phoneNumber: contact.phone_number,
-                        items: []
-                    });
-                }
-
-                const item = selectedReceipt.receipt_items.find(i => i.id === assignment.item_id);
-                if (item) {
-                    contactMap.get(contact.id).items.push(item);
-                }
-            }
-
-            const selectedContacts = Array.from(contactMap.values());
-
-            const assignedItemIds = new Set(assignments?.map(a => a.item_id) || []);
-            const userItems = selectedReceipt.receipt_items.filter(i => !assignedItemIds.has(i.id));
-
-            const phoneNumbers = selectedContacts
-                .map(c => c.phoneNumber)
-                .filter((num): num is string => !!num);
-
-            if (phoneNumbers.length === 0) {
-                Alert.alert('No Phone Numbers', 'None of the assigned contacts have phone numbers.');
-                return;
-            }
-
-            const calculateTotal = (items: { item_price: number }[]) => {
-                return items.reduce((sum, item) => sum + item.item_price, 0);
-            };
-
-            const shares: { id: string; share: number }[] = [];
-            selectedContacts.forEach(contact => {
-                shares.push({ id: contact.id, share: calculateTotal(contact.items) });
-            });
-            if (userItems.length > 0) {
-                shares.push({ id: 'user', share: calculateTotal(userItems) });
-            }
-
-            const taxAmount = selectedReceipt.tax_amount || 0;
-            const tipAmount = selectedReceipt.tip_amount || 0;
-
-            const individualTaxes = allocateAmount(taxAmount, shares);
-
-            let individualTips: Record<string, number> = {};
-            if (tipAmount > 0) {
-                const tipShares: { id: string; share: number }[] = [];
-                selectedContacts.forEach(contact => tipShares.push({ id: contact.id, share: 1 }));
-                if (userItems.length > 0) tipShares.push({ id: 'user', share: 1 });
-                individualTips = allocateAmount(tipAmount, tipShares);
-            }
-
-            const name = selectedReceipt.receipt_name.trim() || 'Split';
-            const dateStr = new Date(selectedReceipt.created_at).toLocaleDateString('en-US', {
-                month: 'short', day: 'numeric', year: 'numeric'
-            });
-
-            let message = `🧾 Divi — ${name}\n📅 ${dateStr}\n\n`;
-
-            selectedContacts.forEach(contact => {
-                const contactMealTotal = calculateTotal(contact.items);
-                const contactTax = individualTaxes[contact.id] || 0;
-                const contactTip = individualTips[contact.id] || 0;
-                const contactTotal = contactMealTotal + contactTax + contactTip;
-
-                message += `• ${contact.name}: $${contactTotal.toFixed(2)}`;
-
-                const details: string[] = [];
-                details.push(`meal $${contactMealTotal.toFixed(2)}`);
-                if (contactTax > 0) details.push(`tax $${contactTax.toFixed(2)}`);
-                if (contactTip > 0) details.push(`tip $${contactTip.toFixed(2)}`);
-                message += ` (${details.join(' + ')})\n`;
-            });
-
-            const grandTotal = selectedReceipt.total_amount || 0;
-            message += `\nTotal: $${grandTotal.toFixed(2)}`;
-
-            if (profile?.venmo_handle) {
-                const handle = profile.venmo_handle.replace('@', '');
-                message += `\n\nPay me on Venmo:\nhttps://venmo.com/u/${handle}`;
-            }
-            if (profile?.cashapp_handle) {
-                const handle = profile.cashapp_handle.replace('$', '');
-                message += `\n\nPay me on Cash App:\nhttps://cash.app/$${handle}`;
-            }
-            if (profile?.zelle_number) {
-                message += `\n\nPay me on Zelle:\n${profile.zelle_number}`;
-            }
-
-            await SMS.sendSMSAsync(phoneNumbers, message);
-        } catch (error) {
-            console.error('Error resending message:', error);
-            Alert.alert('Error', getUserFacingErrorMessage(error, 'Failed to formulate or send message.'));
-        } finally {
-            setResending(false);
         }
     };
 
@@ -354,10 +141,7 @@ export default function History() {
                             >
                                 <GHTouchableOpacity
                                     style={styles.receiptCard}
-                                    onPress={() => {
-                                        setSelectedReceipt(receipt);
-                                        setShowModal(true);
-                                    }}
+                                    onPress={() => router.push(`/receipt/${receipt.id}`)}
                                     activeOpacity={0.7}
                                 >
                                     <View style={styles.receiptInfo}>
@@ -388,81 +172,6 @@ export default function History() {
                 )}
             </ScrollView>
 
-            {/* Receipt Details Modal */}
-            <Modal
-                animationType="fade"
-                transparent={true}
-                visible={showModal}
-                onRequestClose={() => { setShowModal(false); setSelectedReceipt(null); }}
-            >
-                <BlurView intensity={50} style={styles.modalOverlay}>
-                    <View style={styles.modalContainer}>
-                        <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>
-                                {selectedReceipt?.receipt_name || 'Receipt Details'}
-                            </Text>
-                            <TouchableOpacity
-                                onPress={() => { setShowModal(false); setSelectedReceipt(null); }}
-                                style={styles.closeButton}
-                            >
-                                <Icon source="close" size={24} color={C.gray600} />
-                            </TouchableOpacity>
-                        </View>
-
-                        <ScrollView style={styles.modalContent}>
-                            {selectedReceipt && (
-                                <>
-                                    <Text style={styles.modalDate}>
-                                        {new Date(selectedReceipt.created_at).toLocaleDateString('en-US', {
-                                            weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
-                                        })}
-                                    </Text>
-
-                                    {selectedReceipt.receipt_items?.map((item) => (
-                                        <View key={item.id} style={styles.modalItem}>
-                                            <Text style={styles.modalItemName}>{item.item_name}</Text>
-                                            <Text style={styles.modalItemPrice}>${item.item_price.toFixed(2)}</Text>
-                                        </View>
-                                    ))}
-
-                                    <View style={styles.modalTotal}>
-                                        <Text style={styles.modalTotalLabel}>Total</Text>
-                                        <Text style={styles.modalTotalAmount}>
-                                            ${(selectedReceipt.total_amount || 0).toFixed(2)}
-                                        </Text>
-                                    </View>
-                                </>
-                            )}
-                        </ScrollView>
-
-                        <View style={styles.modalActions}>
-                            <TouchableOpacity
-                                style={styles.modalActionButton}
-                                onPress={handleResendMessage}
-                                disabled={resending}
-                                activeOpacity={0.7}
-                            >
-                                {resending ? (
-                                    <ActivityIndicator size="small" color={C.gray100} />
-                                ) : (
-                                    <>
-                                        <Icon source="message-text" size={20} color={C.gray100} />
-                                        <Text style={styles.modalActionText}>Resend SMS</Text>
-                                    </>
-                                )}
-                            </TouchableOpacity>
-
-                            <TouchableOpacity
-                                style={styles.modalCloseButton}
-                                onPress={() => { setShowModal(false); setSelectedReceipt(null); }}
-                                activeOpacity={0.7}
-                            >
-                                <Text style={styles.modalCloseText}>Close</Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                </BlurView>
-            </Modal>
         </SafeAreaView>
     );
 }

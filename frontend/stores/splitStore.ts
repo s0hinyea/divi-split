@@ -41,6 +41,19 @@ interface SplitState {
     clearItems: () => void;
     clearSelected: () => void;
 
+    // Edit-mode state
+    editingReceiptId: string | null;
+    editingReceiptName: string;
+    editingReceiptCreatedAt: string;
+    hydrateForEdit: (
+        receiptId: string,
+        receiptData: OCRResponse,
+        contacts: Contact[],
+        receiptName: string,
+        createdAt: string,
+    ) => void;
+    updateReceipt: (receiptId: string, receiptName: string, receiptDate?: Date) => Promise<boolean>;
+
     resetStore: () => void;
     // Completion overlay
     showCompletion: boolean;
@@ -61,6 +74,9 @@ export const useSplitStore = create<SplitState>((set, get) => ({
     receiptData: initialReceiptData,
     selected: [],
     showCompletion: false,
+    editingReceiptId: null,
+    editingReceiptName: '',
+    editingReceiptCreatedAt: '',
 
     updateReceiptData: (data) =>
         set((state) => ({
@@ -201,7 +217,55 @@ export const useSplitStore = create<SplitState>((set, get) => ({
 
     clearSelected: () => set({ selected: [] }),
 
-    resetStore: () => set({ receiptData: initialReceiptData, selected: [] }),
+    hydrateForEdit: (receiptId, receiptData, contacts, receiptName, createdAt) =>
+        set({
+            editingReceiptId: receiptId,
+            editingReceiptName: receiptName,
+            editingReceiptCreatedAt: createdAt,
+            receiptData,
+            selected: contacts,
+        }),
+
+    updateReceipt: async (receiptId: string, receiptName: string, receiptDate?: Date) => {
+        const state = get();
+        try {
+            const payload = {
+                receipt_id: receiptId,
+                receipt_name: receiptName || "Untitled Receipt",
+                total_amount: state.receiptData.total || 0,
+                tax_amount: state.receiptData.tax || 0,
+                tip_amount: state.receiptData.tip || 0,
+                created_at: receiptDate?.toISOString() || new Date().toISOString(),
+                items: (state.receiptData.items || []).map((item) => ({
+                    id: item.id,
+                    name: item.name,
+                    price: item.price,
+                })),
+                contacts: (state.selected || []).map((contact) => ({
+                    frontend_id: contact.id,
+                    name: contact.name,
+                    phone_number: contact.phoneNumber || "no-phone",
+                    item_ids: (contact.items || []).map((item) => item.id),
+                })),
+            };
+
+            const { data, error } = await supabase.rpc("update_receipt_split", { payload });
+            if (error) throw error;
+            console.log("Receipt updated atomically:", data);
+            return true;
+        } catch (error) {
+            console.error("Update receipt error:", error);
+            return false;
+        }
+    },
+
+    resetStore: () => set({
+        receiptData: initialReceiptData,
+        selected: [],
+        editingReceiptId: null,
+        editingReceiptName: '',
+        editingReceiptCreatedAt: '',
+    }),
 
     // Completion overlay actions
     triggerCompletion: () => set({ showCompletion: true }),
