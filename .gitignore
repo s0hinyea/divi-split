@@ -47,8 +47,15 @@ backend/node_modules/
 
 # Agent workflows
 .agent/
+.agents/
+.gemini/
+
+# Root-level Expo/EAS artifacts
+.expo/
+eas.json
 
 # Personal
 resume.md
 frontend/ios/
 frontend/android/
+app.json
