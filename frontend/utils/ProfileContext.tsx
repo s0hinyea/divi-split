@@ -46,7 +46,26 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
             if (error) {
                 console.error('Error fetching profile:', error);
             } else {
-                setProfile(data);
+                // Auto-sync from Auth Metadata if profile is missing it (happens on first login if Supabase triggers didn't copy it)
+                if (!data.username && session.user.user_metadata?.username) {
+                    const syncData = {
+                        username: session.user.user_metadata.username,
+                        venmo_handle: data.venmo_handle || session.user.user_metadata.venmo_handle || null,
+                        cashapp_handle: data.cashapp_handle || session.user.user_metadata.cashapp_handle || null,
+                        full_name: data.full_name || session.user.user_metadata.full_name || null
+                    };
+                    setProfile({ ...data, ...syncData });
+                    
+                    supabase.from('profiles').upsert({ 
+                        id: session.user.id, 
+                        ...syncData,
+                        updated_at: new Date().toISOString()
+                    }).then(({ error: updateError }) => {
+                        if (updateError) console.error('Error syncing profile metadata:', updateError);
+                    });
+                } else {
+                    setProfile(data);
+                }
             }
         } catch (error) {
             console.error('Unexpected error fetching profile:', error);

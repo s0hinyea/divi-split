@@ -187,14 +187,14 @@ export default function Profile() {
     };
 
     const handleSave = async () => {
-        const cleanUsername = formData.username.replace('@', '').trim();
+        const cleanUsername = formData.username ? formData.username.replace('@', '').trim() : '';
 
-        if (cleanUsername.length < 3) {
+        if (cleanUsername && cleanUsername.length < 3) {
             Alert.alert("Invalid Username", "Username must be at least 3 characters long.");
             return;
         }
 
-        const dataToSave = { ...formData, username: cleanUsername };
+        const dataToSave = { ...formData, username: cleanUsername || null };
 
         if (isEditing) {
             setFormData(prev => ({ ...prev, username: cleanUsername }));
