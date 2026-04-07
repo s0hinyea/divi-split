@@ -28,20 +28,6 @@ export default function ChooseContacts() {
   const [searchQuery, setSearchQuery] = useState("");
   const router = useRouter();
 
-  let contact1 = {
-    id: "c1",
-    name: "jerome",
-    phoneNumber: "9295130735",
-    items: [],
-  };
-
-  let contact2 = {
-    id: "c2",
-    name: "maya",
-    phoneNumber: "3476120033",
-    items: [],
-  };
-
   useEffect(() => {
     (async () => {
       const { status } = await Contacts.requestPermissionsAsync();
@@ -65,7 +51,7 @@ export default function ChooseContacts() {
           items: [],
         })) as Contact[];
 
-        setContacts([...newData, contact1, contact2]);
+        setContacts(newData);
       }
       setLoading(false);
     })();

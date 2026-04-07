@@ -15,6 +15,9 @@
         "NSCameraUsageDescription": "Divi needs access to your camera to scan receipts.",
         "NSPhotoLibraryUsageDescription": "Divi needs access to your photos so you can upload receipts.",
         "NSContactsUsageDescription": "Divi needs access to your contacts to quickly assign items to friends."
+      },
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -24,9 +27,11 @@
         "backgroundColor": "#c1c5cd"
       },
       "permissions": [
-        "CAMERA",
-        "READ_CONTACTS",
-        "READ_EXTERNAL_STORAGE"
+        "android.permission.CAMERA",
+        "android.permission.READ_CONTACTS",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.WRITE_CONTACTS"
       ]
     },
     "web": {
@@ -64,13 +69,25 @@
         {
           "contactsPermission": "Divi needs access to your contacts to let you quickly assign items to friends."
         }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "minSdkVersion": 24
+          }
+        }
       ]
     ],
     "experiments": {
       "typedRoutes": true
     },
     "extra": {
-      "privacyPolicyUrl": ""
+      "privacyPolicyUrl": "",
+      "router": {},
+      "eas": {
+        "projectId": "e4b03e3d-d79c-4300-9d55-c869a5508515"
+      }
     }
   }
 }

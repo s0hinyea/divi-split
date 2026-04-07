@@ -4,6 +4,7 @@ import {
     TouchableOpacity,
     RefreshControl,
     Alert,
+    Pressable,
 } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -79,7 +80,6 @@ export default function History() {
     const { receipts, loading, hasMore, fetchReceipts, deleteReceipt: contextDeleteReceipt, refreshReceipts } = useHistory();
     const [loadingMore, setLoadingMore] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
-    const [pressedId, setPressedId] = useState<string | null>(null);
 
     const onRefresh = useCallback(async () => {
         setRefreshing(true);
@@ -138,20 +138,19 @@ export default function History() {
                     </View>
                 ) : (
                     <>
-                        <Text style={styles.swipeHint}>Hold to view details, swipe left to delete</Text>
+                        <Text style={styles.swipeHint}>Tap to view, swipe left to delete</Text>
                         {receipts.map((receipt) => (
                             <Swipeable
                                 key={receipt.id}
                                 renderRightActions={() => renderRightActions(receipt)}
                                 rightThreshold={40}
                             >
-                                <GHTouchableOpacity
-                                    style={[styles.receiptCard, pressedId === receipt.id && styles.receiptCardPressed]}
-                                    onLongPress={() => { setPressedId(null); router.push(`/receipt/${receipt.id}`); }}
-                                    delayLongPress={250}
-                                    onPressIn={() => setPressedId(receipt.id)}
-                                    onPressOut={() => setPressedId(null)}
-                                    activeOpacity={1}
+                                <Pressable
+                                    onPress={() => router.push(`/receipt/${receipt.id}`)}
+                                    style={({ pressed }) => [
+                                        styles.receiptCard,
+                                        pressed && styles.receiptCardPressed
+                                    ]}
                                 >
                                     <View style={styles.receiptInfo}>
                                         <Text style={styles.receiptName}>{receipt.receipt_name}</Text>
@@ -162,7 +161,7 @@ export default function History() {
                                     <Text style={styles.receiptTotal}>
                                         ${(receipt.total_amount || 0).toFixed(2)}
                                     </Text>
-                                </GHTouchableOpacity>
+                                </Pressable>
                             </Swipeable>
                         ))}
 
