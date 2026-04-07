@@ -6,6 +6,7 @@ export type Change = {
 	id: string;
 	previous: ReceiptItem;
 	splitChildIds?: string[];
+	index?: number;
 };
 
 type ChangeContextType = {
@@ -22,6 +23,7 @@ export function ChangeProvider({ children }: { children: ReactNode }) {
 	const updateItem = useSplitStore((state) => state.updateItem);
 	const removeItem = useSplitStore((state) => state.removeItem);
 	const addItem = useSplitStore((state) => state.addItem);
+	const insertItemAt = useSplitStore((state) => state.insertItemAt);
 	const receiptData = useSplitStore((state) => state.receiptData);
 
 	const addChange = (change: Change) => {
@@ -59,18 +61,29 @@ export function ChangeProvider({ children }: { children: ReactNode }) {
 							break;
 						}
 						case "DELETE":
-							addItem(lastChange.previous);
+							if (lastChange.index !== undefined) {
+								insertItemAt(lastChange.index, lastChange.previous);
+							} else {
+								addItem(lastChange.previous);
+							}
 							break;
 						case "ADD":
 							removeItem(lastChange.id);
 							break;
 						case "SPLIT": {
+							// Find position of first child before removing
+							const currentItems = useSplitStore.getState().receiptData.items;
+							const firstChildIndex = lastChange.splitChildIds
+								? currentItems.findIndex((it) => it.id === lastChange.splitChildIds![0])
+								: -1;
+							const restoreIndex = firstChildIndex !== -1 ? firstChildIndex : (lastChange.index ?? currentItems.length);
+
 							// Remove the two split children
 							if (lastChange.splitChildIds) {
 								lastChange.splitChildIds.forEach((childId) => removeItem(childId));
 							}
-							// Re-add the original item
-							addItem(lastChange.previous);
+							// Re-insert the original item at its original position
+							insertItemAt(restoreIndex, lastChange.previous);
 							break;
 						}
 					}

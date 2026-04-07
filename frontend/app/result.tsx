@@ -101,10 +101,12 @@ export default function OCRResults() {
 
     splitTimeoutRef.current = setTimeout(() => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-        const originalItem = useSplitStore.getState().receiptData.items.find(it => it.id === item.id);
+        const currentItems = useSplitStore.getState().receiptData.items;
+        const originalItem = currentItems.find(it => it.id === item.id);
+        const originalIndex = currentItems.findIndex(it => it.id === item.id);
         const childIds = splitItemStore(item.id);
         if (originalItem && childIds.length === 2) {
-            addChange({ type: 'SPLIT', id: item.id, previous: originalItem, splitChildIds: childIds });
+            addChange({ type: 'SPLIT', id: item.id, previous: originalItem, splitChildIds: childIds, index: originalIndex });
         }
         clearSplitState();
     }, 2500);
@@ -145,7 +147,8 @@ export default function OCRResults() {
   }
 
   function deleteItem(id: string, item: ReceiptItem) {
-    addChange({ type: 'DELETE', id, previous: item })
+    const index = items.findIndex(it => it.id === id);
+    addChange({ type: 'DELETE', id, previous: item, index })
     removeItem(id);
   }
 

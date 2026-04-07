@@ -29,6 +29,7 @@ interface SplitState {
     updateReceiptData: (data: Partial<OCRResponse>) => void;
     updateItem: (id: string, item: ReceiptItem) => void;
     addItem: (item: ReceiptItem) => void;
+    insertItemAt: (index: number, item: ReceiptItem) => void;
     removeItem: (id: string) => void;
     splitItem: (id: string) => string[];
     setUserItems: (items: ReceiptItem[]) => void;
@@ -104,6 +105,14 @@ export const useSplitStore = create<SplitState>((set, get) => ({
                 items: [...state.receiptData.items, item],
             },
         })),
+
+    insertItemAt: (index, item) =>
+        set((state) => {
+            const newItems = [...state.receiptData.items];
+            const safeIndex = Math.min(index, newItems.length);
+            newItems.splice(safeIndex, 0, item);
+            return { receiptData: { ...state.receiptData, items: newItems } };
+        }),
 
     removeItem: (id) =>
         set((state) => {
