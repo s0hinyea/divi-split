@@ -30,7 +30,7 @@ interface SplitState {
     updateItem: (id: string, item: ReceiptItem) => void;
     addItem: (item: ReceiptItem) => void;
     removeItem: (id: string) => void;
-    splitItem: (id: string) => void;
+    splitItem: (id: string) => string[];
     setUserItems: (items: ReceiptItem[]) => void;
     saveReceipt: (receiptName: string, receiptDate?: Date) => Promise<boolean>;
     calculateTotal: (items: any[]) => number;
@@ -113,13 +113,13 @@ export const useSplitStore = create<SplitState>((set, get) => ({
             return { receiptData: { ...state.receiptData, items: newItems } };
         }),
 
-    splitItem: (id) =>
-        set((state) => {
+    splitItem: (id) => {
+            const state = get();
             const index = state.receiptData.items.findIndex((it) => it.id === id);
-            if (index === -1) return state;
+            if (index === -1) return [];
 
             const originalItem = state.receiptData.items[index];
-            if (originalItem.price <= 0.01) return state;
+            if (originalItem.price <= 0.01) return [];
 
             const rawHalf = originalItem.price / 2;
             const half1 = Math.ceil(rawHalf * 100) / 100;
@@ -132,21 +132,22 @@ export const useSplitStore = create<SplitState>((set, get) => ({
 
             const item1: ReceiptItem = {
                 id: getId(),
-                name: `${originalItem.name} (1/2)`,
+                name: originalItem.name,
                 price: half1,
             };
 
             const item2: ReceiptItem = {
                 id: getId(),
-                name: `${originalItem.name} (1/2)`,
+                name: originalItem.name,
                 price: half2,
             };
 
             const newItems = [...state.receiptData.items];
             newItems.splice(index, 1, item1, item2);
 
-            return { receiptData: { ...state.receiptData, items: newItems } };
-        }),
+            set({ receiptData: { ...state.receiptData, items: newItems } });
+            return [item1.id, item2.id];
+        },
 
     calculateTotal: (items: any[]) => {
         return items.reduce((sum, item) => sum + item.price, 0);

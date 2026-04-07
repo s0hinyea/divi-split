@@ -101,7 +101,11 @@ export default function OCRResults() {
 
     splitTimeoutRef.current = setTimeout(() => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-        splitItemStore(item.id);
+        const originalItem = useSplitStore.getState().receiptData.items.find(it => it.id === item.id);
+        const childIds = splitItemStore(item.id);
+        if (originalItem && childIds.length === 2) {
+            addChange({ type: 'SPLIT', id: item.id, previous: originalItem, splitChildIds: childIds });
+        }
         clearSplitState();
     }, 2500);
   }

@@ -5,6 +5,7 @@ export type Change = {
 	type: string;
 	id: string;
 	previous: ReceiptItem;
+	splitChildIds?: string[];
 };
 
 type ChangeContextType = {
@@ -63,6 +64,15 @@ export function ChangeProvider({ children }: { children: ReactNode }) {
 						case "ADD":
 							removeItem(lastChange.id);
 							break;
+						case "SPLIT": {
+							// Remove the two split children
+							if (lastChange.splitChildIds) {
+								lastChange.splitChildIds.forEach((childId) => removeItem(childId));
+							}
+							// Re-add the original item
+							addItem(lastChange.previous);
+							break;
+						}
 					}
 				}
 
