@@ -11,7 +11,7 @@ export type OCRResponse = {
     text: string;
     items: ReceiptItem[];
     total?: number;
-    tax: number;
+    tax?: number;
     tip?: number;
     userItems?: ReceiptItem[];
 };
@@ -30,6 +30,7 @@ interface SplitState {
     updateItem: (id: string, item: ReceiptItem) => void;
     addItem: (item: ReceiptItem) => void;
     removeItem: (id: string) => void;
+    splitItem: (id: string) => void;
     setUserItems: (items: ReceiptItem[]) => void;
     saveReceipt: (receiptName: string, receiptDate?: Date) => Promise<boolean>;
     calculateTotal: (items: any[]) => number;
@@ -109,6 +110,41 @@ export const useSplitStore = create<SplitState>((set, get) => ({
             const newItems = state.receiptData.items.filter((it) =>
                 it.id !== id
             );
+            return { receiptData: { ...state.receiptData, items: newItems } };
+        }),
+
+    splitItem: (id) =>
+        set((state) => {
+            const index = state.receiptData.items.findIndex((it) => it.id === id);
+            if (index === -1) return state;
+
+            const originalItem = state.receiptData.items[index];
+            if (originalItem.price <= 0.01) return state;
+
+            const rawHalf = originalItem.price / 2;
+            const half1 = Math.ceil(rawHalf * 100) / 100;
+            const half2 = Math.floor(rawHalf * 100) / 100;
+
+            const getId = () => 
+                typeof crypto !== 'undefined' && crypto.randomUUID 
+                    ? crypto.randomUUID() 
+                    : Math.random().toString(36).substring(2, 10);
+
+            const item1: ReceiptItem = {
+                id: getId(),
+                name: `${originalItem.name} (1/2)`,
+                price: half1,
+            };
+
+            const item2: ReceiptItem = {
+                id: getId(),
+                name: `${originalItem.name} (1/2)`,
+                price: half2,
+            };
+
+            const newItems = [...state.receiptData.items];
+            newItems.splice(index, 1, item1, item2);
+
             return { receiptData: { ...state.receiptData, items: newItems } };
         }),
 

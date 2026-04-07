@@ -1,6 +1,7 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useState, useEffect } from 'react';
-import { View, TextInput, StyleSheet, TouchableOpacity, Pressable, Image, Modal, Text } from 'react-native';
+import { useState, useEffect, useRef } from 'react';
+import { View, TextInput, StyleSheet, TouchableOpacity, Pressable, Image, Modal, Text, Keyboard, Animated } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { ScrollView } from 'react-native-gesture-handler';
 import { Button, Surface } from 'react-native-paper';
 import { useSplitStore, ReceiptItem } from '../stores/splitStore';
@@ -21,10 +22,14 @@ export default function OCRResults() {
   const updateItem = useSplitStore((state) => state.updateItem);
   const removeItem = useSplitStore((state) => state.removeItem);
   const addItem = useSplitStore((state) => state.addItem);
+  const splitItemStore = useSplitStore((state) => state.splitItem);
   const updateReceiptData = useSplitStore((state) => state.updateReceiptData);
   const receiptData = useSplitStore((state) => state.receiptData);
   const { addChange, undoChange, clearChanges, changes } = useChange();
-  const [donebuttonVisible, setDoneButtonVisible] = useState<boolean>(false);
+
+  const [splitTarget, setSplitTarget] = useState<string | null>(null);
+  const splitProgress = useRef(new Animated.Value(0)).current;
+  const splitTimeoutRef = useRef<any>(null);
   const [newName, setNewName] = useState<string>('');
   const [newPrice, setNewPrice] = useState<string>('');
   const [stackEmpty, isStackEmpty] = useState<boolean>(true);
@@ -44,39 +49,82 @@ export default function OCRResults() {
     isStackEmpty(changes.length === 0);
   }, [changes]);
 
-  function finishChange() {
-    setDoneButtonVisible(false);
-    changeItem('');
-    const previousItem = items.find(item => item.id === changing);
+
+
+  function saveCurrentEdit(targetId: string, finalName: string, finalPrice: string) {
+    if (!targetId) return;
+    const previousItem = items.find(item => item.id === targetId);
     if (!previousItem) return;
 
-    // Build the updated item with all changes
     let updatedItem = { ...previousItem };
     let changed = false;
+    let parsedPrice = parseFloat(finalPrice);
+    if (isNaN(parsedPrice)) parsedPrice = 0;
 
-    if (previousItem.name !== newName) {
-      updatedItem.name = newName;
-      addChange({ type: 'EDIT_NAME', id: changing, previous: previousItem });
+    if (previousItem.name !== finalName) {
+      updatedItem.name = finalName;
+      addChange({ type: 'EDIT_NAME', id: targetId, previous: previousItem });
       changed = true;
     }
-    if (previousItem.price !== parseFloat(newPrice)) {
-      updatedItem.price = parseFloat(newPrice);
-      addChange({ type: 'EDIT_PRICE', id: changing, previous: previousItem });
+    if (previousItem.price !== parsedPrice) {
+      updatedItem.price = parsedPrice;
+      addChange({ type: 'EDIT_PRICE', id: targetId, previous: previousItem });
       changed = true;
     }
 
-    // Only update if something changed
     if (changed) {
-      updateItem(changing, updatedItem);
+      updateItem(targetId, updatedItem);
+    }
+  }
+
+  function finishChange() {
+    if (changing) {
+      saveCurrentEdit(changing, newName, newPrice);
+      changeItem('');
       setNewName('');
       setNewPrice('');
     }
   }
 
-  //The text inputs are pre-filled with current value
-  //i.e. if i put "bro" for setNewName, when that item is in edit state, it will show "bro" in the pressable  
+  function handleLongPress(item: ReceiptItem) {
+    if (item.price <= 0.01) return; // Un-splittable
+
+    setSplitTarget(item.id);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    
+    // 2500ms remaining since 500ms already elapsed via delayLongPress
+    Animated.timing(splitProgress, {
+        toValue: 1,
+        duration: 2500,
+        useNativeDriver: false,
+    }).start();
+
+    splitTimeoutRef.current = setTimeout(() => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+        splitItemStore(item.id);
+        clearSplitState();
+    }, 2500);
+  }
+
+  function clearSplitState() {
+    if (splitTimeoutRef.current) {
+        clearTimeout(splitTimeoutRef.current);
+        splitTimeoutRef.current = null;
+    }
+    setSplitTarget(null);
+    splitProgress.setValue(0);
+  }
+
+  function handlePressOut() {
+    if (splitTarget) clearSplitState();
+  }
+
+  // The text inputs are pre-filled with current value
+  // i.e. if i put "bro" for setNewName, when that item is in edit state, it will show "bro" in the pressable  
   function startChange(id: string) {
-    setDoneButtonVisible(true);
+    if (changing && changing !== id) {
+      saveCurrentEdit(changing, newName, newPrice);
+    }
     changeItem(id);
     const item = items.find(it => it.id === id);
     setNewName(item ? item.name : '');
@@ -109,6 +157,7 @@ export default function OCRResults() {
   }
 
   function startTaxEdit() {
+    if (changing) finishChange();
     setEditingTax(true);
     setShowTaxDone(true);
   }
@@ -123,6 +172,7 @@ export default function OCRResults() {
   }
 
   function startTipEdit() {
+    if (changing) finishChange();
     setEditingTip(true);
     setShowTipDone(true);
   }
@@ -168,7 +218,7 @@ export default function OCRResults() {
               <Text style={{ color: colors.green }}>Receipt</Text>
             </Text>
           </View>
-          <Text style={styles.headerSubtitle}>Hold to edit, swipe to delete</Text>
+          <Text style={styles.headerSubtitle}>Tap to edit, swipe left to delete, hold to split</Text>
         </View>
 
         {/* Horizontal Tax & Tip */}
@@ -222,96 +272,133 @@ export default function OCRResults() {
       </View>
 
       {/* Scrollable Items List */}
-      <ScrollView style={styles.itemsScroll} contentContainerStyle={styles.itemsContent}>
-        <View style={styles.itemsContainer}>
-          {items
-            .filter(item => item.name.trim().toLowerCase() !== 'tax')
-            .map(item => (
-              changing === item.id ? (
-                <View key={item.id} style={styles.changeRow}>
-                  <View style={[styles.changeInputContainer, { flex: 2 }]}>
-                    <TextInput
-                      style={styles.changeInput}
-                      value={newName}
-                      onChangeText={(text) => changeName(item.id, text, item)}
-                      autoFocus
-                    />
+      <ScrollView 
+        style={styles.itemsScroll} 
+        contentContainerStyle={styles.itemsContent}
+        keyboardShouldPersistTaps="handled" 
+        keyboardDismissMode="on-drag"
+      >
+        <Pressable 
+          style={{ flexGrow: 1, minHeight: 200 }} 
+          onPress={() => {
+            Keyboard.dismiss();
+            if (changing) finishChange();
+          }}
+        >
+          <View style={styles.itemsContainer}>
+            {items
+              .filter(item => item.name.trim().toLowerCase() !== 'tax')
+              .map(item => (
+                changing === item.id ? (
+                  <View key={item.id} style={styles.changeRow}>
+                    <View style={[styles.changeInputContainer, { flex: 2 }]}>
+                      <TextInput
+                        style={styles.changeInput}
+                        value={newName}
+                        onChangeText={(text) => changeName(item.id, text, item)}
+                        onSubmitEditing={() => { Keyboard.dismiss(); finishChange(); }}
+                        autoFocus
+                      />
+                    </View>
+                    <View style={[styles.changeInputContainer, { flex: 1 }]}>
+                      <TextInput
+                        style={styles.changeInput}
+                        value={newPrice}
+                        onChangeText={(text) => changePrice(item.id, text, item)}
+                        keyboardType="decimal-pad"
+                        onSubmitEditing={() => { Keyboard.dismiss(); finishChange(); }}
+                      />
+                    </View>
                   </View>
-                  <View style={[styles.changeInputContainer, { flex: 1 }]}>
-                    <TextInput
-                      style={styles.changeInput}
-                      value={newPrice}
-                      onChangeText={(text) => changePrice(item.id, text, item)}
-                      keyboardType="decimal-pad"
-                    />
-                  </View>
-                </View>
-              ) : (
+                ) : (
                 <Swipeable
                   key={item.id}
                   renderRightActions={() => renderRightActions(item.id, item)}
                   rightThreshold={40}
                 >
-                  <GHTouchableOpacity
+                  <Pressable
                     onPress={() => { startChange(item.id) }}
-                    activeOpacity={0.7}
-                    style={styles.itemRow}
+                    onLongPress={() => handleLongPress(item)}
+                    onPressOut={handlePressOut}
+                    delayLongPress={500}
+                    style={({ pressed }) => [
+                      styles.itemRow,
+                      splitTarget === item.id && { backgroundColor: `${colors.green}10`, borderColor: colors.green },
+                      (pressed && !splitTarget) && { backgroundColor: `${colors.green}18`, borderColor: colors.green }
+                    ]}
                   >
                     <Text style={styles.itemName}>{item.name}</Text>
                     <Text style={styles.itemPrice}>${item.price.toFixed(2)}</Text>
-                  </GHTouchableOpacity>
+                  </Pressable>
                 </Swipeable>
               )
             ))}
-        </View>
+          </View>
+        </Pressable>
       </ScrollView>
 
       {/* Fixed Footer Section */}
       <View style={styles.fixedFooter}>
-        {/* Show total */}
-        {items.length > 0 && (
-          <View style={styles.totalContainer}>
-            <Text style={styles.totalLabel}>Total</Text>
-            <Text style={styles.totalAmount}>
-              ${(items.reduce((sum, item) => sum + item.price, 0) + (('tax' in receiptData && receiptData.tax) ? receiptData.tax : 0) + (('tip' in receiptData && receiptData.tip) ? receiptData.tip : 0)).toFixed(2)}
-            </Text>
+        {splitTarget ? (
+          <View style={styles.splitProgressContainer}>
+            <Text style={styles.totalLabel}>Splitting Item...</Text>
+            <View style={styles.progressBarBackground}>
+              <Animated.View style={[styles.progressBarFill, {
+                   width: splitProgress.interpolate({
+                       inputRange: [0, 1],
+                       outputRange: ['0%', '100%']
+                   })
+              }]} />
+            </View>
           </View>
-        )}
-
-        {donebuttonVisible ? (
-          <TouchableOpacity
-            onPress={finishChange}
-            style={styles.blockDoneButton}>
-            <Text style={styles.blockDoneText}>Done Editing</Text>
-          </TouchableOpacity>
         ) : (
-          <View style={styles.footerButtons}>
-            <TouchableOpacity
-              style={styles.footerButton}
-              onPress={undoChange}
-              disabled={changes.length === 0}
-            >
-              <MaterialIcons
-                name="undo"
-                size={24}
-                color={changes.length === 0 ? colors.gray300 : colors.black}
-              />
-            </TouchableOpacity>
+          <>
+            {/* Show total */}
+            {items.length > 0 && (
+              <View style={styles.totalContainer}>
+                <Text style={styles.totalLabel}>Total</Text>
+                <Text style={styles.totalAmount}>
+                  ${(items.reduce((sum, item) => sum + item.price, 0) + (('tax' in receiptData && receiptData.tax) ? receiptData.tax : 0) + (('tip' in receiptData && receiptData.tip) ? receiptData.tip : 0)).toFixed(2)}
+                </Text>
+              </View>
+            )}
 
-            <TouchableOpacity
-              style={styles.continueButton}
-              onPress={() => { router.push("/assign") }}
-              activeOpacity={0.8}
-            >
-              <MaterialIcons name="check" size={28} color={colors.white} />
-            </TouchableOpacity>
+        <View style={styles.footerButtons}>
+          <TouchableOpacity
+            style={styles.footerButton}
+            onPress={undoChange}
+            disabled={changes.length === 0}
+          >
+            <MaterialIcons
+              name="undo"
+              size={24}
+              color={changes.length === 0 ? colors.gray300 : colors.black}
+            />
+          </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.footerButton}
-              onPress={() => { isAdding(true) }}>
-              <MaterialIcons name="add" size={28} color={colors.black} />
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity
+            style={styles.continueButton}
+            onPress={() => {
+              Keyboard.dismiss();
+              if (changing) finishChange();
+              router.push("/assign");
+            }}
+            activeOpacity={0.8}
+          >
+            <MaterialIcons name="check" size={28} color={colors.white} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.footerButton}
+            onPress={() => {
+              Keyboard.dismiss();
+              if (changing) finishChange();
+              isAdding(true);
+            }}>
+            <MaterialIcons name="add" size={28} color={colors.black} />
+          </TouchableOpacity>
+        </View>
+          </>
         )}
       </View>
 
@@ -597,5 +684,21 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bodySemiBold,
     fontSize: fontSizes.md,
     color: colors.white,
+  },
+  splitProgressContainer: {
+    justifyContent: 'center',
+    paddingVertical: spacing.sm,
+  },
+  progressBarBackground: {
+    height: 12,
+    backgroundColor: colors.gray200,
+    borderRadius: radii.full,
+    marginTop: spacing.md,
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: '100%',
+    backgroundColor: colors.green,
+    borderRadius: radii.full,
   },
 });
