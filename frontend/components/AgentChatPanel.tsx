@@ -12,10 +12,10 @@ import {
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { colors, fonts, fontSizes, spacing, radii } from "@/styles/theme";
-import { useAgentChat } from "../utils/useAgentChat";
+import { useVoiceAgent } from "../utils/useVoiceAgent";
 
 export default function AgentChatPanel() {
-  const { messages, loading, error, sendMessage, clearMessages } = useAgentChat();
+  const { messages, loading, error, sendMessage, clearMessages, isRecording, isTranscribing, startRecording, stopAndSend } = useVoiceAgent();
   const [inputText, setInputText] = useState("");
   const scrollRef = useRef<ScrollView>(null);
 
@@ -120,6 +120,17 @@ export default function AgentChatPanel() {
         )}
       </ScrollView>
 
+      {/* Voice status label */}
+      {(isRecording || isTranscribing) && (
+        <View style={styles.voiceStatus}>
+          {isRecording ? (
+            <Text style={styles.voiceStatusText}>Listening... tap mic to send</Text>
+          ) : (
+            <ActivityIndicator size="small" color={colors.green} />
+          )}
+        </View>
+      )}
+
       {/* Input row */}
       <View style={styles.inputRow}>
         <TextInput
@@ -130,20 +141,37 @@ export default function AgentChatPanel() {
           placeholderTextColor={colors.gray400}
           onSubmitEditing={handleSend}
           returnKeyType="send"
-          editable={!loading}
+          editable={!loading && !isRecording && !isTranscribing}
           multiline={false}
         />
-        <TouchableOpacity
-          style={[
-            styles.sendButton,
-            (!inputText.trim() || loading) && styles.sendButtonDisabled,
-          ]}
-          onPress={handleSend}
-          disabled={!inputText.trim() || loading}
-          activeOpacity={0.8}
-        >
-          <MaterialIcons name="arrow-upward" size={20} color={colors.white} />
-        </TouchableOpacity>
+
+        {/* Mic button — shown when input is empty */}
+        {!inputText.trim() && (
+          <TouchableOpacity
+            style={[styles.sendButton, isRecording && styles.recordingButton]}
+            onPress={isRecording ? stopAndSend : startRecording}
+            disabled={isTranscribing || loading}
+            activeOpacity={0.8}
+          >
+            <MaterialIcons
+              name={isRecording ? "stop" : "mic"}
+              size={20}
+              color={colors.white}
+            />
+          </TouchableOpacity>
+        )}
+
+        {/* Send button — shown when there is typed text */}
+        {!!inputText.trim() && (
+          <TouchableOpacity
+            style={[styles.sendButton, loading && styles.sendButtonDisabled]}
+            onPress={handleSend}
+            disabled={loading}
+            activeOpacity={0.8}
+          >
+            <MaterialIcons name="arrow-upward" size={20} color={colors.white} />
+          </TouchableOpacity>
+        )}
       </View>
     </KeyboardAvoidingView>
   );
@@ -314,5 +342,20 @@ const styles = StyleSheet.create({
     backgroundColor: colors.gray300,
     shadowOpacity: 0,
     elevation: 0,
+  },
+  recordingButton: {
+    backgroundColor: colors.error,
+    shadowColor: colors.error,
+  },
+  voiceStatus: {
+    alignItems: "center",
+    paddingVertical: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.gray200,
+  },
+  voiceStatusText: {
+    fontFamily: fonts.body,
+    fontSize: fontSizes.sm,
+    color: colors.green,
   },
 });

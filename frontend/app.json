@@ -14,7 +14,8 @@
       "infoDictionary": {
         "NSCameraUsageDescription": "Divi needs access to your camera to scan receipts.",
         "NSPhotoLibraryUsageDescription": "Divi needs access to your photos so you can upload receipts.",
-        "NSContactsUsageDescription": "Divi needs access to your contacts to quickly assign items to friends."
+        "NSContactsUsageDescription": "Divi needs access to your contacts to quickly assign items to friends.",
+        "NSMicrophoneUsageDescription": "Divi needs access to your microphone for voice-assisted splitting."
       },
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
@@ -77,7 +78,8 @@
             "minSdkVersion": 24
           }
         }
-      ]
+      ],
+      "expo-audio"
     ],
     "experiments": {
       "typedRoutes": true
