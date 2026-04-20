@@ -29,8 +29,7 @@ function DiviLogo({ size = 80, green = GREEN, black = BLACK }: { size?: number; 
 	);
 }
 
-// Zigzag edge — rendered as an SVG strip above the receipt card
-function ZigzagEdge({ width, backgroundColor }: { width: number; backgroundColor: string }) {
+function ZigzagEdge({ width }: { width: number }) {
 	const numZigzags = Math.floor(width / ZIGZAG_W);
 	let path = `M 0,${ZIGZAG_H}`;
 	for (let i = 0; i < numZigzags; i++) {
@@ -41,23 +40,30 @@ function ZigzagEdge({ width, backgroundColor }: { width: number; backgroundColor
 	path += ` L ${width},${ZIGZAG_H} L ${width},${ZIGZAG_H * 3} L 0,${ZIGZAG_H * 3} Z`;
 
 	return (
-		<Svg width={width} height={ZIGZAG_H * 3} style={{ display: 'flex' }}>
-			<Path d={path} fill={backgroundColor} />
+		<Svg width={width} height={ZIGZAG_H * 3}>
+			<Path d={path} fill={colors.white} stroke={BLACK} strokeWidth={1} />
 		</Svg>
 	);
 }
 
+// Dots leader for receipt rows
+function Dots() {
+	return (
+		<Text style={styles.dots} numberOfLines={1}>
+			{"· · · · · · · · · · · · · · · · · · · ·"}
+		</Text>
+	);
+}
+
+const TODAY = new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+const TIME = new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
 
 export default function Home() {
 	const router = useRouter();
 	const buttonProgress = useSharedValue(0);
 
 	const animatedButtonStyle = useAnimatedStyle(() => ({
-		backgroundColor: interpolateColor(
-			buttonProgress.value,
-			[0, 1],
-			[BLACK, GREEN]
-		),
+		backgroundColor: interpolateColor(buttonProgress.value, [0, 1], [BLACK, GREEN]),
 	}));
 
 	const logos = [
@@ -84,68 +90,119 @@ export default function Home() {
 			{/* Scattered logos */}
 			<View style={styles.bgContainer}>
 				{logos.map((pos, i) => (
-					<View
-						key={i}
-						style={{
-							position: "absolute",
-							top: pos.top,
-							left: pos.left,
-							opacity: pos.opacity,
-							transform: [{ rotate: pos.rotate }],
-						}}
-					>
+					<View key={i} style={{ position: "absolute", top: pos.top, left: pos.left, opacity: pos.opacity, transform: [{ rotate: pos.rotate }] }}>
 						<DiviLogo size={pos.size} />
 					</View>
 				))}
-
-				{/* Fade logos into the receipt */}
 				<LinearGradient
-					colors={[
-						"rgba(246,245,242,0.0)",
-						"rgba(246,245,242,0.6)",
-						"rgba(246,245,242,1.0)",
-					]}
-					locations={[0.1, 0.5, 0.75]}
+					colors={["rgba(246,245,242,0.0)", "rgba(246,245,242,0.65)", "rgba(246,245,242,1.0)"]}
+					locations={[0.1, 0.5, 0.72]}
 					style={styles.gradient}
 				/>
 			</View>
 
-			{/* Receipt card */}
-			<View style={styles.receiptWrapper}>
-				<ZigzagEdge width={SCREEN_WIDTH} backgroundColor={colors.white} />
+			{/* Receipt */}
+			<View style={styles.receiptOuter}>
+				<ZigzagEdge width={SCREEN_WIDTH} />
 
 				<View style={styles.receipt}>
-					{/* Receipt header */}
-					<View style={styles.receiptHeader}>
-						<DiviLogo size={28} />
-						<Text style={styles.receiptTitle}>divi</Text>
+
+					{/* ── Merchant header ── */}
+					<View style={styles.merchantHeader}>
+						<DiviLogo size={32} />
+						<Text style={styles.merchantName}>
+							<Text style={{ color: BLACK }}>D</Text>
+							<Text style={{ color: GREEN }}>i</Text>
+							<Text style={{ color: BLACK }}>v</Text>
+							<Text style={{ color: GREEN }}>i</Text>
+						</Text>
+						<Text style={styles.merchantTagline}>for who owes what.</Text>
 					</View>
 
-					<View style={styles.receiptDivider} />
+					<View style={styles.divider} />
 
-					<Text style={styles.subheading}>for who owes what.</Text>
+					{/* ── Meta row ── */}
+					<View style={styles.metaRow}>
+						<Text style={styles.metaText}>{TODAY}  {TIME}</Text>
+						<Text style={styles.metaText}>REF #0001</Text>
+					</View>
 
-					<View style={[styles.receiptDivider, { marginBottom: spacing.xl }]} />
+					<View style={styles.dividerDashed} />
 
-					{/* CTA */}
+					{/* ── Line items ── */}
+					<View style={styles.lineItem}>
+						<Text style={styles.itemName}>Receipt scanning</Text>
+						<Dots />
+						<Text style={styles.itemPrice}>FREE</Text>
+					</View>
+					<View style={styles.lineItem}>
+						<Text style={styles.itemName}>Contact picking</Text>
+						<Dots />
+						<Text style={styles.itemPrice}>FREE</Text>
+					</View>
+					<View style={styles.lineItem}>
+						<Text style={styles.itemName}>Item assignment</Text>
+						<Dots />
+						<Text style={styles.itemPrice}>FREE</Text>
+					</View>
+					<View style={styles.lineItem}>
+						<Text style={styles.itemName}>Payment dispatch</Text>
+						<Dots />
+						<Text style={styles.itemPrice}>FREE</Text>
+					</View>
+					<View style={styles.lineItem}>
+						<Text style={[styles.itemName, { color: GREEN }]}>Voice AI assistant</Text>
+						<Dots />
+						<Text style={[styles.itemPrice, { color: GREEN }]}>PRO</Text>
+					</View>
+
+					<View style={styles.dividerDashed} />
+
+					{/* ── Totals ── */}
+					<View style={styles.totalRow}>
+						<Text style={styles.totalLabel}>Subtotal</Text>
+						<Text style={styles.totalValue}>$0.00</Text>
+					</View>
+					<View style={styles.totalRow}>
+						<Text style={styles.totalLabel}>Tax</Text>
+						<Text style={styles.totalValue}>$0.00</Text>
+					</View>
+
+					<View style={styles.divider} />
+
+					<View style={styles.totalRow}>
+						<Text style={styles.grandLabel}>TOTAL DUE</Text>
+						<Text style={styles.grandValue}>$0.00</Text>
+					</View>
+
+					<View style={styles.dividerDashed} />
+
+					{/* ── Tagline ── */}
+					<Text style={styles.thankYou}>Thank you for dining.</Text>
+					<Text style={styles.tagline}>Split the bill. Keep the friends.</Text>
+
+					<View style={styles.divider} />
+
+					{/* ── CTA ── */}
 					<TouchableOpacity
 						onPress={() => router.push({ pathname: "/auth", params: { mode: "signup" } })}
 						onPressIn={() => { buttonProgress.value = withTiming(1, { duration: 140 }); }}
 						onPressOut={() => { buttonProgress.value = withTiming(0, { duration: 220 }); }}
 						activeOpacity={1}
+						style={{ marginTop: spacing.sm }}
 					>
 						<Animated.View style={[styles.button, animatedButtonStyle]}>
-							<Text style={styles.buttonText}>Get Started — It&apos;s Free</Text>
+							<Text style={styles.buttonText}>Sign Up for Free</Text>
 						</Animated.View>
 					</TouchableOpacity>
 
-					{/* Login */}
 					<View style={styles.loginRow}>
 						<Text style={styles.loginHint}>Already have an account? </Text>
 						<TouchableOpacity onPress={() => router.push({ pathname: "/auth", params: { mode: "login" } })}>
 							<Text style={styles.loginLink}>Log In</Text>
 						</TouchableOpacity>
 					</View>
+
 				</View>
 			</View>
 		</View>
@@ -160,67 +217,154 @@ const styles = StyleSheet.create({
 	},
 	bgContainer: {
 		position: "absolute",
-		top: 0,
-		left: 0,
-		right: 0,
-		bottom: 0,
+		top: 0, left: 0, right: 0, bottom: 0,
 	},
 	gradient: {
 		position: "absolute",
-		left: 0,
-		right: 0,
-		top: 0,
-		bottom: 0,
+		top: 0, left: 0, right: 0, bottom: 0,
 	},
 
-	// Receipt
-	receiptWrapper: {
-		width: "100%",
+	// Receipt shell
+	receiptOuter: {
+		borderLeftWidth: 1,
+		borderRightWidth: 1,
+		borderBottomWidth: 1,
+		borderColor: BLACK,
 	},
 	receipt: {
 		backgroundColor: colors.white,
 		paddingHorizontal: spacing.xl,
-		paddingBottom: 52,
+		paddingBottom: 44,
 	},
-	receiptHeader: {
-		flexDirection: "row",
+
+	// Header
+	merchantHeader: {
 		alignItems: "center",
-		gap: spacing.sm,
 		paddingTop: spacing.lg,
 		paddingBottom: spacing.md,
+		gap: 4,
 	},
-	receiptTitle: {
+	merchantName: {
 		fontFamily: fonts.bodyBold,
-		fontSize: fontSizes.xxl,
-		color: BLACK,
-		letterSpacing: 6,
-		textTransform: "lowercase",
+		fontSize: 36,
+		letterSpacing: 8,
+		marginTop: spacing.sm,
 	},
-	receiptDivider: {
+	merchantTagline: {
+		fontFamily: fonts.body,
+		fontSize: fontSizes.sm,
+		color: colors.gray500,
+		letterSpacing: 0.5,
+	},
+
+	// Dividers
+	divider: {
 		height: 1,
-		backgroundColor: colors.gray200,
+		backgroundColor: BLACK,
 		marginVertical: spacing.md,
 	},
-	subheading: {
+	dividerDashed: {
+		borderBottomWidth: 1,
+		borderColor: BLACK,
+		borderStyle: "dashed",
+		marginVertical: spacing.md,
+	},
+
+	// Meta
+	metaRow: {
+		flexDirection: "row",
+		justifyContent: "space-between",
+	},
+	metaText: {
 		fontFamily: fonts.body,
-		fontSize: fontSizes.lg,
+		fontSize: fontSizes.xs,
 		color: colors.gray500,
-		paddingVertical: spacing.md,
+	},
+
+	// Line items
+	lineItem: {
+		flexDirection: "row",
+		alignItems: "center",
+		paddingVertical: 5,
+	},
+	itemName: {
+		fontFamily: fonts.body,
+		fontSize: fontSizes.sm,
+		color: BLACK,
+		width: 148,
+	},
+	dots: {
+		flex: 1,
+		fontFamily: fonts.body,
+		fontSize: fontSizes.xs,
+		color: colors.gray300,
+		overflow: "hidden",
+	},
+	itemPrice: {
+		fontFamily: fonts.bodySemiBold,
+		fontSize: fontSizes.sm,
+		color: BLACK,
+		width: 36,
+		textAlign: "right",
+	},
+
+	// Totals
+	totalRow: {
+		flexDirection: "row",
+		justifyContent: "space-between",
+		paddingVertical: 4,
+	},
+	totalLabel: {
+		fontFamily: fonts.body,
+		fontSize: fontSizes.sm,
+		color: colors.gray600,
+	},
+	totalValue: {
+		fontFamily: fonts.body,
+		fontSize: fontSizes.sm,
+		color: BLACK,
+	},
+	grandLabel: {
+		fontFamily: fonts.bodyBold,
+		fontSize: fontSizes.md,
+		color: BLACK,
+		letterSpacing: 1,
+	},
+	grandValue: {
+		fontFamily: fonts.bodyBold,
+		fontSize: fontSizes.md,
+		color: BLACK,
+	},
+
+	// Tagline
+	thankYou: {
+		fontFamily: fonts.body,
+		fontSize: fontSizes.sm,
+		color: colors.gray500,
+		textAlign: "center",
+		marginTop: spacing.xs,
+	},
+	tagline: {
+		fontFamily: fonts.bodySemiBold,
+		fontSize: fontSizes.sm,
+		color: BLACK,
+		textAlign: "center",
+		marginTop: 2,
+		marginBottom: spacing.xs,
 	},
 
 	// CTA
 	button: {
-		paddingVertical: 17,
+		paddingVertical: 16,
 		width: "100%",
 		justifyContent: "center",
 		alignItems: "center",
-		borderRadius: 14,
+		borderRadius: 12,
 	},
 	buttonText: {
 		fontSize: fontSizes.md,
 		fontFamily: fonts.bodySemiBold,
 		color: colors.white,
-		letterSpacing: 0.2,
 	},
 	loginRow: {
 		flexDirection: "row",
