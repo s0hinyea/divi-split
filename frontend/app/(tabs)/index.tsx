@@ -4,12 +4,23 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useCallback, useMemo } from 'react';
 import { useRouter } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
-import { fonts, fontSizes, spacing, radii, shadows } from '@/styles/theme';
+import { fonts, fontSizes, spacing } from '@/styles/theme';
 import { useThemeColors } from '@/utils/ThemeContext';
+import ReceiptCard from '@/components/ReceiptCard';
 import { useHistory } from '@/utils/HistoryContext';
 import { useProfile } from '@/utils/ProfileContext';
 import { useSession } from '@/utils/SessionContext';
 import { DashboardSkeleton } from '@/components/SkeletonLoader';
+
+function ReceiptLines({ color }: { color: string }) {
+    return (
+        <View style={styles.receiptLines}>
+            <View style={[styles.receiptLine, { width: '70%', backgroundColor: color }]} />
+            <View style={[styles.receiptLine, { width: '45%', backgroundColor: color }]} />
+            <View style={[styles.receiptLine, { width: '60%', backgroundColor: color }]} />
+        </View>
+    );
+}
 
 function createStyles(C: ReturnType<typeof useThemeColors>) {
     return StyleSheet.create({
@@ -18,82 +29,50 @@ function createStyles(C: ReturnType<typeof useThemeColors>) {
             backgroundColor: C.gray100,
         },
         scrollContent: {
-            paddingHorizontal: spacing.lg,
-            paddingTop: spacing.lg,
+            padding: spacing.lg,
             paddingBottom: 140,
         },
 
-        // Greeting
         greeting: {
             fontFamily: fonts.body,
-            fontSize: fontSizes.md,
-            color: C.gray500,
-            marginTop: spacing.sm,
+            fontSize: fontSizes.lg,
+            color: C.black,
+            marginTop: spacing.md,
         },
         userName: {
             fontFamily: fonts.bodyBold,
-            fontSize: 30,
+            fontSize: fontSizes.xxl,
             color: C.black,
             marginBottom: spacing.xl,
             letterSpacing: -0.5,
         },
 
-        // Hero card — dark, bold
-        heroCard: {
-            backgroundColor: C.black,
-            borderRadius: radii.xl,
-            padding: spacing.xl,
-            marginBottom: spacing.md,
-            ...shadows.lg,
-        },
-        heroLabel: {
-            fontFamily: fonts.body,
-            fontSize: fontSizes.sm,
-            color: C.gray400,
-            marginBottom: spacing.sm,
-            textTransform: 'uppercase',
-            letterSpacing: 1,
-        },
-        heroAmount: {
-            fontFamily: fonts.bodyBold,
-            fontSize: 56,
-            color: C.white,
-            letterSpacing: -2,
-            lineHeight: 60,
-        },
-        heroAmountSmall: {
-            fontSize: fontSizes.xxl,
-        },
-        heroFooter: {
+        // Stat cards row
+        statRow: {
             flexDirection: 'row',
             alignItems: 'center',
-            marginTop: spacing.lg,
-            paddingTop: spacing.md,
-            borderTopWidth: 1,
-            borderTopColor: 'rgba(255,255,255,0.08)',
+            marginBottom: spacing.lg,
         },
-        heroStat: {
-            flex: 1,
-        },
-        heroStatValue: {
+        statCard: { flex: 1 },
+        statSpacer: { width: spacing.md },
+        flippedCard: { transform: [{ scaleX: -1 }] },
+        flippedContent: { transform: [{ scaleX: -1 }] },
+
+        statAmount: {
             fontFamily: fonts.bodySemiBold,
-            fontSize: fontSizes.lg,
+            fontSize: fontSizes.xxl,
             color: C.green,
+            marginBottom: spacing.xs,
         },
-        heroStatLabel: {
+        statLabel: {
             fontFamily: fonts.body,
-            fontSize: fontSizes.xs,
-            color: C.gray500,
-            marginTop: 2,
+            fontSize: fontSizes.sm,
+            color: C.gray600,
+            marginBottom: spacing.sm,
         },
 
         // Recent splits card
-        recentCard: {
-            backgroundColor: C.white,
-            borderRadius: radii.xl,
-            padding: spacing.lg,
-            ...shadows.sm,
-        },
+        recentCard: { width: '100%' },
         recentHeader: {
             flexDirection: 'row',
             justifyContent: 'space-between',
@@ -111,28 +90,17 @@ function createStyles(C: ReturnType<typeof useThemeColors>) {
             color: C.green,
         },
 
-        // Receipt row
         receiptRow: {
             flexDirection: 'row',
+            justifyContent: 'space-between',
             alignItems: 'center',
             paddingVertical: spacing.md,
-            gap: spacing.md,
         },
         receiptRowBorder: {
             borderBottomWidth: 1,
             borderBottomColor: C.gray200,
         },
-        receiptIcon: {
-            width: 40,
-            height: 40,
-            borderRadius: radii.sm,
-            backgroundColor: C.gray100,
-            justifyContent: 'center',
-            alignItems: 'center',
-        },
-        receiptInfo: {
-            flex: 1,
-        },
+        receiptRowLeft: { flex: 1 },
         receiptName: {
             fontFamily: fonts.bodySemiBold,
             fontSize: fontSizes.md,
@@ -141,16 +109,15 @@ function createStyles(C: ReturnType<typeof useThemeColors>) {
         receiptDate: {
             fontFamily: fonts.body,
             fontSize: fontSizes.xs,
-            color: C.gray500,
+            color: C.gray600,
             marginTop: 2,
         },
         receiptAmount: {
             fontFamily: fonts.bodySemiBold,
-            fontSize: fontSizes.md,
-            color: C.black,
+            fontSize: fontSizes.lg,
+            color: C.green,
         },
 
-        // Empty state
         emptyState: {
             alignItems: 'center',
             paddingVertical: spacing.xl,
@@ -169,6 +136,11 @@ function createStyles(C: ReturnType<typeof useThemeColors>) {
     });
 }
 
+const styles = StyleSheet.create({
+    receiptLines: { gap: 6, marginTop: spacing.sm },
+    receiptLine: { height: 2, borderRadius: 1 },
+});
+
 export default function Dashboard() {
     const router = useRouter();
     const { session } = useSession();
@@ -176,7 +148,7 @@ export default function Dashboard() {
     const { profile, loading: profileLoading, refreshProfile } = useProfile();
     const [refreshing, setRefreshing] = useState(false);
     const C = useThemeColors();
-    const styles = useMemo(() => createStyles(C), [C]);
+    const themed = useMemo(() => createStyles(C), [C]);
 
     const onRefresh = useCallback(async () => {
         setRefreshing(true);
@@ -201,47 +173,47 @@ export default function Dashboard() {
     };
 
     const recentTwo = receipts.slice(0, 2);
-    const totalString = monthlyTotal.toFixed(2);
-    const isLargeAmount = totalString.length > 7;
+    const totalString = monthlyTotal.toFixed(0);
+    const totalFontSize = totalString.length > 5 ? fontSizes.lg : fontSizes.xxl;
 
     return (
-        <SafeAreaView style={styles.container}>
+        <SafeAreaView style={themed.container}>
             <ScrollView
-                contentContainerStyle={styles.scrollContent}
+                contentContainerStyle={themed.scrollContent}
                 showsVerticalScrollIndicator={false}
                 refreshControl={
-                    <RefreshControl
-                        refreshing={refreshing}
-                        onRefresh={onRefresh}
-                        tintColor={C.green}
-                    />
+                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.green} />
                 }
             >
-                {/* Greeting */}
-                <Text style={styles.greeting}>{getGreeting()},</Text>
-                <Text style={styles.userName}>{getUserName()}.</Text>
+                <Text style={themed.greeting}>{getGreeting()},</Text>
+                <Text style={themed.userName}>{getUserName()}.</Text>
 
-                {/* Hero card */}
-                <View style={styles.heroCard}>
-                    <Text style={styles.heroLabel}>This month</Text>
-                    <Text style={[styles.heroAmount, isLargeAmount && styles.heroAmountSmall]}>
-                        ${totalString}
-                    </Text>
-                    <View style={styles.heroFooter}>
-                        <View style={styles.heroStat}>
-                            <Text style={styles.heroStatValue}>{totalCount}</Text>
-                            <Text style={styles.heroStatLabel}>receipts scanned</Text>
+                {/* Stat cards */}
+                <View style={themed.statRow}>
+                    <ReceiptCard style={themed.statCard} showTopZigzag={false} showBottomZigzag={true}>
+                        <Text style={[themed.statAmount, { fontSize: totalFontSize }]}>${totalString}</Text>
+                        <Text style={themed.statLabel}>split this month</Text>
+                        <ReceiptLines color={C.gray200} />
+                    </ReceiptCard>
+
+                    <View style={themed.statSpacer} />
+
+                    <ReceiptCard style={[themed.statCard, themed.flippedCard]} showTopZigzag={false} showBottomZigzag={true}>
+                        <View style={themed.flippedContent}>
+                            <Text style={themed.statAmount}>{totalCount}</Text>
+                            <Text style={themed.statLabel}>receipts scanned</Text>
+                            <ReceiptLines color={C.gray200} />
                         </View>
-                    </View>
+                    </ReceiptCard>
                 </View>
 
                 {/* Recent splits */}
-                <View style={styles.recentCard}>
-                    <View style={styles.recentHeader}>
-                        <Text style={styles.recentTitle}>Recent Splits</Text>
+                <ReceiptCard style={themed.recentCard} showTopZigzag={true} showBottomZigzag={true}>
+                    <View style={themed.recentHeader}>
+                        <Text style={themed.recentTitle}>Recent Splits</Text>
                         {recentTwo.length > 0 && (
                             <TouchableOpacity onPress={() => router.push('/(tabs)/history')}>
-                                <Text style={styles.viewAllText}>View all</Text>
+                                <Text style={themed.viewAllText}>View all →</Text>
                             </TouchableOpacity>
                         )}
                     </View>
@@ -249,28 +221,25 @@ export default function Dashboard() {
                     {loading ? (
                         <DashboardSkeleton />
                     ) : recentTwo.length === 0 ? (
-                        <View style={styles.emptyState}>
+                        <View style={themed.emptyState}>
                             <MaterialIcons name="receipt-long" size={32} color={C.gray300} />
-                            <Text style={styles.emptyTitle}>No receipts yet</Text>
-                            <Text style={styles.emptySubtitle}>Tap + to scan your first one</Text>
+                            <Text style={themed.emptyTitle}>No receipts yet</Text>
+                            <Text style={themed.emptySubtitle}>Tap + to scan your first one!</Text>
                         </View>
                     ) : (
                         recentTwo.map((receipt, i) => (
                             <TouchableOpacity
                                 key={receipt.id}
                                 style={[
-                                    styles.receiptRow,
-                                    i < recentTwo.length - 1 && styles.receiptRowBorder,
+                                    themed.receiptRow,
+                                    i < recentTwo.length - 1 && themed.receiptRowBorder,
                                 ]}
                                 onPress={() => router.push(`/receipt/${receipt.id}`)}
                                 activeOpacity={0.7}
                             >
-                                <View style={styles.receiptIcon}>
-                                    <MaterialIcons name="receipt" size={18} color={C.green} />
-                                </View>
-                                <View style={styles.receiptInfo}>
-                                    <Text style={styles.receiptName}>{receipt.receipt_name}</Text>
-                                    <Text style={styles.receiptDate}>
+                                <View style={themed.receiptRowLeft}>
+                                    <Text style={themed.receiptName}>{receipt.receipt_name}</Text>
+                                    <Text style={themed.receiptDate}>
                                         {new Date(receipt.created_at).toLocaleDateString('en-US', {
                                             month: 'short',
                                             day: 'numeric',
@@ -278,13 +247,13 @@ export default function Dashboard() {
                                         {receipt.receipt_items && ` · ${receipt.receipt_items.length} items`}
                                     </Text>
                                 </View>
-                                <Text style={styles.receiptAmount}>
+                                <Text style={themed.receiptAmount}>
                                     ${(receipt.total_amount || 0).toFixed(2)}
                                 </Text>
                             </TouchableOpacity>
                         ))
                     )}
-                </View>
+                </ReceiptCard>
             </ScrollView>
         </SafeAreaView>
     );
