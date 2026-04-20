@@ -47,12 +47,6 @@ function ZigzagEdge({ width, backgroundColor }: { width: number; backgroundColor
 	);
 }
 
-const RECEIPT_ITEMS = [
-	{ label: "Scan your receipt",     done: true },
-	{ label: "Pick who was there",    done: true },
-	{ label: "Assign every item",     done: true },
-	{ label: "Request payment",       done: true },
-];
 
 export default function Home() {
 	const router = useRouter();
@@ -78,6 +72,11 @@ export default function Home() {
 		{ top: 136, left: 318, size: 52, rotate: "-9deg",  opacity: 0.44 },
 		{ top: 178, left: 98,  size: 48, rotate: "15deg",  opacity: 0.28 },
 		{ top: 188, left: 268, size: 54, rotate: "-24deg", opacity: 0.2  },
+		{ top: 238, left: 40,  size: 50, rotate: "-8deg",  opacity: 0.13 },
+		{ top: 248, left: 200, size: 46, rotate: "18deg",  opacity: 0.1  },
+		{ top: 255, left: 330, size: 52, rotate: "-14deg", opacity: 0.08 },
+		{ top: 305, left: 110, size: 48, rotate: "10deg",  opacity: 0.05 },
+		{ top: 315, left: 260, size: 44, rotate: "-20deg", opacity: 0.03 },
 	];
 
 	return (
@@ -124,25 +123,7 @@ export default function Home() {
 
 					<View style={styles.receiptDivider} />
 
-					{/* Itemized list */}
-					{RECEIPT_ITEMS.map((item, i) => (
-						<View key={i} style={styles.receiptRow}>
-							<Text style={styles.receiptItemLabel}>{item.label}</Text>
-							<Text style={styles.receiptDots}>
-								{"· · · · · · · ·"}
-							</Text>
-							<Text style={styles.receiptItemCheck}>✓</Text>
-						</View>
-					))}
-
-					<View style={styles.receiptDashedDivider} />
-
-					{/* Total */}
-					<View style={styles.receiptRow}>
-						<Text style={styles.receiptTotalLabel}>Your share</Text>
-						<View style={{ flex: 1 }} />
-						<Text style={styles.receiptTotalValue}>FREE</Text>
-					</View>
+					<Text style={styles.subheading}>for who owes what.</Text>
 
 					<View style={[styles.receiptDivider, { marginBottom: spacing.xl }]} />
 
@@ -220,48 +201,11 @@ const styles = StyleSheet.create({
 		backgroundColor: colors.gray200,
 		marginVertical: spacing.md,
 	},
-	receiptDashedDivider: {
-		height: 1,
-		borderWidth: 1,
-		borderColor: colors.gray300,
-		borderStyle: "dashed",
-		marginVertical: spacing.md,
-	},
-	receiptRow: {
-		flexDirection: "row",
-		alignItems: "center",
-		paddingVertical: 6,
-	},
-	receiptItemLabel: {
+	subheading: {
 		fontFamily: fonts.body,
-		fontSize: fontSizes.sm,
-		color: colors.gray600,
-		width: 150,
-	},
-	receiptDots: {
-		flex: 1,
-		fontFamily: fonts.body,
-		fontSize: fontSizes.xs,
-		color: colors.gray300,
-		textAlign: "center",
-		letterSpacing: 2,
-	},
-	receiptItemCheck: {
-		fontFamily: fonts.bodyBold,
-		fontSize: fontSizes.sm,
-		color: GREEN,
-		width: 20,
-		textAlign: "right",
-	},
-	receiptTotalLabel: {
-		fontFamily: fonts.bodyBold,
-		fontSize: fontSizes.md,
-		color: BLACK,
-	},
-	receiptTotalValue: {
-		fontFamily: fonts.bodyBold,
-		fontSize: fontSizes.md,
-		color: GREEN,
+		fontSize: fontSizes.lg,
+		color: colors.gray500,
+		paddingVertical: spacing.md,
 	},
 
 	// CTA
