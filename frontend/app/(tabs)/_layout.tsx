@@ -69,17 +69,12 @@ export default function TabsLayout() {
                 screenOptions={{
                     headerShown: false,
                     tabBarStyle: {
-                        position: 'absolute',
-                        bottom: 24,
-                        left: 20,
-                        right: 20,
                         backgroundColor: C.white,
-                        borderRadius: radii.full,
-                        height: 66,
-                        borderTopWidth: 0,
-                        ...shadows.lg,
-                        paddingBottom: 0,
-                        paddingTop: 0,
+                        borderTopWidth: 1,
+                        borderTopColor: C.gray200,
+                        height: 90,
+                        paddingBottom: spacing.lg,
+                        paddingTop: spacing.sm,
                     },
                     tabBarActiveTintColor: C.green,
                     tabBarInactiveTintColor: C.gray400,
@@ -104,15 +99,13 @@ export default function TabsLayout() {
                     name="index"
                     options={{
                         tabBarIcon: ({ focused }) => (
-                            <View style={[
-                                styles.centerTabButton,
-                                { backgroundColor: focused ? C.black : C.gray200 },
-                            ]}>
+                            <View style={styles.tabIconWrapper}>
                                 <DiviLogo
                                     size={28}
                                     green={focused ? C.green : C.gray400}
-                                    black={focused ? C.white : C.gray500}
+                                    black={focused ? C.black : C.gray400}
                                 />
+                                {focused && <View style={[styles.activeDot, { backgroundColor: C.green }]} />}
                             </View>
                         ),
                     }}
@@ -230,7 +223,7 @@ const styles = StyleSheet.create({
     },
     floatingAddButton: {
         position: 'absolute',
-        bottom: 104,
+        bottom: 100,
         left: '50%',
         marginLeft: -26,
         width: 52,

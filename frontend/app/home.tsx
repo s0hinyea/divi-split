@@ -188,12 +188,7 @@ const styles = StyleSheet.create({
 	},
 
 	// Receipt shell
-	receiptOuter: {
-		borderLeftWidth: 1,
-		borderRightWidth: 1,
-		borderBottomWidth: 1,
-		borderColor: BLACK,
-	},
+	receiptOuter: {},
 	receipt: {
 		backgroundColor: colors.white,
 		paddingHorizontal: spacing.xl,
