@@ -91,7 +91,6 @@ export default function Home() {
 
 			{/* Title — above the receipt */}
 			<View style={styles.titleSection}>
-				<DiviLogo size={40} />
 				<Text style={styles.title}>
 					<Text style={{ color: BLACK }}>D</Text>
 					<Text style={{ color: GREEN }}>i</Text>
@@ -170,17 +169,17 @@ const styles = StyleSheet.create({
 	titleSection: {
 		paddingHorizontal: spacing.xl,
 		paddingBottom: spacing.xl,
-		gap: 4,
+		gap: 6,
+		alignItems: "center",
 	},
 	title: {
 		fontFamily: fonts.bodyBold,
-		fontSize: 48,
-		letterSpacing: -1,
-		marginTop: spacing.sm,
+		fontSize: 72,
+		letterSpacing: -2,
 	},
 	tagline: {
 		fontFamily: fonts.body,
-		fontSize: fontSizes.md,
+		fontSize: fontSizes.xl,
 		color: colors.gray500,
 	},
 
