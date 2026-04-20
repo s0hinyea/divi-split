@@ -10,7 +10,7 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.divi.app",
+      "bundleIdentifier": "com.sohi.divi",
       "infoDictionary": {
         "NSCameraUsageDescription": "Divi needs access to your camera to scan receipts.",
         "NSPhotoLibraryUsageDescription": "Divi needs access to your photos so you can upload receipts.",
@@ -21,7 +21,7 @@
       }
     },
     "android": {
-      "package": "com.divi.app",
+      "package": "com.sohi.divi",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#c1c5cd"
@@ -83,7 +83,7 @@
       "typedRoutes": true
     },
     "extra": {
-      "privacyPolicyUrl": "",
+      "privacyPolicyUrl": "https://s0hinyea.github.io/divi-split/privacy_policy.html",
       "router": {},
       "eas": {
         "projectId": "e4b03e3d-d79c-4300-9d55-c869a5508515"
