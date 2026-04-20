@@ -8,28 +8,35 @@
 
 // ─── Colors ────────────────────────────────────────────────
 export const colors = {
-    // Primary
-    green: '#228B22',
-    black: '#000000',
+    // Brand
+    green: '#00C37F',           // vibrant mint-emerald (modern fintech)
+    greenLight: '#E6FAF2',      // soft mint tint — backgrounds, highlights
+    greenDark: '#00A36A',       // pressed/active state
+
+    // Core
+    black: '#0A0A0A',           // near-black (softer than pure black)
     white: '#FFFFFF',
 
-    // Neutrals
-    gray100: '#F5F5F5',   // backgrounds, cards
-    gray200: '#E5E5E5',   // borders, dividers
-    gray300: '#D4D4D4',   // disabled states, subtle borders
-    gray400: '#A0A0A0',   // placeholder text
-    gray500: '#737373',   // secondary text (darker)
-    gray600: '#6B6B6B',   // secondary text
-    gray800: '#2A2A2A',   // near-black text
+    // Surfaces
+    background: '#F6F5F2',      // warm off-white — screen backgrounds
+
+    // Grays (warm-tinted)
+    gray100: '#F6F5F2',
+    gray200: '#ECEAE6',
+    gray300: '#D8D5CF',
+    gray400: '#A8A49C',
+    gray500: '#737068',
+    gray600: '#5A5750',
+    gray800: '#1C1B18',
 
     // Semantic
-    error: '#DC3545',
-    success: '#228B22',    // same as green (brand-aligned)
-    warning: '#F0AD4E',
+    error: '#E53935',
+    success: '#00C37F',
+    warning: '#F59E0B',
 
     // Overlays
-    overlay: 'rgba(0, 0, 0, 0.5)',       // modal/blur backdrop
-    overlayLight: 'rgba(0, 0, 0, 0.2)',   // subtle overlays
+    overlay: 'rgba(10, 10, 10, 0.55)',
+    overlayLight: 'rgba(10, 10, 10, 0.2)',
 } as const;
 
 // ─── Typography ────────────────────────────────────────────
@@ -40,7 +47,7 @@ export const fonts = {
     bodySemiBold: 'Inter-SemiBold',
     bodyBold: 'Inter-Bold',
 
-    // Display/headers (use Inter Bold for consistency)
+    // Display/headers
     display: 'Inter-Bold',
 
     // Legacy fallbacks (keep for gradual migration)
@@ -61,7 +68,7 @@ export const fontSizes = {
     lg: 20,
     xl: 24,
     xxl: 32,
-    display: 48,
+    display: 52,
 } as const;
 
 // ─── Spacing (8pt grid) ────────────────────────────────────
@@ -77,63 +84,63 @@ export const spacing = {
 
 // ─── Border Radius ─────────────────────────────────────────
 export const radii = {
-    sm: 6,
-    md: 12,    // default — use this everywhere
-    lg: 16,
-    xl: 24,
-    full: 9999, // pills, circles
+    sm: 8,
+    md: 14,
+    lg: 20,
+    xl: 28,
+    full: 9999,
 } as const;
 
 // ─── Animation Timing ──────────────────────────────────────
 export const animation = {
-    fast: 100,       // micro-interactions (haptic feedback, press states)
-    normal: 150,     // standard transitions (buttons, color changes)
-    slow: 250,       // page transitions, modals
-    splash: 600,     // splash fade-out
-    orbit: 1800,     // splash logo orbit duration
+    fast: 100,
+    normal: 150,
+    slow: 250,
+    splash: 600,
+    orbit: 1800,
 } as const;
 
 // ─── Shadows ───────────────────────────────────────────────
 export const shadows = {
     sm: {
-        shadowColor: colors.black,
+        shadowColor: '#0A0A0A',
         shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.08,
-        shadowRadius: 2,
+        shadowOpacity: 0.06,
+        shadowRadius: 4,
         elevation: 1,
     },
     md: {
-        shadowColor: colors.black,
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.12,
-        shadowRadius: 6,
+        shadowColor: '#0A0A0A',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.08,
+        shadowRadius: 12,
         elevation: 3,
     },
     lg: {
-        shadowColor: colors.black,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.16,
-        shadowRadius: 12,
-        elevation: 6,
+        shadowColor: '#0A0A0A',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.12,
+        shadowRadius: 24,
+        elevation: 8,
     },
 } as const;
 
 // ─── Dark Mode Colors ──────────────────────────────────────
 export const darkColors = {
-    green: '#34C759',        // iOS system green (pops on dark bg)
-    black: '#F2F2F7',        // primary text on dark
-    white: '#1C1C1E',        // card / surface backgrounds
+    green: '#00C37F',
+    black: '#F2F2F7',
+    white: '#1C1C1E',
 
-    gray100: '#000000',      // app background (OLED-friendly true black)
-    gray200: '#2C2C2E',      // borders, dividers
-    gray300: '#3A3A3C',      // disabled states
-    gray400: '#636366',      // placeholder text
-    gray500: '#8E8E93',      // secondary text
-    gray600: '#AEAEB2',      // tertiary text
-    gray800: '#F2F2F7',      // near-white primary text
+    gray100: '#000000',
+    gray200: '#2C2C2E',
+    gray300: '#3A3A3C',
+    gray400: '#636366',
+    gray500: '#8E8E93',
+    gray600: '#AEAEB2',
+    gray800: '#F2F2F7',
 
-    error: '#FF453A',        // iOS dark-mode red
-    success: '#34C759',
+    error: '#FF453A',
+    success: '#00C37F',
     warning: '#FFD60A',
 
     overlay: 'rgba(0, 0, 0, 0.8)',

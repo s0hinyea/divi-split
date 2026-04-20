@@ -4,7 +4,7 @@ import { Text } from 'react-native-paper';
 import { MaterialIcons } from '@expo/vector-icons';
 import Svg, { Circle, Rect } from 'react-native-svg';
 import { useState, useRef } from 'react';
-import { fonts, spacing, radii, animation } from '@/styles/theme';
+import { fonts, spacing, radii, colors, shadows } from '@/styles/theme';
 import { useThemeColors } from '@/utils/ThemeContext';
 import NetworkBanner from '@/components/NetworkBanner';
 
@@ -27,7 +27,6 @@ export default function TabsLayout() {
     const C = useThemeColors();
     const [scanModalVisible, setScanModalVisible] = useState(false);
     const [selectedOption, setSelectedOption] = useState<'scan' | 'library' | null>(null);
-
     const slideAnim = useRef(new Animated.Value(0)).current;
 
     const showScanModal = () => {
@@ -35,15 +34,15 @@ export default function TabsLayout() {
         Animated.spring(slideAnim, {
             toValue: 1,
             useNativeDriver: true,
-            tension: 65,
-            friction: 11,
+            tension: 70,
+            friction: 12,
         }).start();
     };
 
     const hideScanModal = () => {
         Animated.timing(slideAnim, {
             toValue: 0,
-            duration: 250,
+            duration: 220,
             useNativeDriver: true,
         }).start(() => {
             setScanModalVisible(false);
@@ -61,7 +60,7 @@ export default function TabsLayout() {
         }, 150);
     };
 
-    const bottomSheetHeight = screenHeight * 0.3;
+    const bottomSheetHeight = screenHeight * 0.28;
 
     return (
         <>
@@ -70,57 +69,79 @@ export default function TabsLayout() {
                 screenOptions={{
                     headerShown: false,
                     tabBarStyle: {
+                        position: 'absolute',
+                        bottom: 24,
+                        left: 20,
+                        right: 20,
                         backgroundColor: C.white,
-                        borderTopWidth: 1,
-                        borderTopColor: C.gray200,
-                        height: 90,
-                        paddingBottom: spacing.lg,
-                        paddingTop: spacing.sm,
+                        borderRadius: radii.full,
+                        height: 66,
+                        borderTopWidth: 0,
+                        ...shadows.lg,
+                        paddingBottom: 0,
+                        paddingTop: 0,
                     },
                     tabBarActiveTintColor: C.green,
                     tabBarInactiveTintColor: C.gray400,
-                    tabBarLabelStyle: styles.tabLabel,
+                    tabBarShowLabel: false,
+                    tabBarItemStyle: {
+                        paddingVertical: spacing.sm,
+                    },
                 }}
             >
                 <Tabs.Screen
                     name="history"
                     options={{
-                        title: 'History',
-                        tabBarIcon: ({ color, size }) => (
-                            <MaterialIcons name="receipt-long" size={size} color={color} />
+                        tabBarIcon: ({ color, focused }) => (
+                            <View style={styles.tabIconWrapper}>
+                                <MaterialIcons name="receipt-long" size={24} color={color} />
+                                {focused && <View style={[styles.activeDot, { backgroundColor: C.green }]} />}
+                            </View>
                         ),
                     }}
                 />
                 <Tabs.Screen
                     name="index"
                     options={{
-                        title: 'Home',
-                        tabBarIcon: ({ color, size }) => (
-                            <DiviLogo size={size * 1.4} green={C.green} black={C.black} />
+                        tabBarIcon: ({ focused }) => (
+                            <View style={[
+                                styles.centerTabButton,
+                                { backgroundColor: focused ? C.black : C.gray200 },
+                            ]}>
+                                <DiviLogo
+                                    size={28}
+                                    green={focused ? C.green : C.gray400}
+                                    black={focused ? C.white : C.gray500}
+                                />
+                            </View>
                         ),
                     }}
                 />
                 <Tabs.Screen
                     name="profile"
                     options={{
-                        title: 'Profile',
-                        tabBarIcon: ({ color, size }) => (
-                            <MaterialIcons name="person-outline" size={size} color={color} />
+                        tabBarIcon: ({ color, focused }) => (
+                            <View style={styles.tabIconWrapper}>
+                                <MaterialIcons name="person-outline" size={24} color={color} />
+                                {focused && <View style={[styles.activeDot, { backgroundColor: C.green }]} />}
+                            </View>
                         ),
                     }}
                 />
             </Tabs>
 
+            {/* Floating scan button — only on home tab */}
             {usePathname() === '/' && (
                 <TouchableOpacity
-                    style={[styles.floatingAddButton, { backgroundColor: C.black }]}
+                    style={[styles.floatingAddButton, { backgroundColor: C.green }]}
                     onPress={showScanModal}
-                    activeOpacity={0.8}
+                    activeOpacity={0.85}
                 >
-                    <MaterialIcons name="add" size={32} color={C.gray100} />
+                    <MaterialIcons name="add" size={28} color={C.white} />
                 </TouchableOpacity>
             )}
 
+            {/* Scan options bottom sheet */}
             <Modal
                 animationType="fade"
                 transparent={true}
@@ -134,46 +155,53 @@ export default function TabsLayout() {
                                 style={[
                                     styles.bottomSheet,
                                     {
-                                        backgroundColor: C.gray100,
+                                        backgroundColor: C.white,
                                         height: bottomSheetHeight,
-                                        transform: [
-                                            {
-                                                translateY: slideAnim.interpolate({
-                                                    inputRange: [0, 1],
-                                                    outputRange: [bottomSheetHeight, 0],
-                                                }),
-                                            },
-                                        ],
+                                        transform: [{
+                                            translateY: slideAnim.interpolate({
+                                                inputRange: [0, 1],
+                                                outputRange: [bottomSheetHeight, 0],
+                                            }),
+                                        }],
                                     },
                                 ]}
                             >
-                                <View style={styles.bottomSheetContent}>
-                                    <TouchableOpacity
-                                        style={[
-                                            styles.optionCard,
-                                            { backgroundColor: C.white },
-                                            selectedOption === 'scan' && { backgroundColor: `${C.green}20` },
-                                        ]}
-                                        onPress={() => handleOptionPress('scan')}
-                                        activeOpacity={0.7}
-                                    >
-                                        <MaterialIcons name="camera-alt" size={40} color={C.green} />
-                                        <Text style={[styles.optionTitle, { color: C.black }]}>Scan with camera</Text>
-                                    </TouchableOpacity>
+                                {/* Handle */}
+                                <View style={[styles.handle, { backgroundColor: C.gray300 }]} />
 
-                                    <TouchableOpacity
-                                        style={[
-                                            styles.optionCard,
-                                            { backgroundColor: C.white },
-                                            selectedOption === 'library' && { backgroundColor: `${C.green}20` },
-                                        ]}
-                                        onPress={() => handleOptionPress('library')}
-                                        activeOpacity={0.7}
-                                    >
-                                        <MaterialIcons name="photo-library" size={40} color={C.green} />
-                                        <Text style={[styles.optionTitle, { color: C.black }]}>Pick from gallery</Text>
-                                    </TouchableOpacity>
-                                </View>
+                                <Text style={[styles.sheetTitle, { color: C.black }]}>Add a receipt</Text>
+
+                                <TouchableOpacity
+                                    style={[
+                                        styles.sheetOption,
+                                        { borderColor: C.gray200 },
+                                        selectedOption === 'scan' && { borderColor: C.green, backgroundColor: colors.greenLight },
+                                    ]}
+                                    onPress={() => handleOptionPress('scan')}
+                                    activeOpacity={0.7}
+                                >
+                                    <View style={[styles.sheetOptionIcon, { backgroundColor: C.gray100 }]}>
+                                        <MaterialIcons name="camera-alt" size={22} color={C.green} />
+                                    </View>
+                                    <Text style={[styles.sheetOptionText, { color: C.black }]}>Scan with camera</Text>
+                                    <MaterialIcons name="chevron-right" size={20} color={C.gray400} />
+                                </TouchableOpacity>
+
+                                <TouchableOpacity
+                                    style={[
+                                        styles.sheetOption,
+                                        { borderColor: C.gray200 },
+                                        selectedOption === 'library' && { borderColor: C.green, backgroundColor: colors.greenLight },
+                                    ]}
+                                    onPress={() => handleOptionPress('library')}
+                                    activeOpacity={0.7}
+                                >
+                                    <View style={[styles.sheetOptionIcon, { backgroundColor: C.gray100 }]}>
+                                        <MaterialIcons name="photo-library" size={22} color={C.green} />
+                                    </View>
+                                    <Text style={[styles.sheetOptionText, { color: C.black }]}>Pick from gallery</Text>
+                                    <MaterialIcons name="chevron-right" size={20} color={C.gray400} />
+                                </TouchableOpacity>
                             </Animated.View>
                         </TouchableWithoutFeedback>
                     </View>
@@ -184,62 +212,87 @@ export default function TabsLayout() {
 }
 
 const styles = StyleSheet.create({
-    tabLabel: {
-        fontFamily: fonts.body,
-        fontSize: 11,
+    tabIconWrapper: {
+        alignItems: 'center',
+        gap: 4,
+    },
+    activeDot: {
+        width: 4,
+        height: 4,
+        borderRadius: 2,
+    },
+    centerTabButton: {
+        width: 50,
+        height: 50,
+        borderRadius: 25,
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     floatingAddButton: {
         position: 'absolute',
-        bottom: 100,
+        bottom: 104,
         left: '50%',
-        marginLeft: -28,
-        width: 56,
-        height: 56,
-        borderRadius: 28,
+        marginLeft: -26,
+        width: 52,
+        height: 52,
+        borderRadius: 26,
         justifyContent: 'center',
         alignItems: 'center',
-        shadowColor: '#000000',
+        shadowColor: '#00C37F',
         shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
+        shadowOpacity: 0.4,
+        shadowRadius: 12,
         elevation: 8,
     },
     modalBackdrop: {
         flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.5)',
+        backgroundColor: 'rgba(10,10,10,0.45)',
         justifyContent: 'flex-end',
     },
     bottomSheet: {
         borderTopLeftRadius: radii.xl,
         borderTopRightRadius: radii.xl,
-        shadowColor: '#000000',
+        paddingHorizontal: spacing.lg,
+        paddingBottom: spacing.xxxl,
+        shadowColor: '#0A0A0A',
         shadowOffset: { width: 0, height: -4 },
-        shadowOpacity: 0.15,
-        shadowRadius: 12,
-        elevation: 10,
+        shadowOpacity: 0.1,
+        shadowRadius: 16,
+        elevation: 12,
     },
-    bottomSheetContent: {
+    handle: {
+        width: 36,
+        height: 4,
+        borderRadius: 2,
+        alignSelf: 'center',
+        marginTop: spacing.md,
+        marginBottom: spacing.lg,
+    },
+    sheetTitle: {
+        fontFamily: fonts.bodyBold,
+        fontSize: 18,
+        marginBottom: spacing.md,
+    },
+    sheetOption: {
         flexDirection: 'row',
-        padding: spacing.lg,
+        alignItems: 'center',
         gap: spacing.md,
-        height: '100%',
-    },
-    optionCard: {
-        flex: 1,
+        paddingVertical: spacing.md,
+        paddingHorizontal: spacing.md,
         borderRadius: radii.md,
-        padding: spacing.lg,
+        borderWidth: 1,
+        marginBottom: spacing.sm,
+    },
+    sheetOptionIcon: {
+        width: 40,
+        height: 40,
+        borderRadius: radii.sm,
         justifyContent: 'center',
         alignItems: 'center',
-        gap: spacing.sm,
-        shadowColor: '#000000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.08,
-        shadowRadius: 4,
-        elevation: 2,
     },
-    optionTitle: {
+    sheetOptionText: {
+        flex: 1,
         fontFamily: fonts.bodySemiBold,
-        fontSize: 14,
-        textAlign: 'center',
+        fontSize: 16,
     },
 });

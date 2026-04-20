@@ -10,13 +10,11 @@ import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useCallback, useMemo } from 'react';
 import { useRouter } from 'expo-router';
-
 import { TouchableOpacity as GHTouchableOpacity, ScrollView } from 'react-native-gesture-handler';
 import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import { MaterialIcons } from '@expo/vector-icons';
-import { fonts, fontSizes, spacing, radii } from '@/styles/theme';
+import { fonts, fontSizes, spacing, radii, shadows } from '@/styles/theme';
 import { useThemeColors } from '@/utils/ThemeContext';
-
 import { useHistory, Receipt } from '@/utils/HistoryContext';
 import { getUserFacingErrorMessage } from '@/utils/network';
 import { HistorySkeleton } from '@/components/SkeletonLoader';
@@ -24,51 +22,131 @@ import { HistorySkeleton } from '@/components/SkeletonLoader';
 function createStyles(C: ReturnType<typeof useThemeColors>) {
     return StyleSheet.create({
         container: { flex: 1, backgroundColor: C.gray100 },
-        header: { padding: spacing.lg, paddingBottom: spacing.md },
+
+        header: {
+            paddingHorizontal: spacing.lg,
+            paddingTop: spacing.md,
+            paddingBottom: spacing.md,
+        },
         title: {
             fontFamily: fonts.bodyBold,
-            fontSize: fontSizes.xxl,
+            fontSize: 30,
             color: C.black,
+            letterSpacing: -0.5,
         },
-        scrollContainer: { flex: 1 },
-        scrollContent: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxxl },
+        subtitle: {
+            fontFamily: fonts.body,
+            fontSize: fontSizes.sm,
+            color: C.gray500,
+            marginTop: 2,
+        },
 
-        emptyState: { alignItems: 'center', paddingVertical: spacing.xxl },
-        emptyTitle: { fontFamily: fonts.body, fontSize: fontSizes.md, color: C.gray600, fontWeight: '600' },
-        emptySubtitle: { fontFamily: fonts.body, fontSize: fontSizes.sm, color: C.gray400, marginTop: spacing.xs },
+        scrollContent: {
+            paddingHorizontal: spacing.lg,
+            paddingBottom: 140,
+        },
 
-        swipeHint: { fontSize: fontSizes.sm, color: C.gray400, marginBottom: spacing.md, fontStyle: 'italic', fontFamily: fonts.body },
-
-        receiptCard: {
-            flexDirection: 'row',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            backgroundColor: C.white,
-            padding: spacing.md,
-            borderRadius: radii.md,
+        // Receipt card
+        cardWrapper: {
             marginBottom: spacing.sm,
         },
-        receiptInfo: { flex: 1 },
-        receiptName: { fontFamily: fonts.bodySemiBold, fontSize: fontSizes.md, color: C.black },
-        receiptDate: { fontFamily: fonts.body, fontSize: fontSizes.xs, color: C.gray600, marginTop: 2 },
-        receiptTotal: { fontFamily: fonts.bodySemiBold, fontSize: fontSizes.lg, color: C.green },
-
-        receiptCardPressed: {
-            backgroundColor: `${C.green}18`,
-            borderColor: C.green,
-            borderWidth: 1,
+        receiptCard: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            backgroundColor: C.white,
+            borderRadius: radii.md,
+            overflow: 'hidden',
+            gap: spacing.md,
+            ...shadows.sm,
         },
+        receiptCardPressed: {
+            backgroundColor: C.gray100,
+        },
+        accentBar: {
+            width: 4,
+            alignSelf: 'stretch',
+            backgroundColor: C.green,
+            borderTopLeftRadius: radii.md,
+            borderBottomLeftRadius: radii.md,
+        },
+        receiptContent: {
+            flex: 1,
+            paddingVertical: spacing.md,
+            paddingRight: spacing.md,
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: spacing.md,
+        },
+        receiptIcon: {
+            width: 38,
+            height: 38,
+            borderRadius: radii.sm,
+            backgroundColor: C.gray100,
+            justifyContent: 'center',
+            alignItems: 'center',
+        },
+        receiptInfo: { flex: 1 },
+        receiptName: {
+            fontFamily: fonts.bodySemiBold,
+            fontSize: fontSizes.md,
+            color: C.black,
+        },
+        receiptMeta: {
+            fontFamily: fonts.body,
+            fontSize: fontSizes.xs,
+            color: C.gray500,
+            marginTop: 2,
+        },
+        receiptAmount: {
+            fontFamily: fonts.bodyBold,
+            fontSize: fontSizes.md,
+            color: C.black,
+        },
+
         deleteAction: {
             backgroundColor: C.error,
             justifyContent: 'center',
             alignItems: 'center',
-            width: 80,
+            width: 74,
             borderRadius: radii.md,
             marginBottom: spacing.sm,
         },
 
-        loadMoreButton: { padding: spacing.md, alignItems: 'center', marginVertical: spacing.sm },
-        loadMoreText: { color: C.green, fontSize: fontSizes.md, fontFamily: fonts.body },
+        loadMoreButton: {
+            paddingVertical: spacing.md,
+            alignItems: 'center',
+            marginTop: spacing.xs,
+        },
+        loadMoreText: {
+            color: C.green,
+            fontSize: fontSizes.sm,
+            fontFamily: fonts.bodySemiBold,
+        },
+
+        emptyState: {
+            alignItems: 'center',
+            paddingVertical: spacing.xxxl,
+            gap: spacing.sm,
+        },
+        emptyIconWrap: {
+            width: 64,
+            height: 64,
+            borderRadius: 32,
+            backgroundColor: C.gray200,
+            justifyContent: 'center',
+            alignItems: 'center',
+            marginBottom: spacing.sm,
+        },
+        emptyTitle: {
+            fontFamily: fonts.bodySemiBold,
+            fontSize: fontSizes.md,
+            color: C.gray600,
+        },
+        emptySubtitle: {
+            fontFamily: fonts.body,
+            fontSize: fontSizes.sm,
+            color: C.gray400,
+        },
     });
 }
 
@@ -98,7 +176,6 @@ export default function History() {
         try {
             await contextDeleteReceipt(receiptId);
         } catch (error) {
-            console.error('Error deleting receipt:', error);
             Alert.alert('Delete failed', getUserFacingErrorMessage(error, 'We could not delete that receipt right now.'));
         }
     };
@@ -108,7 +185,7 @@ export default function History() {
             style={styles.deleteAction}
             onPress={() => handleDelete(receipt.id)}
         >
-            <MaterialIcons name="delete" size={28} color="#FFFFFF" />
+            <MaterialIcons name="delete-outline" size={24} color="#FFFFFF" />
         </TouchableOpacity>
     );
 
@@ -116,11 +193,14 @@ export default function History() {
         <SafeAreaView style={styles.container}>
             <View style={styles.header}>
                 <Text style={styles.title}>History</Text>
+                {receipts.length > 0 && (
+                    <Text style={styles.subtitle}>{receipts.length} receipt{receipts.length !== 1 ? 's' : ''}</Text>
+                )}
             </View>
 
             <ScrollView
-                style={styles.scrollContainer}
                 contentContainerStyle={styles.scrollContent}
+                showsVerticalScrollIndicator={false}
                 refreshControl={
                     <RefreshControl
                         refreshing={refreshing}
@@ -133,35 +213,51 @@ export default function History() {
                     <HistorySkeleton />
                 ) : receipts.length === 0 ? (
                     <View style={styles.emptyState}>
+                        <View style={styles.emptyIconWrap}>
+                            <MaterialIcons name="receipt-long" size={28} color={C.gray400} />
+                        </View>
                         <Text style={styles.emptyTitle}>No receipts yet</Text>
-                        <Text style={styles.emptySubtitle}>Tap the logo to scan your first one!</Text>
+                        <Text style={styles.emptySubtitle}>Tap + to scan your first one</Text>
                     </View>
                 ) : (
                     <>
-                        <Text style={styles.swipeHint}>Tap to view, swipe left to delete</Text>
                         {receipts.map((receipt) => (
                             <Swipeable
                                 key={receipt.id}
                                 renderRightActions={() => renderRightActions(receipt)}
                                 rightThreshold={40}
                             >
-                                <Pressable
-                                    onPress={() => router.push(`/receipt/${receipt.id}`)}
-                                    style={({ pressed }) => [
-                                        styles.receiptCard,
-                                        pressed && styles.receiptCardPressed
-                                    ]}
-                                >
-                                    <View style={styles.receiptInfo}>
-                                        <Text style={styles.receiptName}>{receipt.receipt_name}</Text>
-                                        <Text style={styles.receiptDate}>
-                                            {new Date(receipt.created_at).toLocaleDateString()}
-                                        </Text>
-                                    </View>
-                                    <Text style={styles.receiptTotal}>
-                                        ${(receipt.total_amount || 0).toFixed(2)}
-                                    </Text>
-                                </Pressable>
+                                <View style={styles.cardWrapper}>
+                                    <Pressable
+                                        onPress={() => router.push(`/receipt/${receipt.id}`)}
+                                        style={({ pressed }) => [
+                                            styles.receiptCard,
+                                            pressed && styles.receiptCardPressed,
+                                        ]}
+                                    >
+                                        <View style={styles.accentBar} />
+                                        <View style={styles.receiptContent}>
+                                            <View style={styles.receiptIcon}>
+                                                <MaterialIcons name="receipt" size={18} color={C.green} />
+                                            </View>
+                                            <View style={styles.receiptInfo}>
+                                                <Text style={styles.receiptName} numberOfLines={1}>
+                                                    {receipt.receipt_name}
+                                                </Text>
+                                                <Text style={styles.receiptMeta}>
+                                                    {new Date(receipt.created_at).toLocaleDateString('en-US', {
+                                                        month: 'short',
+                                                        day: 'numeric',
+                                                        year: 'numeric',
+                                                    })}
+                                                </Text>
+                                            </View>
+                                            <Text style={styles.receiptAmount}>
+                                                ${(receipt.total_amount || 0).toFixed(2)}
+                                            </Text>
+                                        </View>
+                                    </Pressable>
+                                </View>
                             </Swipeable>
                         ))}
 
@@ -172,14 +268,13 @@ export default function History() {
                                 disabled={loadingMore}
                             >
                                 <Text style={styles.loadMoreText}>
-                                    {loadingMore ? 'Loading...' : 'Load More'}
+                                    {loadingMore ? 'Loading...' : 'Load more'}
                                 </Text>
                             </TouchableOpacity>
                         )}
                     </>
                 )}
             </ScrollView>
-
         </SafeAreaView>
     );
 }

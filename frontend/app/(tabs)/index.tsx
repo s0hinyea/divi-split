@@ -3,23 +3,13 @@ import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useCallback, useMemo } from 'react';
 import { useRouter } from 'expo-router';
-import { fonts, fontSizes, spacing } from '@/styles/theme';
+import { MaterialIcons } from '@expo/vector-icons';
+import { fonts, fontSizes, spacing, radii, shadows } from '@/styles/theme';
 import { useThemeColors } from '@/utils/ThemeContext';
-import ReceiptCard from '@/components/ReceiptCard';
 import { useHistory } from '@/utils/HistoryContext';
 import { useProfile } from '@/utils/ProfileContext';
 import { useSession } from '@/utils/SessionContext';
 import { DashboardSkeleton } from '@/components/SkeletonLoader';
-
-function ReceiptLines({ color }: { color: string }) {
-    return (
-        <View style={styles.receiptLines}>
-            <View style={[styles.receiptLine, { width: '70%', backgroundColor: color }]} />
-            <View style={[styles.receiptLine, { width: '50%', backgroundColor: color }]} />
-            <View style={[styles.receiptLine, { width: '60%', backgroundColor: color }]} />
-        </View>
-    );
-}
 
 function createStyles(C: ReturnType<typeof useThemeColors>) {
     return StyleSheet.create({
@@ -28,101 +18,143 @@ function createStyles(C: ReturnType<typeof useThemeColors>) {
             backgroundColor: C.gray100,
         },
         scrollContent: {
-            padding: spacing.lg,
-            paddingBottom: spacing.xxxl,
+            paddingHorizontal: spacing.lg,
+            paddingTop: spacing.lg,
+            paddingBottom: 140,
         },
+
+        // Greeting
         greeting: {
             fontFamily: fonts.body,
-            fontSize: fontSizes.lg,
-            color: C.black,
-            marginTop: spacing.md,
+            fontSize: fontSizes.md,
+            color: C.gray500,
+            marginTop: spacing.sm,
         },
         userName: {
             fontFamily: fonts.bodyBold,
-            fontSize: fontSizes.xxl,
+            fontSize: 30,
             color: C.black,
             marginBottom: spacing.xl,
+            letterSpacing: -0.5,
         },
-        statRow: {
-            flexDirection: 'row',
-            alignItems: 'center',
-            marginBottom: spacing.lg,
+
+        // Hero card — dark, bold
+        heroCard: {
+            backgroundColor: C.black,
+            borderRadius: radii.xl,
+            padding: spacing.xl,
+            marginBottom: spacing.md,
+            ...shadows.lg,
         },
-        statCard: {
-            flex: 1,
-        },
-        statSpacer: {
-            width: spacing.md,
-        },
-        flippedCard: {
-            transform: [{ scaleX: -1 }],
-        },
-        flippedContent: {
-            transform: [{ scaleX: -1 }],
-        },
-        statAmount: {
-            fontFamily: fonts.bodySemiBold,
-            fontSize: fontSizes.xxl,
-            color: C.green,
-            marginBottom: spacing.xs,
-        },
-        statLabel: {
+        heroLabel: {
             fontFamily: fonts.body,
             fontSize: fontSizes.sm,
-            color: C.gray600,
+            color: C.gray400,
             marginBottom: spacing.sm,
+            textTransform: 'uppercase',
+            letterSpacing: 1,
         },
-        recentContainer: {
-            width: '100%',
+        heroAmount: {
+            fontFamily: fonts.bodyBold,
+            fontSize: 56,
+            color: C.white,
+            letterSpacing: -2,
+            lineHeight: 60,
+        },
+        heroAmountSmall: {
+            fontSize: fontSizes.xxl,
+        },
+        heroFooter: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            marginTop: spacing.lg,
+            paddingTop: spacing.md,
+            borderTopWidth: 1,
+            borderTopColor: 'rgba(255,255,255,0.08)',
+        },
+        heroStat: {
+            flex: 1,
+        },
+        heroStatValue: {
+            fontFamily: fonts.bodySemiBold,
+            fontSize: fontSizes.lg,
+            color: C.green,
+        },
+        heroStatLabel: {
+            fontFamily: fonts.body,
+            fontSize: fontSizes.xs,
+            color: C.gray500,
+            marginTop: 2,
+        },
+
+        // Recent splits card
+        recentCard: {
+            backgroundColor: C.white,
+            borderRadius: radii.xl,
+            padding: spacing.lg,
+            ...shadows.sm,
+        },
+        recentHeader: {
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: spacing.md,
         },
         recentTitle: {
             fontFamily: fonts.bodyBold,
             fontSize: fontSizes.lg,
             color: C.black,
-            marginBottom: spacing.md,
-        },
-        recentItem: {
-            flexDirection: 'row',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            paddingVertical: spacing.md,
-        },
-        recentItemBorder: {
-            borderBottomWidth: 1,
-            borderBottomColor: C.gray200,
-        },
-        recentItemLeft: {
-            flex: 1,
-        },
-        recentItemName: {
-            fontFamily: fonts.bodySemiBold,
-            fontSize: fontSizes.md,
-            color: C.black,
-        },
-        recentItemDate: {
-            fontFamily: fonts.body,
-            fontSize: fontSizes.xs,
-            color: C.gray600,
-            marginTop: 2,
-        },
-        recentItemAmount: {
-            fontFamily: fonts.bodySemiBold,
-            fontSize: fontSizes.lg,
-            color: C.green,
-        },
-        viewAllButton: {
-            marginTop: spacing.md,
-            marginBottom: spacing.md,
-            alignItems: 'center',
         },
         viewAllText: {
             fontFamily: fonts.bodySemiBold,
             fontSize: fontSizes.sm,
             color: C.green,
         },
+
+        // Receipt row
+        receiptRow: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            paddingVertical: spacing.md,
+            gap: spacing.md,
+        },
+        receiptRowBorder: {
+            borderBottomWidth: 1,
+            borderBottomColor: C.gray200,
+        },
+        receiptIcon: {
+            width: 40,
+            height: 40,
+            borderRadius: radii.sm,
+            backgroundColor: C.gray100,
+            justifyContent: 'center',
+            alignItems: 'center',
+        },
+        receiptInfo: {
+            flex: 1,
+        },
+        receiptName: {
+            fontFamily: fonts.bodySemiBold,
+            fontSize: fontSizes.md,
+            color: C.black,
+        },
+        receiptDate: {
+            fontFamily: fonts.body,
+            fontSize: fontSizes.xs,
+            color: C.gray500,
+            marginTop: 2,
+        },
+        receiptAmount: {
+            fontFamily: fonts.bodySemiBold,
+            fontSize: fontSizes.md,
+            color: C.black,
+        },
+
+        // Empty state
         emptyState: {
             alignItems: 'center',
             paddingVertical: spacing.xl,
+            gap: spacing.sm,
         },
         emptyTitle: {
             fontFamily: fonts.bodySemiBold,
@@ -133,22 +165,9 @@ function createStyles(C: ReturnType<typeof useThemeColors>) {
             fontFamily: fonts.body,
             fontSize: fontSizes.sm,
             color: C.gray400,
-            marginTop: spacing.xs,
         },
     });
 }
-
-// Static styles that never change with theme
-const styles = StyleSheet.create({
-    receiptLines: {
-        gap: 6,
-        marginTop: spacing.sm,
-    },
-    receiptLine: {
-        height: 2,
-        borderRadius: 1,
-    },
-});
 
 export default function Dashboard() {
     const router = useRouter();
@@ -157,7 +176,7 @@ export default function Dashboard() {
     const { profile, loading: profileLoading, refreshProfile } = useProfile();
     const [refreshing, setRefreshing] = useState(false);
     const C = useThemeColors();
-    const themed = useMemo(() => createStyles(C), [C]);
+    const styles = useMemo(() => createStyles(C), [C]);
 
     const onRefresh = useCallback(async () => {
         setRefreshing(true);
@@ -176,23 +195,19 @@ export default function Dashboard() {
         if (profileLoading) return '...';
         if (profile?.username) return profile.username;
         if (profile?.full_name) return profile.full_name.split(' ')[0];
-
         const email = session?.user?.email || '';
         const name = email.split('@')[0];
-
         return name.charAt(0).toUpperCase() + name.slice(1);
     };
 
     const recentTwo = receipts.slice(0, 2);
-
-    // Dynamic sizing
-    const totalString = monthlyTotal.toFixed(0);
-    const totalFontSize = totalString.length > 5 ? fontSizes.lg : fontSizes.xxl;
+    const totalString = monthlyTotal.toFixed(2);
+    const isLargeAmount = totalString.length > 7;
 
     return (
-        <SafeAreaView style={themed.container}>
+        <SafeAreaView style={styles.container}>
             <ScrollView
-                contentContainerStyle={themed.scrollContent}
+                contentContainerStyle={styles.scrollContent}
                 showsVerticalScrollIndicator={false}
                 refreshControl={
                     <RefreshControl
@@ -203,49 +218,59 @@ export default function Dashboard() {
                 }
             >
                 {/* Greeting */}
-                <Text style={themed.greeting}>{getGreeting()},</Text>
-                <Text style={themed.userName}>{getUserName()}.</Text>
+                <Text style={styles.greeting}>{getGreeting()},</Text>
+                <Text style={styles.userName}>{getUserName()}.</Text>
 
-                <View style={themed.statRow}>
-                    <ReceiptCard style={themed.statCard} showTopZigzag={false} showBottomZigzag={true}>
-                        <Text style={[themed.statAmount, { fontSize: totalFontSize }]}>${totalString}</Text>
-                        <Text style={themed.statLabel}>split this month</Text>
-                        <ReceiptLines color={C.gray200} />
-                    </ReceiptCard>
-
-                    <View style={themed.statSpacer} />
-
-                    <ReceiptCard style={[themed.statCard, themed.flippedCard]} showTopZigzag={false} showBottomZigzag={true}>
-                        <View style={themed.flippedContent}>
-                            <Text style={themed.statAmount}>{totalCount}</Text>
-                            <Text style={themed.statLabel}>receipts scanned</Text>
-                            <ReceiptLines color={C.gray200} />
+                {/* Hero card */}
+                <View style={styles.heroCard}>
+                    <Text style={styles.heroLabel}>This month</Text>
+                    <Text style={[styles.heroAmount, isLargeAmount && styles.heroAmountSmall]}>
+                        ${totalString}
+                    </Text>
+                    <View style={styles.heroFooter}>
+                        <View style={styles.heroStat}>
+                            <Text style={styles.heroStatValue}>{totalCount}</Text>
+                            <Text style={styles.heroStatLabel}>receipts scanned</Text>
                         </View>
-                    </ReceiptCard>
+                    </View>
                 </View>
 
-                <ReceiptCard style={themed.recentContainer} showTopZigzag={true} showBottomZigzag={true}>
-                    <Text style={themed.recentTitle}>Recent Splits</Text>
+                {/* Recent splits */}
+                <View style={styles.recentCard}>
+                    <View style={styles.recentHeader}>
+                        <Text style={styles.recentTitle}>Recent Splits</Text>
+                        {recentTwo.length > 0 && (
+                            <TouchableOpacity onPress={() => router.push('/(tabs)/history')}>
+                                <Text style={styles.viewAllText}>View all</Text>
+                            </TouchableOpacity>
+                        )}
+                    </View>
 
                     {loading ? (
                         <DashboardSkeleton />
                     ) : recentTwo.length === 0 ? (
-                        <View style={themed.emptyState}>
-                            <Text style={themed.emptyTitle}>No receipts yet</Text>
-                            <Text style={themed.emptySubtitle}>Tap the logo to scan your first one!</Text>
+                        <View style={styles.emptyState}>
+                            <MaterialIcons name="receipt-long" size={32} color={C.gray300} />
+                            <Text style={styles.emptyTitle}>No receipts yet</Text>
+                            <Text style={styles.emptySubtitle}>Tap + to scan your first one</Text>
                         </View>
                     ) : (
                         recentTwo.map((receipt, i) => (
-                            <View
+                            <TouchableOpacity
                                 key={receipt.id}
                                 style={[
-                                    themed.recentItem,
-                                    i < recentTwo.length - 1 && themed.recentItemBorder,
+                                    styles.receiptRow,
+                                    i < recentTwo.length - 1 && styles.receiptRowBorder,
                                 ]}
+                                onPress={() => router.push(`/receipt/${receipt.id}`)}
+                                activeOpacity={0.7}
                             >
-                                <View style={themed.recentItemLeft}>
-                                    <Text style={themed.recentItemName}>{receipt.receipt_name}</Text>
-                                    <Text style={themed.recentItemDate}>
+                                <View style={styles.receiptIcon}>
+                                    <MaterialIcons name="receipt" size={18} color={C.green} />
+                                </View>
+                                <View style={styles.receiptInfo}>
+                                    <Text style={styles.receiptName}>{receipt.receipt_name}</Text>
+                                    <Text style={styles.receiptDate}>
                                         {new Date(receipt.created_at).toLocaleDateString('en-US', {
                                             month: 'short',
                                             day: 'numeric',
@@ -253,22 +278,13 @@ export default function Dashboard() {
                                         {receipt.receipt_items && ` · ${receipt.receipt_items.length} items`}
                                     </Text>
                                 </View>
-                                <Text style={themed.recentItemAmount}>
+                                <Text style={styles.receiptAmount}>
                                     ${(receipt.total_amount || 0).toFixed(2)}
                                 </Text>
-                            </View>
+                            </TouchableOpacity>
                         ))
                     )}
-
-                    {recentTwo.length > 0 && (
-                        <TouchableOpacity
-                            onPress={() => router.push('/(tabs)/history')}
-                            style={themed.viewAllButton}
-                        >
-                            <Text style={themed.viewAllText}>View all →</Text>
-                        </TouchableOpacity>
-                    )}
-                </ReceiptCard>
+                </View>
             </ScrollView>
         </SafeAreaView>
     );
