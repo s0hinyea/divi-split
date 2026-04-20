@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Image, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Image, StyleSheet, ActivityIndicator, Modal } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSplitStore, ReceiptItem } from '../stores/splitStore';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, fonts, fontSizes, spacing, radii, shadows } from '@/styles/theme';
 import { MaterialIcons } from '@expo/vector-icons';
+import AgentChatPanel from '../components/AgentChatPanel';
 
 export default function AssignAmounts() {
   const router = useRouter();
@@ -13,6 +14,8 @@ export default function AssignAmounts() {
   const manageItems = useSplitStore((state) => state.manageItems);
   const receiptData = useSplitStore((state) => state.receiptData);
   const setUserItems = useSplitStore((state) => state.setUserItems);
+
+  const [agentVisible, setAgentVisible] = useState(false);
 
   const [currentContactIndex, setCurrentContactIndex] = useState(() => {
     if (params.initialIndex) {
@@ -83,10 +86,17 @@ export default function AssignAmounts() {
           <TouchableOpacity onPress={handleBack} style={{ marginRight: spacing.sm }}>
             <MaterialIcons name="arrow-back" size={28} color={colors.black} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>
+          <Text style={styles.headerTitle} numberOfLines={1} ellipsizeMode="tail">
             <Text style={{ color: colors.black }}>Assign Items to </Text>
             <Text style={{ color: colors.green }}>{currentContact?.name}</Text>
           </Text>
+          <TouchableOpacity
+            style={styles.agentButton}
+            onPress={() => setAgentVisible(true)}
+            activeOpacity={0.8}
+          >
+            <MaterialIcons name="auto-awesome" size={20} color={colors.white} />
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -125,6 +135,26 @@ export default function AssignAmounts() {
           <MaterialIcons name="check" size={32} color={colors.white} />
         </TouchableOpacity>
       </View>
+
+      {/* Agent chat modal */}
+      <Modal
+        visible={agentVisible}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setAgentVisible(false)}
+      >
+        <SafeAreaView style={styles.modalSafeArea} edges={['top']}>
+          <View style={styles.modalHandle} />
+          <TouchableOpacity
+            style={styles.modalClose}
+            onPress={() => setAgentVisible(false)}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <MaterialIcons name="keyboard-arrow-down" size={28} color={colors.gray500} />
+          </TouchableOpacity>
+          <AgentChatPanel />
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -141,6 +171,8 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontFamily: fonts.bodyBold,
     fontSize: 28,
+    flex: 1,
+    marginRight: spacing.sm,
   },
   scrollView: {
     flex: 1,
@@ -231,7 +263,38 @@ const styles = StyleSheet.create({
     fontFamily: fonts.body,
     color: colors.gray500,
     marginTop: spacing.xl,
-  }
+  },
+  agentButton: {
+    width: 38,
+    height: 38,
+    borderRadius: radii.full,
+    backgroundColor: colors.black,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: colors.green,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  modalSafeArea: {
+    flex: 1,
+    backgroundColor: colors.white,
+  },
+  modalHandle: {
+    width: 40,
+    height: 4,
+    borderRadius: radii.full,
+    backgroundColor: colors.gray300,
+    alignSelf: 'center',
+    marginTop: spacing.sm,
+    marginBottom: spacing.xs,
+  },
+  modalClose: {
+    alignSelf: 'flex-end',
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.sm,
+  },
 });
 
 
