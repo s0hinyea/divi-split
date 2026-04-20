@@ -1,9 +1,9 @@
-import { View, StyleSheet, TouchableOpacity } from "react-native";
+import { View, StyleSheet, TouchableOpacity, Dimensions } from "react-native";
 import { useRouter } from "expo-router";
 import { Text } from "react-native-paper";
 import { LinearGradient } from "expo-linear-gradient";
-import { colors, fonts, fontSizes, radii, spacing } from '@/styles/theme';
-import Svg, { Circle, Rect } from "react-native-svg";
+import { colors, fonts, fontSizes, spacing } from '@/styles/theme';
+import Svg, { Circle, Rect, Path } from "react-native-svg";
 import Animated, {
 	useSharedValue,
 	useAnimatedStyle,
@@ -11,8 +11,11 @@ import Animated, {
 	interpolateColor,
 } from "react-native-reanimated";
 
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const GREEN = colors.green;
 const BLACK = colors.black;
+const ZIGZAG_H = 12;
+const ZIGZAG_W = 18;
 
 function DiviLogo({ size = 80, green = GREEN, black = BLACK }: { size?: number; green?: string; black?: string }) {
 	const scale = size / 160;
@@ -26,6 +29,31 @@ function DiviLogo({ size = 80, green = GREEN, black = BLACK }: { size?: number; 
 	);
 }
 
+// Zigzag edge — rendered as an SVG strip above the receipt card
+function ZigzagEdge({ width, backgroundColor }: { width: number; backgroundColor: string }) {
+	const numZigzags = Math.floor(width / ZIGZAG_W);
+	let path = `M 0,${ZIGZAG_H}`;
+	for (let i = 0; i < numZigzags; i++) {
+		const x1 = i * ZIGZAG_W + ZIGZAG_W / 2;
+		const x2 = (i + 1) * ZIGZAG_W;
+		path += ` L ${x1},0 L ${x2},${ZIGZAG_H}`;
+	}
+	path += ` L ${width},${ZIGZAG_H} L ${width},${ZIGZAG_H * 3} L 0,${ZIGZAG_H * 3} Z`;
+
+	return (
+		<Svg width={width} height={ZIGZAG_H * 3} style={{ display: 'flex' }}>
+			<Path d={path} fill={backgroundColor} />
+		</Svg>
+	);
+}
+
+const RECEIPT_ITEMS = [
+	{ label: "Scan your receipt",     done: true },
+	{ label: "Pick who was there",    done: true },
+	{ label: "Assign every item",     done: true },
+	{ label: "Request payment",       done: true },
+];
+
 export default function Home() {
 	const router = useRouter();
 	const buttonProgress = useSharedValue(0);
@@ -35,14 +63,6 @@ export default function Home() {
 			buttonProgress.value,
 			[0, 1],
 			[BLACK, GREEN]
-		),
-	}));
-
-	const animatedTextStyle = useAnimatedStyle(() => ({
-		color: interpolateColor(
-			buttonProgress.value,
-			[0, 1],
-			["#FFFFFF", "#FFFFFF"]
 		),
 	}));
 
@@ -56,19 +76,13 @@ export default function Home() {
 		{ top: 128, left: 18,  size: 54, rotate: "-16deg", opacity: 0.52 },
 		{ top: 118, left: 162, size: 46, rotate: "26deg",  opacity: 0.48 },
 		{ top: 136, left: 318, size: 52, rotate: "-9deg",  opacity: 0.44 },
-		{ top: 178, left: 98,  size: 48, rotate: "15deg",  opacity: 0.34 },
-		{ top: 188, left: 268, size: 54, rotate: "-24deg", opacity: 0.3  },
-		{ top: 196, left: 12,  size: 42, rotate: "7deg",   opacity: 0.26 },
-		{ top: 238, left: 208, size: 50, rotate: "-13deg", opacity: 0.16 },
-		{ top: 248, left: 52,  size: 46, rotate: "18deg",  opacity: 0.14 },
-		{ top: 268, left: 330, size: 40, rotate: "-20deg", opacity: 0.1  },
-		{ top: 300, left: 148, size: 52, rotate: "11deg",  opacity: 0.07 },
-		{ top: 320, left: 280, size: 44, rotate: "-7deg",  opacity: 0.05 },
+		{ top: 178, left: 98,  size: 48, rotate: "15deg",  opacity: 0.28 },
+		{ top: 188, left: 268, size: 54, rotate: "-24deg", opacity: 0.2  },
 	];
 
 	return (
 		<View style={styles.container}>
-			{/* Background logos */}
+			{/* Scattered logos */}
 			<View style={styles.bgContainer}>
 				{logos.map((pos, i) => (
 					<View
@@ -85,56 +99,72 @@ export default function Home() {
 					</View>
 				))}
 
-				{/* Gradient fade — stronger, more dramatic */}
+				{/* Fade logos into the receipt */}
 				<LinearGradient
 					colors={[
 						"rgba(246,245,242,0.0)",
-						"rgba(246,245,242,0.7)",
+						"rgba(246,245,242,0.6)",
 						"rgba(246,245,242,1.0)",
 					]}
-					locations={[0, 0.55, 0.85]}
-					style={styles.gradientOverlay}
+					locations={[0.1, 0.5, 0.75]}
+					style={styles.gradient}
 				/>
 			</View>
 
-			{/* Content */}
-			<View style={styles.content}>
-				{/* Brand mark */}
-				<View style={styles.brandRow}>
-					<DiviLogo size={36} />
-				</View>
+			{/* Receipt card */}
+			<View style={styles.receiptWrapper}>
+				<ZigzagEdge width={SCREEN_WIDTH} backgroundColor={colors.white} />
 
-				{/* Headline */}
-				<Text style={styles.titleContainer}>
-					<Text style={[styles.title, { color: BLACK }]}>D</Text>
-					<Text style={[styles.title, { color: GREEN }]}>i</Text>
-					<Text style={[styles.title, { color: BLACK }]}>v</Text>
-					<Text style={[styles.title, { color: GREEN }]}>i</Text>
-				</Text>
+				<View style={styles.receipt}>
+					{/* Receipt header */}
+					<View style={styles.receiptHeader}>
+						<DiviLogo size={28} />
+						<Text style={styles.receiptTitle}>divi</Text>
+					</View>
 
-				<Text style={styles.subtitle}>Split smarter. Pay faster.</Text>
+					<View style={styles.receiptDivider} />
 
-				{/* CTA */}
-				<TouchableOpacity
-					onPress={() => router.push({ pathname: "/auth", params: { mode: "signup" } })}
-					onPressIn={() => { buttonProgress.value = withTiming(1, { duration: 140 }); }}
-					onPressOut={() => { buttonProgress.value = withTiming(0, { duration: 220 }); }}
-					activeOpacity={1}
-					style={styles.buttonWrapper}
-				>
-					<Animated.View style={[styles.button, animatedButtonStyle]}>
-						<Animated.Text style={[styles.buttonText, animatedTextStyle]}>
-							Get Started — It&apos;s Free
-						</Animated.Text>
-					</Animated.View>
-				</TouchableOpacity>
+					{/* Itemized list */}
+					{RECEIPT_ITEMS.map((item, i) => (
+						<View key={i} style={styles.receiptRow}>
+							<Text style={styles.receiptItemLabel}>{item.label}</Text>
+							<Text style={styles.receiptDots}>
+								{"· · · · · · · ·"}
+							</Text>
+							<Text style={styles.receiptItemCheck}>✓</Text>
+						</View>
+					))}
 
-				{/* Login */}
-				<View style={styles.loginRow}>
-					<Text style={styles.loginHint}>Already have an account? </Text>
-					<TouchableOpacity onPress={() => router.push({ pathname: "/auth", params: { mode: "login" } })}>
-						<Text style={styles.loginLink}>Log In</Text>
+					<View style={styles.receiptDashedDivider} />
+
+					{/* Total */}
+					<View style={styles.receiptRow}>
+						<Text style={styles.receiptTotalLabel}>Your share</Text>
+						<View style={{ flex: 1 }} />
+						<Text style={styles.receiptTotalValue}>FREE</Text>
+					</View>
+
+					<View style={[styles.receiptDivider, { marginBottom: spacing.xl }]} />
+
+					{/* CTA */}
+					<TouchableOpacity
+						onPress={() => router.push({ pathname: "/auth", params: { mode: "signup" } })}
+						onPressIn={() => { buttonProgress.value = withTiming(1, { duration: 140 }); }}
+						onPressOut={() => { buttonProgress.value = withTiming(0, { duration: 220 }); }}
+						activeOpacity={1}
+					>
+						<Animated.View style={[styles.button, animatedButtonStyle]}>
+							<Text style={styles.buttonText}>Get Started — It&apos;s Free</Text>
+						</Animated.View>
 					</TouchableOpacity>
+
+					{/* Login */}
+					<View style={styles.loginRow}>
+						<Text style={styles.loginHint}>Already have an account? </Text>
+						<TouchableOpacity onPress={() => router.push({ pathname: "/auth", params: { mode: "login" } })}>
+							<Text style={styles.loginLink}>Log In</Text>
+						</TouchableOpacity>
+					</View>
 				</View>
 			</View>
 		</View>
@@ -145,72 +175,114 @@ const styles = StyleSheet.create({
 	container: {
 		flex: 1,
 		backgroundColor: colors.background,
+		justifyContent: "flex-end",
 	},
 	bgContainer: {
 		position: "absolute",
 		top: 0,
 		left: 0,
 		right: 0,
-		height: 420,
+		bottom: 0,
 	},
-	gradientOverlay: {
+	gradient: {
 		position: "absolute",
 		left: 0,
 		right: 0,
 		top: 0,
 		bottom: 0,
 	},
-	content: {
-		flex: 1,
-		justifyContent: "flex-end",
-		paddingHorizontal: spacing.xl,
-		paddingBottom: 60,
-	},
-	brandRow: {
-		marginBottom: spacing.xl,
-	},
-	titleContainer: {
-		marginBottom: spacing.sm,
-	},
-	title: {
-		fontSize: 56,
-		fontFamily: fonts.bodyBold,
-		letterSpacing: -1,
-		lineHeight: 64,
-	},
-	subtitle: {
-		fontSize: fontSizes.lg,
-		color: colors.gray500,
-		fontFamily: fonts.body,
-		marginBottom: spacing.xl,
-		letterSpacing: 0.2,
-	},
-	buttonWrapper: {
+
+	// Receipt
+	receiptWrapper: {
 		width: "100%",
-		marginBottom: spacing.md,
 	},
+	receipt: {
+		backgroundColor: colors.white,
+		paddingHorizontal: spacing.xl,
+		paddingBottom: 52,
+	},
+	receiptHeader: {
+		flexDirection: "row",
+		alignItems: "center",
+		gap: spacing.sm,
+		paddingTop: spacing.lg,
+		paddingBottom: spacing.md,
+	},
+	receiptTitle: {
+		fontFamily: fonts.bodyBold,
+		fontSize: fontSizes.xxl,
+		color: BLACK,
+		letterSpacing: 6,
+		textTransform: "lowercase",
+	},
+	receiptDivider: {
+		height: 1,
+		backgroundColor: colors.gray200,
+		marginVertical: spacing.md,
+	},
+	receiptDashedDivider: {
+		height: 1,
+		borderWidth: 1,
+		borderColor: colors.gray300,
+		borderStyle: "dashed",
+		marginVertical: spacing.md,
+	},
+	receiptRow: {
+		flexDirection: "row",
+		alignItems: "center",
+		paddingVertical: 6,
+	},
+	receiptItemLabel: {
+		fontFamily: fonts.body,
+		fontSize: fontSizes.sm,
+		color: colors.gray600,
+		width: 150,
+	},
+	receiptDots: {
+		flex: 1,
+		fontFamily: fonts.body,
+		fontSize: fontSizes.xs,
+		color: colors.gray300,
+		textAlign: "center",
+		letterSpacing: 2,
+	},
+	receiptItemCheck: {
+		fontFamily: fonts.bodyBold,
+		fontSize: fontSizes.sm,
+		color: GREEN,
+		width: 20,
+		textAlign: "right",
+	},
+	receiptTotalLabel: {
+		fontFamily: fonts.bodyBold,
+		fontSize: fontSizes.md,
+		color: BLACK,
+	},
+	receiptTotalValue: {
+		fontFamily: fonts.bodyBold,
+		fontSize: fontSizes.md,
+		color: GREEN,
+	},
+
+	// CTA
 	button: {
-		paddingVertical: 18,
+		paddingVertical: 17,
 		width: "100%",
 		justifyContent: "center",
 		alignItems: "center",
-		borderRadius: radii.md,
-		shadowColor: BLACK,
-		shadowOffset: { width: 0, height: 4 },
-		shadowOpacity: 0.2,
-		shadowRadius: 12,
-		elevation: 4,
+		borderRadius: 14,
 	},
 	buttonText: {
 		fontSize: fontSizes.md,
 		fontFamily: fonts.bodySemiBold,
+		color: colors.white,
 		letterSpacing: 0.2,
 	},
 	loginRow: {
 		flexDirection: "row",
 		justifyContent: "center",
 		alignItems: "center",
-		marginTop: spacing.xs,
+		marginTop: spacing.md,
 	},
 	loginHint: {
 		fontSize: fontSizes.sm,
@@ -218,7 +290,7 @@ const styles = StyleSheet.create({
 		fontFamily: fonts.body,
 	},
 	loginLink: {
-		color: colors.green,
+		color: GREEN,
 		fontFamily: fonts.bodySemiBold,
 		fontSize: fontSizes.sm,
 	},
