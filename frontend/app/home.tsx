@@ -61,16 +61,20 @@ export default function Home() {
 		{ top: 72,  left: 70,  size: 50, rotate: "20deg",  opacity: 0.75 },
 		{ top: 62,  left: 248, size: 58, rotate: "-22deg", opacity: 0.72 },
 		{ top: 58,  left: 358, size: 44, rotate: "9deg",   opacity: 0.68 },
-		{ top: 128, left: 18,  size: 54, rotate: "-16deg", opacity: 0.52 },
-		{ top: 118, left: 162, size: 46, rotate: "26deg",  opacity: 0.48 },
-		{ top: 136, left: 318, size: 52, rotate: "-9deg",  opacity: 0.44 },
-		{ top: 178, left: 98,  size: 48, rotate: "15deg",  opacity: 0.28 },
-		{ top: 188, left: 268, size: 54, rotate: "-24deg", opacity: 0.2  },
-		{ top: 238, left: 40,  size: 50, rotate: "-8deg",  opacity: 0.13 },
-		{ top: 248, left: 200, size: 46, rotate: "18deg",  opacity: 0.1  },
-		{ top: 255, left: 330, size: 52, rotate: "-14deg", opacity: 0.08 },
-		{ top: 305, left: 110, size: 48, rotate: "10deg",  opacity: 0.05 },
-		{ top: 315, left: 260, size: 44, rotate: "-20deg", opacity: 0.03 },
+		{ top: 128, left: 18,  size: 54, rotate: "-16deg", opacity: 0.60 },
+		{ top: 118, left: 162, size: 46, rotate: "26deg",  opacity: 0.56 },
+		{ top: 136, left: 318, size: 52, rotate: "-9deg",  opacity: 0.52 },
+		{ top: 188, left: 98,  size: 48, rotate: "15deg",  opacity: 0.44 },
+		{ top: 198, left: 268, size: 54, rotate: "-24deg", opacity: 0.40 },
+		{ top: 185, left: 20,  size: 44, rotate: "-8deg",  opacity: 0.38 },
+		{ top: 255, left: 150, size: 50, rotate: "18deg",  opacity: 0.28 },
+		{ top: 265, left: 330, size: 48, rotate: "-14deg", opacity: 0.24 },
+		{ top: 258, left: 40,  size: 46, rotate: "10deg",  opacity: 0.20 },
+		{ top: 325, left: 200, size: 52, rotate: "-20deg", opacity: 0.13 },
+		{ top: 330, left: 50,  size: 44, rotate: "14deg",  opacity: 0.10 },
+		{ top: 335, left: 330, size: 48, rotate: "-6deg",  opacity: 0.08 },
+		{ top: 390, left: 110, size: 50, rotate: "22deg",  opacity: 0.05 },
+		{ top: 395, left: 270, size: 46, rotate: "-16deg", opacity: 0.03 },
 	];
 
 	return (
@@ -83,8 +87,8 @@ export default function Home() {
 					</View>
 				))}
 				<LinearGradient
-					colors={["rgba(246,245,242,0.0)", "rgba(246,245,242,0.65)", "rgba(246,245,242,1.0)"]}
-					locations={[0.1, 0.5, 0.72]}
+					colors={["rgba(246,245,242,0.0)", "rgba(246,245,242,0.5)", "rgba(246,245,242,1.0)"]}
+					locations={[0.45, 0.7, 0.88]}
 					style={styles.gradient}
 				/>
 			</View>
