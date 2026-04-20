@@ -5,6 +5,7 @@ import {
   requestRecordingPermissionsAsync,
   setAudioModeAsync,
 } from "expo-audio";
+import { File as ExpoFile } from "expo-file-system";
 import * as Speech from "expo-speech";
 import { supabase } from "../lib/supabase";
 import { useAgentChat } from "./useAgentChat";
@@ -48,28 +49,39 @@ export function useVoiceAgent() {
       const token = sessionData?.session?.access_token;
       if (!token) throw new Error("Not authenticated");
 
-      const formData = new FormData();
-      formData.append("audio", {
-        uri,
-        type: "audio/m4a",
-        name: "recording.m4a",
-      } as unknown as Blob);
+      const file = new ExpoFile(uri);
+      const bytes = await file.bytes();
+      let binary = "";
+      for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+      const base64 = btoa(binary);
 
       const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+      console.log("[voice] sending audio to voice-transcribe, uri:", uri);
+
       const response = await fetch(`${supabaseUrl}/functions/v1/voice-transcribe`, {
         method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        body: formData,
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ audio: base64 }),
       });
 
-      if (!response.ok) throw new Error("Transcription failed");
-      const { transcript } = (await response.json()) as { transcript: string };
+      const json = await response.json();
+      console.log("[voice] transcribe response:", JSON.stringify(json));
+
+      if (!response.ok) throw new Error(json.error ?? "Transcription failed");
+
+      const transcript = (json as { transcript: string }).transcript;
+      console.log("[voice] transcript:", transcript);
 
       if (transcript?.trim()) {
         agentChat.sendMessage(transcript.trim());
+      } else {
+        console.warn("[voice] transcript was empty");
       }
-    } catch {
-      // transcription errors are non-fatal — user can retry
+    } catch (err) {
+      console.error("[voice] error:", err);
     } finally {
       setIsTranscribing(false);
     }

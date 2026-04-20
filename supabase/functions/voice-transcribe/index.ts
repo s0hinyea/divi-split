@@ -29,16 +29,18 @@ Deno.serve(async (req) => {
       });
     }
 
-    // The frontend sends the audio as multipart/form-data with a field named "audio"
-    const formData = await req.formData();
-    const audioFile = formData.get("audio");
+    const { audio } = await req.json() as { audio: string };
 
-    if (!audioFile || !(audioFile instanceof File)) {
-      return new Response(JSON.stringify({ error: "Missing audio file" }), {
+    if (!audio) {
+      return new Response(JSON.stringify({ error: "Missing audio" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    // Decode base64 → Uint8Array → File
+    const audioBytes = Uint8Array.from(atob(audio), (c) => c.charCodeAt(0));
+    const audioFile = new File([audioBytes], "recording.m4a", { type: "audio/m4a" });
 
     const openai = new OpenAI({ apiKey });
 
