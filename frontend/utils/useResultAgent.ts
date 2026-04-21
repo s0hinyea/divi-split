@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, MutableRefObject } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import {
   useAudioRecorder,
   RecordingPresets,
@@ -6,54 +6,57 @@ import {
   setAudioModeAsync,
 } from "expo-audio";
 import { File as ExpoFile } from "expo-file-system";
+import * as uuid from "uuid";
+import "react-native-get-random-values";
 import { supabase } from "../lib/supabase";
-import { useSplitStore, ReceiptItem } from "../stores/splitStore";
+import { useSplitStore } from "../stores/splitStore";
+import type { AgentMessage } from "./useReviewAgent";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-export type AgentMessage = {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-};
-
-export type ReviewState = {
-  receiptName: string;
-  receiptDate: string;
-  contacts: { id: string; name: string; items: { id: string; name: string; price: number }[] }[];
-  userItems: { id: string; name: string; price: number }[];
-  tax: number;
-  tip: number;
-  total: number;
-};
-
-type ReviewAction =
-  | { type: "set_receipt_name"; name: string }
-  | { type: "set_receipt_date"; date: string }
-  | { type: "rename_contact"; contact_id: string; new_name: string }
-  | { type: "update_tax"; amount: number }
-  | { type: "update_tip"; amount: number }
-  | { type: "move_item"; item_id: string; from_contact_id: string; to_contact_id: string }
-  | { type: "trigger_dispatch" };
-
-export type ReviewCallbacks = {
-  setReceiptName: (name: string) => void;
-  setReceiptDate: (date: Date) => void;
-  updateContactName: (id: string, name: string) => void;
-  setTax: (amount: number) => void;
-  setTip: (amount: number) => void;
-  moveItem: (itemId: string, fromId: string, toId: string) => void;
-  triggerDispatch: () => void;
-};
+type ResultAction =
+  | { type: "add_item"; name: string; price: number }
+  | { type: "edit_item"; id: string; name: string; price: number }
+  | { type: "delete_item"; id: string }
+  | { type: "set_tax"; amount: number }
+  | { type: "set_tip"; amount: number }
+  | { type: "split_item"; id: string };
 
 type HistoryEntry = { role: "user" | "assistant"; content: string };
 
+// ── Action executor ───────────────────────────────────────────────────────────
+
+function executeResultActions(actions: ResultAction[]): void {
+  for (const action of actions) {
+    const store = useSplitStore.getState();
+    switch (action.type) {
+      case "add_item":
+        store.addItem({ id: uuid.v4(), name: action.name, price: action.price });
+        break;
+      case "edit_item": {
+        const item = store.receiptData.items?.find((i) => i.id === action.id);
+        if (item) store.updateItem(action.id, { ...item, name: action.name, price: action.price });
+        break;
+      }
+      case "delete_item":
+        store.removeItem(action.id);
+        break;
+      case "set_tax":
+        store.updateReceiptData({ tax: action.amount });
+        break;
+      case "set_tip":
+        store.updateReceiptData({ tip: action.amount });
+        break;
+      case "split_item":
+        store.splitItem(action.id);
+        break;
+    }
+  }
+}
+
 // ── Hook ──────────────────────────────────────────────────────────────────────
 
-export function useReviewAgent(
-  stateRef: MutableRefObject<ReviewState>,
-  callbacksRef: MutableRefObject<ReviewCallbacks>,
-) {
+export function useResultAgent() {
   const [messages, setMessages] = useState<AgentMessage[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -88,57 +91,56 @@ export function useReviewAgent(
           content: m.content,
         }));
 
+        // Snapshot state fresh from store at send time
+        const store = useSplitStore.getState();
+        const state = {
+          items: store.receiptData.items.filter(
+            (i) => i.name.trim().toLowerCase() !== "tax"
+          ),
+          tax: store.receiptData.tax ?? 0,
+          tip: store.receiptData.tip ?? 0,
+        };
+
+        console.log("[result-agent] sending state:", JSON.stringify(state));
+
         const { data: sessionData } = await supabase.auth.getSession();
         const token = sessionData?.session?.access_token;
         if (!token) throw new Error("Not authenticated");
 
         const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
-        const response = await fetch(`${supabaseUrl}/functions/v1/review-agent`, {
+        console.log("[result-agent] url:", `${supabaseUrl}/functions/v1/result-agent`);
+
+        const response = await fetch(`${supabaseUrl}/functions/v1/result-agent`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({ message: text.trim(), history, state: stateRef.current }),
+          body: JSON.stringify({ message: text.trim(), history, state }),
         });
 
+        console.log("[result-agent] response status:", response.status);
+
         if (!response.ok) {
-          const errBody = await response.json().catch(() => ({}));
-          throw new Error((errBody as { error?: string }).error ?? "Agent request failed");
+          const rawText = await response.text();
+          console.error("[result-agent] error body:", rawText);
+          let errMsg = "Agent request failed";
+          try {
+            const errJson = JSON.parse(rawText);
+            errMsg = errJson.error ?? errMsg;
+          } catch {}
+          throw new Error(`${response.status}: ${errMsg}`);
         }
 
         const { reply, actions } = (await response.json()) as {
           reply: string;
-          actions: ReviewAction[];
+          actions: ResultAction[];
         };
 
+        console.log("[result-agent] reply:", reply, "actions:", actions);
+
         if (actions?.length > 0) {
-          const cb = callbacksRef.current;
-          for (const action of actions) {
-            switch (action.type) {
-              case "set_receipt_name":
-                cb.setReceiptName(action.name);
-                break;
-              case "set_receipt_date":
-                cb.setReceiptDate(new Date(action.date));
-                break;
-              case "rename_contact":
-                cb.updateContactName(action.contact_id, action.new_name);
-                break;
-              case "update_tax":
-                cb.setTax(action.amount);
-                break;
-              case "update_tip":
-                cb.setTip(action.amount);
-                break;
-              case "move_item":
-                cb.moveItem(action.item_id, action.from_contact_id, action.to_contact_id);
-                break;
-              case "trigger_dispatch":
-                cb.triggerDispatch();
-                break;
-            }
-          }
+          executeResultActions(actions);
         }
 
         const assistantMsg: AgentMessage = {
@@ -149,20 +151,21 @@ export function useReviewAgent(
         setMessages((prev) => [...prev, assistantMsg]);
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : "Something went wrong";
+        console.error("[result-agent] caught error:", msg);
         setError(msg);
         setMessages((prev) => [
           ...prev,
           {
             id: `${Date.now()}-err`,
             role: "assistant",
-            content: "Sorry, I ran into an error. Please try again.",
+            content: `Error: ${msg}`,
           },
         ]);
       } finally {
         setLoading(false);
       }
     },
-    [loading, stateRef, callbacksRef],
+    [loading],
   );
 
   const startRecording = useCallback(async () => {
@@ -212,7 +215,7 @@ export function useReviewAgent(
         await sendMessage(transcript.trim());
       }
     } catch (err) {
-      console.error("[review-voice] error:", err);
+      console.error("[result-agent-voice] error:", err);
     } finally {
       setIsTranscribing(false);
     }
@@ -234,40 +237,4 @@ export function useReviewAgent(
     startRecording,
     stopAndSend,
   };
-}
-
-// ── Standalone move-item executor (called from review.tsx callback) ────────────
-// Exported so review.tsx can use it without importing Zustand hooks conditionally.
-export function executeMoveItem(itemId: string, fromId: string, toId: string) {
-  const store = useSplitStore.getState();
-
-  // Find and remove from source
-  let item: ReceiptItem | undefined;
-
-  if (fromId === "user") {
-    item = (store.receiptData.userItems ?? []).find((i) => i.id === itemId);
-    store.setUserItems((store.receiptData.userItems ?? []).filter((i) => i.id !== itemId));
-  } else {
-    const fromContact = store.selected.find((c) => c.id === fromId);
-    item = (fromContact?.items as ReceiptItem[] | undefined)?.find((i) => i.id === itemId);
-    if (item && fromContact) {
-      // manageItems toggles — item IS on contact, so this removes it
-      store.manageItems(item, fromContact);
-    }
-  }
-
-  if (!item) return;
-
-  // Add to destination
-  if (toId === "user") {
-    const fresh = useSplitStore.getState();
-    fresh.setUserItems([...(fresh.receiptData.userItems ?? []), item]);
-  } else {
-    const fresh = useSplitStore.getState();
-    const toContact = fresh.selected.find((c) => c.id === toId);
-    if (toContact) {
-      // manageItems toggles — item is NOT on toContact, so this adds it
-      fresh.manageItems(item, toContact);
-    }
-  }
 }

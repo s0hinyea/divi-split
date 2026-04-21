@@ -1,6 +1,6 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState, useEffect, useRef } from 'react';
-import { View, TextInput, StyleSheet, TouchableOpacity, Pressable, Image, Modal, Text, Keyboard, Animated } from 'react-native';
+import { View, TextInput, StyleSheet, TouchableOpacity, Pressable, Image, Modal, Text, Keyboard, Animated, Dimensions } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { ScrollView } from 'react-native-gesture-handler';
 import { Button, Surface } from 'react-native-paper';
@@ -14,6 +14,8 @@ import * as uuid from 'uuid';
 import { BlurView } from 'expo-blur';
 import { colors, fonts, fontSizes, spacing, radii, shadows } from '@/styles/theme';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useResultAgent } from '../utils/useResultAgent';
+import ReviewAgentPanel from '../components/ReviewAgentPanel';
 
 export default function OCRResults() {
   const params = useLocalSearchParams();
@@ -26,6 +28,9 @@ export default function OCRResults() {
   const updateReceiptData = useSplitStore((state) => state.updateReceiptData);
   const receiptData = useSplitStore((state) => state.receiptData);
   const { addChange, undoChange, clearChanges, changes } = useChange();
+
+  const [agentVisible, setAgentVisible] = useState(false);
+  const agent = useResultAgent();
 
   const [splitTarget, setSplitTarget] = useState<string | null>(null);
   const splitProgress = useRef(new Animated.Value(0)).current;
@@ -220,10 +225,17 @@ export default function OCRResults() {
             <TouchableOpacity onPress={() => router.push('/contacts')} style={{ marginRight: spacing.sm }}>
               <MaterialIcons name="arrow-back" size={28} color={colors.black} />
             </TouchableOpacity>
-            <Text style={styles.headerTitle}>
+            <Text style={[styles.headerTitle, { flex: 1 }]}>
               <Text style={{ color: colors.black }}>Modify </Text>
               <Text style={{ color: colors.green }}>Receipt</Text>
             </Text>
+            <TouchableOpacity
+              style={styles.agentButton}
+              onPress={() => setAgentVisible(true)}
+              activeOpacity={0.8}
+            >
+              <MaterialIcons name="auto-awesome" size={18} color={colors.green} />
+            </TouchableOpacity>
           </View>
           <Text style={styles.headerSubtitle}>Tap to edit, swipe left to delete, hold to split</Text>
         </View>
@@ -408,6 +420,26 @@ export default function OCRResults() {
           </>
         )}
       </View>
+
+      {/* Result Agent Modal */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={agentVisible}
+        onRequestClose={() => setAgentVisible(false)}
+      >
+        <View style={styles.agentModalOverlay}>
+          <TouchableOpacity
+            style={styles.agentModalDismiss}
+            activeOpacity={1}
+            onPress={() => setAgentVisible(false)}
+          />
+          <View style={styles.agentModalSheet}>
+            <View style={styles.agentHandle} />
+            <ReviewAgentPanel {...agent} />
+          </View>
+        </View>
+      </Modal>
 
       <Modal animationType='fade' transparent={true} visible={adding} onRequestClose={() => isAdding(false)}>
         <BlurView intensity={20} style={styles.modalOverlay}>
@@ -707,5 +739,37 @@ const styles = StyleSheet.create({
     height: '100%',
     backgroundColor: colors.green,
     borderRadius: radii.full,
+  },
+
+  agentButton: {
+    width: 36,
+    height: 36,
+    borderRadius: radii.full,
+    backgroundColor: `${colors.green}15`,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  agentModalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  agentModalDismiss: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+  },
+  agentModalSheet: {
+    height: Dimensions.get('window').height * 0.72,
+    backgroundColor: colors.white,
+    borderTopLeftRadius: radii.xl,
+    borderTopRightRadius: radii.xl,
+    overflow: 'hidden',
+  },
+  agentHandle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.gray300,
+    alignSelf: 'center',
+    marginTop: spacing.md,
   },
 });
