@@ -1,6 +1,6 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState, useEffect, useRef } from 'react';
-import { View, TextInput, StyleSheet, TouchableOpacity, Pressable, Image, Modal, Text, Keyboard, Animated, Dimensions } from 'react-native';
+import { View, TextInput, StyleSheet, TouchableOpacity, Pressable, Image, Modal, Text, Keyboard, Animated } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { ScrollView } from 'react-native-gesture-handler';
 import { Button, Surface } from 'react-native-paper';
@@ -14,8 +14,8 @@ import * as uuid from 'uuid';
 import { BlurView } from 'expo-blur';
 import { colors, fonts, fontSizes, spacing, radii, shadows } from '@/styles/theme';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useResultAgent } from '../utils/useResultAgent';
-import ReviewAgentPanel from '../components/ReviewAgentPanel';
+import { useResultAgent, ActionSummary } from '../utils/useResultAgent';
+import DiviLogoAnimated from '../components/DiviLogoAnimated';
 
 export default function OCRResults() {
   const params = useLocalSearchParams();
@@ -29,8 +29,61 @@ export default function OCRResults() {
   const receiptData = useSplitStore((state) => state.receiptData);
   const { addChange, undoChange, clearChanges, changes } = useChange();
 
-  const [agentVisible, setAgentVisible] = useState(false);
-  const agent = useResultAgent();
+  const agent = useResultAgent(addChange);
+
+  // ── Agent overlay state ────────────────────────────────────────────────────
+  const [overlayVisible, setOverlayVisible] = useState(false);
+  const [overlayPhase, setOverlayPhase] = useState<'processing' | 'revealing'>('processing');
+  const [revealItems, setRevealItems] = useState<{ summary: ActionSummary; opacity: Animated.Value; translateY: Animated.Value }[]>([]);
+  const overlayOpacity = useRef(new Animated.Value(0)).current;
+  const overlayActiveRef = useRef(false);
+
+  useEffect(() => {
+    const isProcessing = agent.loading || agent.isTranscribing;
+
+    if (isProcessing) {
+      if (!overlayActiveRef.current) {
+        overlayActiveRef.current = true;
+        setOverlayPhase('processing');
+        setOverlayVisible(true);
+        Animated.timing(overlayOpacity, { toValue: 1, duration: 200, useNativeDriver: true }).start();
+      }
+      return;
+    }
+
+    if (!overlayActiveRef.current) return;
+    overlayActiveRef.current = false;
+
+    const summary = agent.lastActionSummary;
+
+    if (summary && summary.length > 0) {
+      const items = summary.map(s => ({
+        summary: s,
+        opacity: new Animated.Value(0),
+        translateY: new Animated.Value(12),
+      }));
+      setRevealItems(items);
+      setOverlayPhase('revealing');
+
+      Animated.sequence([
+        Animated.stagger(500, items.map(item =>
+          Animated.parallel([
+            Animated.timing(item.opacity, { toValue: 1, duration: 450, useNativeDriver: true }),
+            Animated.timing(item.translateY, { toValue: 0, duration: 450, useNativeDriver: true }),
+          ])
+        )),
+        Animated.delay(2000),
+        Animated.timing(overlayOpacity, { toValue: 0, duration: 500, useNativeDriver: true }),
+      ]).start(() => {
+        setOverlayVisible(false);
+        setRevealItems([]);
+      });
+    } else {
+      Animated.timing(overlayOpacity, { toValue: 0, duration: 300, useNativeDriver: true }).start(() => {
+        setOverlayVisible(false);
+      });
+    }
+  }, [agent.loading, agent.isTranscribing, agent.lastActionSummary]);
 
   const [splitTarget, setSplitTarget] = useState<string | null>(null);
   const splitProgress = useRef(new Animated.Value(0)).current;
@@ -39,10 +92,10 @@ export default function OCRResults() {
   const [newPrice, setNewPrice] = useState<string>('');
   const [stackEmpty, isStackEmpty] = useState<boolean>(true);
   const [adding, isAdding] = useState<boolean>(false);
-  const [taxInput, setTaxInput] = useState<string>(receiptData && 'tax' in receiptData && receiptData.tax !== undefined ? receiptData.tax.toString() : '');
+  const [taxInput, setTaxInput] = useState<string>('');
   const [editingTax, setEditingTax] = useState<boolean>(false);
   const [showTaxDone, setShowTaxDone] = useState<boolean>(false);
-  const [tipInput, setTipInput] = useState<string>(receiptData && 'tip' in receiptData && receiptData.tip !== undefined ? receiptData.tip.toString() : '');
+  const [tipInput, setTipInput] = useState<string>('');
   const [editingTip, setEditingTip] = useState<boolean>(false);
   const [showTipDone, setShowTipDone] = useState<boolean>(false);
 
@@ -53,6 +106,8 @@ export default function OCRResults() {
   useEffect(() => {
     isStackEmpty(changes.length === 0);
   }, [changes]);
+
+
 
 
 
@@ -170,6 +225,7 @@ export default function OCRResults() {
 
   function startTaxEdit() {
     if (changing) finishChange();
+    setTaxInput(receiptData.tax != null ? receiptData.tax.toString() : '');
     setEditingTax(true);
     setShowTaxDone(true);
   }
@@ -185,6 +241,7 @@ export default function OCRResults() {
 
   function startTipEdit() {
     if (changing) finishChange();
+    setTipInput(receiptData.tip != null ? receiptData.tip.toString() : '');
     setEditingTip(true);
     setShowTipDone(true);
   }
@@ -230,11 +287,16 @@ export default function OCRResults() {
               <Text style={{ color: colors.green }}>Receipt</Text>
             </Text>
             <TouchableOpacity
-              style={styles.agentButton}
-              onPress={() => setAgentVisible(true)}
+              style={[styles.agentButton, agent.isRecording && styles.agentButtonRecording]}
+              onPress={agent.isRecording ? agent.stopAndSend : agent.startRecording}
+              disabled={agent.loading || agent.isTranscribing}
               activeOpacity={0.8}
             >
-              <MaterialIcons name="auto-awesome" size={18} color={colors.green} />
+              <MaterialIcons
+                name={agent.isRecording ? 'stop' : 'auto-awesome'}
+                size={18}
+                color={agent.isRecording ? colors.white : colors.green}
+              />
             </TouchableOpacity>
           </View>
           <Text style={styles.headerSubtitle}>Tap to edit, swipe left to delete, hold to split</Text>
@@ -257,8 +319,8 @@ export default function OCRResults() {
               />
             ) : (
               <Pressable onPress={startTaxEdit} style={styles.compactPressable}>
-                <Text style={[styles.compactValue, !taxInput && styles.placeholderText]}>
-                  {taxInput ? `$${parseFloat(taxInput).toFixed(2)}` : '$0.00'}
+                <Text style={[styles.compactValue, !receiptData.tax && styles.placeholderText]}>
+                  {receiptData.tax ? `$${receiptData.tax.toFixed(2)}` : '$0.00'}
                 </Text>
               </Pressable>
             )}
@@ -279,8 +341,8 @@ export default function OCRResults() {
               />
             ) : (
               <Pressable onPress={startTipEdit} style={styles.compactPressable}>
-                <Text style={[styles.compactValue, !tipInput && styles.placeholderText]}>
-                  {tipInput ? `$${parseFloat(tipInput).toFixed(2)}` : '$0.00'}
+                <Text style={[styles.compactValue, !receiptData.tip && styles.placeholderText]}>
+                  {receiptData.tip ? `$${receiptData.tip.toFixed(2)}` : '$0.00'}
                 </Text>
               </Pressable>
             )}
@@ -421,25 +483,45 @@ export default function OCRResults() {
         )}
       </View>
 
-      {/* Result Agent Modal */}
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={agentVisible}
-        onRequestClose={() => setAgentVisible(false)}
-      >
-        <View style={styles.agentModalOverlay}>
-          <TouchableOpacity
-            style={styles.agentModalDismiss}
-            activeOpacity={1}
-            onPress={() => setAgentVisible(false)}
-          />
-          <View style={styles.agentModalSheet}>
-            <View style={styles.agentHandle} />
-            <ReviewAgentPanel {...agent} />
+      {/* Agent overlay — processing spinner → action reveal → fade out */}
+      {overlayVisible && (
+        <Animated.View style={[styles.processingOverlay, { opacity: overlayOpacity }]}>
+          <BlurView intensity={55} style={StyleSheet.absoluteFill} />
+          <View style={styles.overlayContent}>
+            {overlayPhase === 'processing' && (
+              <DiviLogoAnimated size={140} />
+            )}
+            {overlayPhase === 'revealing' && (
+              <View style={styles.actionList}>
+                {revealItems.map((item, i) => {
+                  const verbColor =
+                    item.summary.verb === 'Added' ? colors.green :
+                    item.summary.verb === 'Removed' ? colors.error :
+                    colors.black;
+                  const iconName =
+                    item.summary.verb === 'Added' ? 'add-circle-outline' :
+                    item.summary.verb === 'Removed' ? 'remove-circle-outline' :
+                    item.summary.verb === 'Split' ? 'call-split' :
+                    'edit';
+                  return (
+                    <Animated.View
+                      key={i}
+                      style={[styles.actionRow, { opacity: item.opacity, transform: [{ translateY: item.translateY }] }]}
+                    >
+                      <MaterialIcons name={iconName as any} size={18} color={verbColor} />
+                      <Text style={[styles.actionVerb, { color: verbColor }]}>{item.summary.verb}</Text>
+                      <Text style={styles.actionName} numberOfLines={1}>{item.summary.name}</Text>
+                      {item.summary.amount !== undefined && (
+                        <Text style={styles.actionAmount}>${item.summary.amount.toFixed(2)}</Text>
+                      )}
+                    </Animated.View>
+                  );
+                })}
+              </View>
+            )}
           </View>
-        </View>
-      </Modal>
+        </Animated.View>
+      )}
 
       <Modal animationType='fade' transparent={true} visible={adding} onRequestClose={() => isAdding(false)}>
         <BlurView intensity={20} style={styles.modalOverlay}>
@@ -741,6 +823,38 @@ const styles = StyleSheet.create({
     borderRadius: radii.full,
   },
 
+  overlayContent: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'flex-start',
+    paddingHorizontal: spacing.xl + 8,
+  },
+  actionList: {
+    gap: spacing.xl,
+    width: '100%',
+  },
+  actionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  actionVerb: {
+    fontFamily: fonts.bodyBold,
+    fontSize: fontSizes.xl,
+    minWidth: 90,
+  },
+  actionName: {
+    fontFamily: fonts.body,
+    fontSize: fontSizes.xl,
+    color: colors.black,
+    flex: 1,
+  },
+  actionAmount: {
+    fontFamily: fonts.bodySemiBold,
+    fontSize: fontSizes.xl,
+    color: colors.green,
+  },
   agentButton: {
     width: 36,
     height: 36,
@@ -749,27 +863,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  agentModalOverlay: {
-    flex: 1,
-    justifyContent: 'flex-end',
+  agentButtonRecording: {
+    backgroundColor: colors.error,
   },
-  agentModalDismiss: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.35)',
-  },
-  agentModalSheet: {
-    height: Dimensions.get('window').height * 0.72,
-    backgroundColor: colors.white,
-    borderTopLeftRadius: radii.xl,
-    borderTopRightRadius: radii.xl,
-    overflow: 'hidden',
-  },
-  agentHandle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: colors.gray300,
-    alignSelf: 'center',
-    marginTop: spacing.md,
+  processingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 100,
   },
 });

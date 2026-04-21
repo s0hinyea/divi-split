@@ -3,8 +3,9 @@ import { useRouter } from "expo-router";
 import { Text } from "react-native-paper";
 import { LinearGradient } from "expo-linear-gradient";
 import { colors, fonts, fontSizes, spacing } from '@/styles/theme';
-import Svg, { Circle, Rect, Path } from "react-native-svg";
+import Svg, { Path } from "react-native-svg";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
+import DiviLogo from "@/components/DiviLogo";
 import Animated, {
 	useSharedValue,
 	useAnimatedStyle,
@@ -18,17 +19,6 @@ const BLACK = colors.black;
 const ZIGZAG_H = 12;
 const ZIGZAG_W = 18;
 
-function DiviLogo({ size = 80 }: { size?: number }) {
-	const scale = size / 160;
-	return (
-		<Svg width={120 * scale} height={160 * scale} viewBox="0 0 120 160" fill="none">
-			<Circle cx="20" cy="80" r="8" fill={GREEN} />
-			<Rect x="40" y="30" width="10" height="100" rx="5" fill={GREEN} />
-			<Rect x="70" y="30" width="10" height="100" rx="5" fill={BLACK} />
-			<Circle cx="100" cy="80" r="8" fill={BLACK} />
-		</Svg>
-	);
-}
 
 function ZigzagEdge({ width }: { width: number }) {
 	const numZigzags = Math.floor(width / ZIGZAG_W);

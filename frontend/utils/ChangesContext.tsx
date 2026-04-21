@@ -7,6 +7,7 @@ export type Change = {
 	previous: ReceiptItem;
 	splitChildIds?: string[];
 	index?: number;
+	previousAmount?: number; // used by SET_TAX and SET_TIP
 };
 
 type ChangeContextType = {
@@ -24,6 +25,7 @@ export function ChangeProvider({ children }: { children: ReactNode }) {
 	const removeItem = useSplitStore((state) => state.removeItem);
 	const addItem = useSplitStore((state) => state.addItem);
 	const insertItemAt = useSplitStore((state) => state.insertItemAt);
+	const updateReceiptData = useSplitStore((state) => state.updateReceiptData);
 	const receiptData = useSplitStore((state) => state.receiptData);
 
 	const addChange = (change: Change) => {
@@ -70,6 +72,18 @@ export function ChangeProvider({ children }: { children: ReactNode }) {
 						case "ADD":
 							removeItem(lastChange.id);
 							break;
+						case "SET_TAX": {
+							if (lastChange.previousAmount !== undefined) {
+								updateReceiptData({ tax: lastChange.previousAmount });
+							}
+							break;
+						}
+						case "SET_TIP": {
+							if (lastChange.previousAmount !== undefined) {
+								updateReceiptData({ tip: lastChange.previousAmount });
+							}
+							break;
+						}
 						case "SPLIT": {
 							// Find position of first child before removing
 							const currentItems = useSplitStore.getState().receiptData.items;

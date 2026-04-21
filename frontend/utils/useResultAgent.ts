@@ -11,6 +11,7 @@ import "react-native-get-random-values";
 import { supabase } from "../lib/supabase";
 import { useSplitStore } from "../stores/splitStore";
 import type { AgentMessage } from "./useReviewAgent";
+import type { Change } from "./ChangesContext";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -24,44 +25,91 @@ type ResultAction =
 
 type HistoryEntry = { role: "user" | "assistant"; content: string };
 
+export type ActionSummary = {
+  verb: "Added" | "Removed" | "Changed" | "Split";
+  name: string;
+  amount?: number;
+};
+
 // ── Action executor ───────────────────────────────────────────────────────────
 
-function executeResultActions(actions: ResultAction[]): void {
+function executeResultActions(actions: ResultAction[], addChange: (c: Change) => void): ActionSummary[] {
+  const summary: ActionSummary[] = [];
+
   for (const action of actions) {
     const store = useSplitStore.getState();
     switch (action.type) {
-      case "add_item":
-        store.addItem({ id: uuid.v4(), name: action.name, price: action.price });
-        break;
-      case "edit_item": {
-        const item = store.receiptData.items?.find((i) => i.id === action.id);
-        if (item) store.updateItem(action.id, { ...item, name: action.name, price: action.price });
+      case "add_item": {
+        const newId = uuid.v4();
+        const newItem = { id: newId, name: action.name, price: action.price };
+        store.addItem(newItem);
+        addChange({ type: "ADD", id: newId, previous: newItem });
+        summary.push({ verb: "Added", name: action.name, amount: action.price });
         break;
       }
-      case "delete_item":
-        store.removeItem(action.id);
+      case "edit_item": {
+        const item = store.receiptData.items?.find((i) => i.id === action.id);
+        if (item) {
+          addChange({ type: "EDIT_NAME", id: action.id, previous: item });
+          addChange({ type: "EDIT_PRICE", id: action.id, previous: item });
+          store.updateItem(action.id, { ...item, name: action.name, price: action.price });
+          summary.push({ verb: "Changed", name: action.name, amount: action.price });
+        }
         break;
-      case "set_tax":
+      }
+      case "delete_item": {
+        const items = store.receiptData.items ?? [];
+        const item = items.find((i) => i.id === action.id);
+        const index = items.findIndex((i) => i.id === action.id);
+        if (item) {
+          addChange({ type: "DELETE", id: action.id, previous: item, index });
+          store.removeItem(action.id);
+          summary.push({ verb: "Removed", name: item.name });
+        }
+        break;
+      }
+      case "set_tax": {
+        const prevTax = store.receiptData.tax ?? 0;
+        addChange({ type: "SET_TAX", id: "tax", previous: { id: "tax", name: "Tax", price: prevTax }, previousAmount: prevTax });
         store.updateReceiptData({ tax: action.amount });
+        summary.push({ verb: "Changed", name: "Tax", amount: action.amount });
         break;
-      case "set_tip":
+      }
+      case "set_tip": {
+        const prevTip = store.receiptData.tip ?? 0;
+        addChange({ type: "SET_TIP", id: "tip", previous: { id: "tip", name: "Tip", price: prevTip }, previousAmount: prevTip });
         store.updateReceiptData({ tip: action.amount });
+        summary.push({ verb: "Changed", name: "Tip", amount: action.amount });
         break;
-      case "split_item":
-        store.splitItem(action.id);
+      }
+      case "split_item": {
+        const items = store.receiptData.items ?? [];
+        const item = items.find((i) => i.id === action.id);
+        const index = items.findIndex((i) => i.id === action.id);
+        if (item) {
+          const childIds = store.splitItem(action.id);
+          if (childIds.length === 2) {
+            addChange({ type: "SPLIT", id: action.id, previous: item, splitChildIds: childIds, index });
+          }
+          summary.push({ verb: "Split", name: item.name });
+        }
         break;
+      }
     }
   }
+
+  return summary;
 }
 
 // ── Hook ──────────────────────────────────────────────────────────────────────
 
-export function useResultAgent() {
+export function useResultAgent(addChange: (c: Change) => void) {
   const [messages, setMessages] = useState<AgentMessage[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
+  const [lastActionSummary, setLastActionSummary] = useState<ActionSummary[] | null>(null);
 
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const messagesRef = useRef<AgentMessage[]>([]);
@@ -74,7 +122,7 @@ export function useResultAgent() {
   const sendMessage = useCallback(
     async (text: string) => {
       if (!text.trim() || loading) return;
-
+      setLastActionSummary(null);
       setError(null);
       setLoading(true);
 
@@ -139,9 +187,8 @@ export function useResultAgent() {
 
         console.log("[result-agent] reply:", reply, "actions:", actions);
 
-        if (actions?.length > 0) {
-          executeResultActions(actions);
-        }
+        const summary = actions?.length > 0 ? executeResultActions(actions, addChange) : [];
+        setLastActionSummary(summary);
 
         const assistantMsg: AgentMessage = {
           id: `${Date.now()}-a`,
@@ -165,7 +212,7 @@ export function useResultAgent() {
         setLoading(false);
       }
     },
-    [loading],
+    [loading, addChange],
   );
 
   const startRecording = useCallback(async () => {
@@ -230,6 +277,7 @@ export function useResultAgent() {
     messages,
     loading,
     error,
+    lastActionSummary,
     sendMessage,
     clearMessages,
     isRecording,
