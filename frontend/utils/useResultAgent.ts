@@ -26,7 +26,7 @@ type ResultAction =
 type HistoryEntry = { role: "user" | "assistant"; content: string };
 
 export type ActionSummary = {
-  verb: "Added" | "Removed" | "Changed" | "Split";
+  verb: string;
   name: string;
   amount?: number;
 };

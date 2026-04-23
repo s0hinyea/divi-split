@@ -10,6 +10,12 @@ export type AgentMessage = {
   content: string;
 };
 
+export type ActionSummary = {
+  verb: string;
+  name: string;
+  amount?: number;
+};
+
 type AgentAction =
   | { type: "assign_item"; item_id: string; contact_id: string }
   | { type: "assign_to_user"; item_id: string }
@@ -20,13 +26,11 @@ type AgentAction =
 type HistoryEntry = { role: "user" | "assistant"; content: string };
 
 // ── Action executor ───────────────────────────────────────────────────────────
-// Runs each action returned by the agent against the real splitStore.
-// Must be called sequentially because split_item_between depends on the real
-// IDs produced by splitItem(), which only exist after that call.
 
-function executeActions(actions: AgentAction[]): void {
+function executeActions(actions: AgentAction[]): ActionSummary[] {
+  const summary: ActionSummary[] = [];
+
   for (const action of actions) {
-    // Always grab a fresh snapshot — previous actions may have mutated the store
     const store = useSplitStore.getState();
 
     switch (action.type) {
@@ -34,9 +38,11 @@ function executeActions(actions: AgentAction[]): void {
         const item = store.receiptData.items.find((i) => i.id === action.item_id);
         const contact = store.selected.find((c) => c.id === action.contact_id);
         if (item && contact) {
-          // manageItems toggles; only assign if not already assigned
           const alreadyAssigned = contact.items.some((i) => i.id === action.item_id);
-          if (!alreadyAssigned) store.manageItems(item, contact);
+          if (!alreadyAssigned) {
+            store.manageItems(item, contact);
+            summary.push({ verb: "Assigned", name: item.name, amount: item.price });
+          }
         }
         break;
       }
@@ -47,6 +53,7 @@ function executeActions(actions: AgentAction[]): void {
           const current = store.receiptData.userItems ?? [];
           if (!current.some((i) => i.id === action.item_id)) {
             store.setUserItems([...current, item]);
+            summary.push({ verb: "Assigned", name: item.name, amount: item.price });
           }
         }
         break;
@@ -55,27 +62,33 @@ function executeActions(actions: AgentAction[]): void {
       case "unassign_from_contact": {
         if (action.contact_id === "user") {
           const current = store.receiptData.userItems ?? [];
-          store.setUserItems(current.filter((i) => i.id !== action.item_id));
+          const item = current.find((i) => i.id === action.item_id);
+          if (item) {
+            store.setUserItems(current.filter((i) => i.id !== action.item_id));
+            summary.push({ verb: "Unassigned", name: item.name });
+          }
         } else {
           const item = store.receiptData.items.find((i) => i.id === action.item_id);
           const contact = store.selected.find((c) => c.id === action.contact_id);
           if (item && contact) {
             const alreadyAssigned = contact.items.some((i) => i.id === action.item_id);
-            if (alreadyAssigned) store.manageItems(item, contact);
+            if (alreadyAssigned) {
+              store.manageItems(item, contact);
+              summary.push({ verb: "Unassigned", name: item.name });
+            }
           }
         }
         break;
       }
 
       case "split_item_between": {
-        // splitItem mutates the store and returns the two new real IDs
+        const item = store.receiptData.items.find((i) => i.id === action.item_id);
         const newIds = store.splitItem(action.item_id);
         if (newIds.length !== 2) break;
 
         const [id0, id1] = newIds;
         const [assignee0, assignee1] = action.assignees;
 
-        // Grab another fresh snapshot after the split
         const afterSplit = useSplitStore.getState();
         const half0 = afterSplit.receiptData.items.find((i) => i.id === id0);
         const half1 = afterSplit.receiptData.items.find((i) => i.id === id1);
@@ -99,10 +112,14 @@ function executeActions(actions: AgentAction[]): void {
             if (contact) useSplitStore.getState().manageItems(half1, contact);
           }
         }
+
+        if (item) summary.push({ verb: "Split", name: item.name });
         break;
       }
     }
   }
+
+  return summary;
 }
 
 // ── Hook ──────────────────────────────────────────────────────────────────────
@@ -111,11 +128,13 @@ export function useAgentChat() {
   const [messages, setMessages] = useState<AgentMessage[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [lastActionSummary, setLastActionSummary] = useState<ActionSummary[] | null>(null);
 
   const sendMessage = useCallback(
     async (text: string) => {
       if (!text.trim() || loading) return;
 
+      setLastActionSummary(null);
       setError(null);
       setLoading(true);
 
@@ -172,10 +191,8 @@ export function useAgentChat() {
           actions: AgentAction[];
         };
 
-        // Execute the agent's decided actions against the real store
-        if (actions?.length > 0) {
-          executeActions(actions);
-        }
+        const summary = actions?.length > 0 ? executeActions(actions) : [];
+        setLastActionSummary(summary);
 
         const assistantMsg: AgentMessage = {
           id: `${Date.now()}-a`,
@@ -206,5 +223,5 @@ export function useAgentChat() {
     setError(null);
   }, []);
 
-  return { messages, loading, error, sendMessage, clearMessages };
+  return { messages, loading, error, lastActionSummary, sendMessage, clearMessages };
 }
