@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Modal, Alert, ActivityIndicator, TextInput, Platform, StyleSheet } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, Modal, Alert, ActivityIndicator, TextInput, Platform, StyleSheet, Dimensions } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSplitStore, ReceiptItem } from '../stores/splitStore';
 import { useHistory } from '../utils/HistoryContext';
@@ -11,6 +11,8 @@ import { colors, fonts, fontSizes, spacing, radii, shadows } from '@/styles/them
 import { MaterialIcons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { allocateAmount } from '../utils/mathUtil';
+import { useReviewAgent, executeMoveItem, ReviewState, ReviewCallbacks } from '../utils/useReviewAgent';
+import ReviewAgentPanel from '../components/ReviewAgentPanel';
 
 export default function ReviewPage() {
   const router = useRouter();
@@ -29,6 +31,29 @@ export default function ReviewPage() {
   const { profile } = useProfile();
   // Modal state
   const [showSmsModal, setShowSmsModal] = useState(false);
+  const [agentVisible, setAgentVisible] = useState(false);
+
+  // Refs for the review agent — always current, no stale closure issues
+  const reviewStateRef = useRef<ReviewState>({
+    receiptName: '',
+    receiptDate: new Date().toISOString(),
+    contacts: [],
+    userItems: [],
+    tax: 0,
+    tip: 0,
+    total: 0,
+  });
+  const reviewCallbacksRef = useRef<ReviewCallbacks>({
+    setReceiptName: () => {},
+    setReceiptDate: () => {},
+    updateContactName: () => {},
+    setTax: () => {},
+    setTip: () => {},
+    moveItem: () => {},
+    triggerDispatch: () => {},
+  });
+
+  const agent = useReviewAgent(reviewStateRef, reviewCallbacksRef);
 
   // Receipt name and date states — pre-populated when editing an existing receipt
   const [receiptName, setReceiptName] = useState(editingReceiptName || '');
@@ -84,6 +109,21 @@ export default function ReviewPage() {
 
   const { taxPercentage, individualTaxes } = calculateTaxBreakdown();
   const { tipPerPerson, individualTips } = calculateTipBreakdown();
+
+  // Keep agent refs in sync with latest state and callbacks each render
+  reviewStateRef.current = {
+    receiptName,
+    receiptDate: receiptDate.toISOString(),
+    contacts: selected.map((c) => ({
+      id: c.id,
+      name: c.name,
+      items: c.items as { id: string; name: string; price: number }[],
+    })),
+    userItems: (receiptData.userItems ?? []) as { id: string; name: string; price: number }[],
+    tax: receiptData.tax ?? 0,
+    tip: receiptData.tip ?? 0,
+    total: receiptData.total ?? 0,
+  };
 
   // Send group summary via native Messages app
   const sendGroupSummary = async () => {
@@ -218,20 +258,43 @@ export default function ReviewPage() {
     }
   };
 
+  // Update callbacks ref after all handlers are defined
+  reviewCallbacksRef.current = {
+    setReceiptName,
+    setReceiptDate,
+    updateContactName,
+    setTax: (amount) => updateReceiptData({ tax: amount }),
+    setTip: (amount) => updateReceiptData({ tip: amount }),
+    moveItem: executeMoveItem,
+    triggerDispatch: () => {
+      setAgentVisible(false);
+      handleFinish();
+    },
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.headerContainer}>
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <TouchableOpacity
+              onPress={() => router.push({ pathname: '/assign', params: { initialIndex: selected.length - 1 } })}
+              style={{ marginRight: spacing.sm }}
+            >
+              <MaterialIcons name="arrow-back" size={28} color={colors.black} />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>
+              <Text style={{ color: colors.black }}>Review </Text>
+              <Text style={{ color: colors.green }}>Split</Text>
+            </Text>
+          </View>
           <TouchableOpacity
-            onPress={() => router.push({ pathname: '/assign', params: { initialIndex: selected.length - 1 } })}
-            style={{ marginRight: spacing.sm }}
+            style={styles.agentButton}
+            onPress={() => setAgentVisible(true)}
+            activeOpacity={0.8}
           >
-            <MaterialIcons name="arrow-back" size={28} color={colors.black} />
+            <MaterialIcons name="auto-awesome" size={18} color={colors.green} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>
-            <Text style={{ color: colors.black }}>Review </Text>
-            <Text style={{ color: colors.green }}>Split</Text>
-          </Text>
         </View>
       </View>
 
@@ -419,6 +482,26 @@ export default function ReviewPage() {
           <Text style={styles.finishButtonText}>Proceed</Text>
         </TouchableOpacity>
       </View>
+
+      {/* Review Agent Modal */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={agentVisible}
+        onRequestClose={() => setAgentVisible(false)}
+      >
+        <View style={styles.agentModalOverlay}>
+          <TouchableOpacity
+            style={styles.agentModalDismiss}
+            activeOpacity={1}
+            onPress={() => setAgentVisible(false)}
+          />
+          <View style={styles.agentModalSheet}>
+            <View style={styles.agentHandle} />
+            <ReviewAgentPanel {...agent} />
+          </View>
+        </View>
+      </Modal>
 
       {/* Group SMS Modal */}
       <Modal
@@ -690,5 +773,40 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bodyBold,
     fontSize: fontSizes.md,
     color: colors.black,
-  }
+  },
+
+  // Agent button in header
+  agentButton: {
+    width: 36,
+    height: 36,
+    borderRadius: radii.full,
+    backgroundColor: `${colors.green}15`,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  // Agent modal bottom sheet
+  agentModalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  agentModalDismiss: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+  },
+  agentModalSheet: {
+    height: Dimensions.get('window').height * 0.72,
+    backgroundColor: colors.white,
+    borderTopLeftRadius: radii.xl,
+    borderTopRightRadius: radii.xl,
+    overflow: 'hidden',
+  },
+  agentHandle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.gray300,
+    alignSelf: 'center',
+    marginTop: spacing.md,
+  },
 });

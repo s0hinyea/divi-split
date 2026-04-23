@@ -1,9 +1,11 @@
-import { View, StyleSheet, TouchableOpacity } from "react-native";
+import { View, StyleSheet, TouchableOpacity, Dimensions } from "react-native";
 import { useRouter } from "expo-router";
 import { Text } from "react-native-paper";
 import { LinearGradient } from "expo-linear-gradient";
-import { colors, fonts, fontSizes } from '@/styles/theme';
-import Svg, { Circle, Rect } from "react-native-svg";
+import { colors, fonts, fontSizes, spacing } from '@/styles/theme';
+import Svg, { Path } from "react-native-svg";
+import { Ionicons, MaterialIcons } from "@expo/vector-icons";
+import DiviLogo from "@/components/DiviLogo";
 import Animated, {
 	useSharedValue,
 	useAnimatedStyle,
@@ -11,150 +13,132 @@ import Animated, {
 	interpolateColor,
 } from "react-native-reanimated";
 
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const GREEN = colors.green;
 const BLACK = colors.black;
+const ZIGZAG_H = 12;
+const ZIGZAG_W = 18;
 
-// Render the Divi logo as inline SVG (scalable, no image file needed)
-function DiviLogo({ size = 80 }: { size?: number }) {
-	const scale = size / 160; // SVG viewBox height is 160
+
+function ZigzagEdge({ width }: { width: number }) {
+	const numZigzags = Math.floor(width / ZIGZAG_W);
+	let path = `M 0,${ZIGZAG_H}`;
+	for (let i = 0; i < numZigzags; i++) {
+		const x1 = i * ZIGZAG_W + ZIGZAG_W / 2;
+		const x2 = (i + 1) * ZIGZAG_W;
+		path += ` L ${x1},0 L ${x2},${ZIGZAG_H}`;
+	}
+	path += ` L ${width},${ZIGZAG_H} L ${width},${ZIGZAG_H * 3} L 0,${ZIGZAG_H * 3} Z`;
 	return (
-		<Svg
-			width={120 * scale}
-			height={160 * scale}
-			viewBox="0 0 120 160"
-			fill="none"
-		>
-			<Circle cx="20" cy="80" r="8" fill={GREEN} />
-			<Rect x="40" y="30" width="10" height="100" rx="5" fill={GREEN} />
-			<Rect x="70" y="30" width="10" height="100" rx="5" fill={BLACK} />
-			<Circle cx="100" cy="80" r="8" fill={BLACK} />
+		<Svg width={width} height={ZIGZAG_H * 3}>
+			<Path d={path} fill={colors.white} stroke={BLACK} strokeWidth={1} />
 		</Svg>
 	);
 }
 
 export default function Home() {
 	const router = useRouter();
+	const emailProgress = useSharedValue(0);
 
-	// Animated button press (0 = default, 1 = pressed)
-	const buttonProgress = useSharedValue(0);
-
-	const animatedButtonStyle = useAnimatedStyle(() => ({
-		backgroundColor: interpolateColor(
-			buttonProgress.value,
-			[0, 1],
-			["#FFFFFF", GREEN]
-		),
-		borderColor: interpolateColor(
-			buttonProgress.value,
-			[0, 1],
-			[BLACK, GREEN]
-		),
+	const animatedEmailStyle = useAnimatedStyle(() => ({
+		backgroundColor: interpolateColor(emailProgress.value, [0, 1], ["#ffffff", colors.gray100]),
 	}));
 
-	const animatedTextStyle = useAnimatedStyle(() => ({
-		color: interpolateColor(
-			buttonProgress.value,
-			[0, 1],
-			[BLACK, "#FFFFFF"]
-		),
-	}));
+	const logos = [
+		{ top: 8,   left: 12,  size: 64, rotate: "-12deg", opacity: 0.9  },
+		{ top: 12,  left: 190, size: 56, rotate: "14deg",  opacity: 0.88 },
+		{ top: 18,  left: 310, size: 52, rotate: "-6deg",  opacity: 0.85 },
+		{ top: 72,  left: 70,  size: 50, rotate: "20deg",  opacity: 0.75 },
+		{ top: 62,  left: 248, size: 58, rotate: "-22deg", opacity: 0.72 },
+		{ top: 58,  left: 358, size: 44, rotate: "9deg",   opacity: 0.68 },
+		{ top: 128, left: 18,  size: 54, rotate: "-16deg", opacity: 0.60 },
+		{ top: 118, left: 162, size: 46, rotate: "26deg",  opacity: 0.56 },
+		{ top: 136, left: 318, size: 52, rotate: "-9deg",  opacity: 0.52 },
+		{ top: 188, left: 98,  size: 48, rotate: "15deg",  opacity: 0.44 },
+		{ top: 198, left: 268, size: 54, rotate: "-24deg", opacity: 0.40 },
+		{ top: 185, left: 20,  size: 44, rotate: "-8deg",  opacity: 0.38 },
+		{ top: 255, left: 150, size: 50, rotate: "18deg",  opacity: 0.28 },
+		{ top: 265, left: 330, size: 48, rotate: "-14deg", opacity: 0.24 },
+		{ top: 258, left: 40,  size: 46, rotate: "10deg",  opacity: 0.20 },
+		{ top: 325, left: 200, size: 52, rotate: "-20deg", opacity: 0.13 },
+		{ top: 330, left: 50,  size: 44, rotate: "14deg",  opacity: 0.10 },
+		{ top: 335, left: 330, size: 48, rotate: "-6deg",  opacity: 0.08 },
+		{ top: 390, left: 110, size: 50, rotate: "22deg",  opacity: 0.05 },
+		{ top: 395, left: 270, size: 46, rotate: "-16deg", opacity: 0.03 },
+	];
 
 	return (
 		<View style={styles.container}>
-			{/* Background: scattered logos with fade */}
-			<View style={styles.bgImageContainer}>
-				{/* Scatter several small logos across the top */}
-				{[
-					{ top: 10, left: 10, size: 60, rotate: "-10deg", opacity: 0.8 },
-					{ top: 15, left: 180, size: 55, rotate: "12deg", opacity: 0.8 },
-					{ top: 25, left: 300, size: 50, rotate: "-5deg", opacity: 0.78 },
-					{ top: 70, left: 80, size: 48, rotate: "18deg", opacity: 0.7 },
-					{ top: 60, left: 240, size: 55, rotate: "-20deg", opacity: 0.72 },
-					{ top: 55, left: 350, size: 42, rotate: "8deg", opacity: 0.68 },
-					{ top: 120, left: 20, size: 52, rotate: "-15deg", opacity: 0.55 },
-					{ top: 110, left: 160, size: 45, rotate: "25deg", opacity: 0.5 },
-					{ top: 130, left: 310, size: 50, rotate: "-8deg", opacity: 0.48 },
-					{ top: 170, left: 100, size: 46, rotate: "14deg", opacity: 0.38 },
-					{ top: 180, left: 260, size: 52, rotate: "-22deg", opacity: 0.35 },
-					{ top: 190, left: 10, size: 40, rotate: "6deg", opacity: 0.3 },
-					{ top: 230, left: 200, size: 48, rotate: "-12deg", opacity: 0.22 },
-					{ top: 240, left: 50, size: 44, rotate: "16deg", opacity: 0.2 },
-					{ top: 260, left: 320, size: 38, rotate: "-18deg", opacity: 0.15 },
-					{ top: 290, left: 140, size: 50, rotate: "10deg", opacity: 0.1 },
-					{ top: 310, left: 270, size: 42, rotate: "-6deg", opacity: 0.08 },
-				].map((pos, i) => (
-					<View
-						key={i}
-						style={{
-							position: "absolute",
-							top: pos.top,
-							left: pos.left,
-							opacity: pos.opacity,
-							transform: [{ rotate: pos.rotate }],
-						}}
-					>
+			{/* Scattered logos */}
+			<View style={styles.bgContainer}>
+				{logos.map((pos, i) => (
+					<View key={i} style={{ position: "absolute", top: pos.top, left: pos.left, opacity: pos.opacity, transform: [{ rotate: pos.rotate }] }}>
 						<DiviLogo size={pos.size} />
 					</View>
 				))}
-
-				{/* Gradient fade to white */}
 				<LinearGradient
-					colors={[
-						"rgba(255,255,255,0.1)",
-						"rgba(255,255,255,0.85)",
-						"rgba(255,255,255,1)",
-					]}
-					style={styles.gradientOverlay}
+					colors={["rgba(246,245,242,0.0)", "rgba(246,245,242,0.5)", "rgba(246,245,242,1.0)"]}
+					locations={[0.45, 0.7, 0.88]}
+					style={styles.gradient}
 				/>
 			</View>
 
-			{/* Divi title with alternating colors: D(black) i(green) v(black) i(green) */}
-			<Text style={styles.titleContainer}>
-				<Text style={[styles.title, { color: BLACK }]}>D</Text>
-				<Text style={[styles.title, { color: GREEN }]}>i</Text>
-				<Text style={[styles.title, { color: BLACK }]}>v</Text>
-				<Text style={[styles.title, { color: GREEN }]}>i</Text>
-			</Text>
+			{/* Title — above the receipt */}
+			<View style={styles.titleSection}>
+				<Text style={styles.title}>
+					<Text style={{ color: BLACK }}>D</Text>
+					<Text style={{ color: GREEN }}>i</Text>
+					<Text style={{ color: BLACK }}>v</Text>
+					<Text style={{ color: GREEN }}>i</Text>
+				</Text>
+				<Text style={styles.tagline}>for who owes what.</Text>
+			</View>
 
-			<Text style={styles.subtitle}>Split your bills with ease.</Text>
+			{/* Receipt card — sign in options */}
+			<View style={styles.receiptOuter}>
+				<ZigzagEdge width={SCREEN_WIDTH} />
+				<View style={styles.receipt}>
 
-			{/* Get Started button — smooth animated press */}
-			<TouchableOpacity
-				onPress={() =>
-					router.push({
-						pathname: "/auth",
-						params: { mode: "signup" },
-					})
-				}
-				onPressIn={() => {
-					buttonProgress.value = withTiming(1, { duration: 150 });
-				}}
-				onPressOut={() => {
-					buttonProgress.value = withTiming(0, { duration: 250 });
-				}}
-				activeOpacity={1}
-				style={{ marginTop: 50, width: "100%" }}
-			>
-				<Animated.View style={[styles.button, animatedButtonStyle]}>
-					<Animated.Text style={[styles.buttonText, animatedTextStyle]}>
-						Get Started for Free
-					</Animated.Text>
-				</Animated.View>
-			</TouchableOpacity>
+					{/* Apple */}
+					<TouchableOpacity style={styles.appleButton} activeOpacity={0.85}>
+						<Ionicons name="logo-apple" size={20} color={colors.white} />
+						<Text style={styles.appleText}>Continue with Apple</Text>
+					</TouchableOpacity>
 
-			{/* Login link */}
-			<View style={styles.loginContainer}>
-				<Text style={styles.smallText}>Already have an account? </Text>
-				<TouchableOpacity
-					onPress={() =>
-						router.push({
-							pathname: "/auth",
-							params: { mode: "login" },
-						})
-					}
-				>
-					<Text style={styles.loginText}>Log In</Text>
-				</TouchableOpacity>
+					{/* Google */}
+					<TouchableOpacity style={styles.googleButton} activeOpacity={0.85}>
+						<Ionicons name="logo-google" size={18} color={BLACK} />
+						<Text style={styles.googleText}>Continue with Google</Text>
+					</TouchableOpacity>
+
+					{/* Divider */}
+					<View style={styles.orRow}>
+						<View style={styles.orLine} />
+						<Text style={styles.orText}>or</Text>
+						<View style={styles.orLine} />
+					</View>
+
+					{/* Email */}
+					<TouchableOpacity
+						style={styles.emailButton}
+						onPress={() => router.push({ pathname: "/auth", params: { mode: "signup" } })}
+						onPressIn={() => { emailProgress.value = withTiming(1, { duration: 120 }); }}
+						onPressOut={() => { emailProgress.value = withTiming(0, { duration: 200 }); }}
+						activeOpacity={1}
+					>
+						<MaterialIcons name="email" size={18} color={BLACK} />
+						<Text style={styles.emailText}>Sign Up with Email</Text>
+					</TouchableOpacity>
+
+					{/* Login link */}
+					<View style={styles.loginRow}>
+						<Text style={styles.loginHint}>Already have an account? </Text>
+						<TouchableOpacity onPress={() => router.push({ pathname: "/auth", params: { mode: "login" } })}>
+							<Text style={styles.loginLink}>Log In</Text>
+						</TouchableOpacity>
+					</View>
+
+				</View>
 			</View>
 		</View>
 	);
@@ -163,65 +147,129 @@ export default function Home() {
 const styles = StyleSheet.create({
 	container: {
 		flex: 1,
-		backgroundColor: "#FFFFFF",
-		justifyContent: "center",
-		padding: 40,
+		backgroundColor: colors.background,
+		justifyContent: "flex-end",
 	},
-	bgImageContainer: {
+	bgContainer: {
 		position: "absolute",
-		top: 0,
-		left: 0,
-		right: 0,
+		top: 0, left: 0, right: 0, bottom: 0,
 	},
-	gradientOverlay: {
+	gradient: {
 		position: "absolute",
-		left: 0,
-		right: 0,
-		top: 0,
-		height: 5000,
+		top: 0, left: 0, right: 0, bottom: 0,
 	},
-	titleContainer: {
-		marginTop: 350,
+
+	// Title above receipt
+	titleSection: {
+		paddingHorizontal: spacing.xl,
+		paddingBottom: spacing.xl,
+		gap: 6,
+		alignItems: "center",
 	},
 	title: {
-		fontSize: 48,
 		fontFamily: fonts.bodyBold,
-		letterSpacing: 4,
+		fontSize: 72,
+		letterSpacing: -2,
 	},
-	subtitle: {
-		fontSize: fontSizes.lg,
-		color: colors.gray600,
+	tagline: {
 		fontFamily: fonts.body,
+		fontSize: fontSizes.xl,
+		color: colors.gray500,
 	},
-	button: {
-		padding: 15,
-		width: "100%",
-		justifyContent: "center",
+
+	// Receipt shell
+	receiptOuter: {},
+	receipt: {
+		backgroundColor: colors.white,
+		paddingHorizontal: spacing.xl,
+		paddingTop: spacing.lg,
+		paddingBottom: 48,
+		gap: spacing.sm,
+	},
+
+	// Buttons
+	appleButton: {
+		flexDirection: "row",
 		alignItems: "center",
-		backgroundColor: "#FFFFFF",
-		borderRadius: 15,
-		borderWidth: 2,
-		borderColor: BLACK,
+		justifyContent: "center",
+		gap: spacing.sm,
+		backgroundColor: BLACK,
+		paddingVertical: 15,
+		borderRadius: 12,
 	},
-	buttonText: {
-		fontSize: fontSizes.lg,
+	appleText: {
 		fontFamily: fonts.bodySemiBold,
+		fontSize: fontSizes.md,
+		color: colors.white,
 	},
-	loginContainer: {
+	googleButton: {
+		flexDirection: "row",
+		alignItems: "center",
+		justifyContent: "center",
+		gap: spacing.sm,
+		backgroundColor: colors.white,
+		paddingVertical: 15,
+		borderRadius: 12,
+		borderWidth: 1,
+		borderColor: colors.gray200,
+	},
+	googleText: {
+		fontFamily: fonts.bodySemiBold,
+		fontSize: fontSizes.md,
+		color: BLACK,
+	},
+
+	// Or divider
+	orRow: {
+		flexDirection: "row",
+		alignItems: "center",
+		gap: spacing.sm,
+		marginVertical: spacing.xs,
+	},
+	orLine: {
+		flex: 1,
+		height: 1,
+		backgroundColor: colors.gray200,
+	},
+	orText: {
+		fontFamily: fonts.body,
+		fontSize: fontSizes.sm,
+		color: colors.gray400,
+	},
+
+	// Email button
+	emailButton: {
+		flexDirection: "row",
+		alignItems: "center",
+		justifyContent: "center",
+		gap: spacing.sm,
+		backgroundColor: colors.white,
+		paddingVertical: 15,
+		borderRadius: 12,
+		borderWidth: 1,
+		borderColor: colors.gray200,
+	},
+	emailText: {
+		fontFamily: fonts.bodySemiBold,
+		fontSize: fontSizes.md,
+		color: BLACK,
+	},
+
+	// Login
+	loginRow: {
 		flexDirection: "row",
 		justifyContent: "center",
 		alignItems: "center",
-		marginTop: 20,
+		marginTop: spacing.xs,
 	},
-	smallText: {
-		fontSize: fontSizes.md,
-		color: colors.black,
+	loginHint: {
+		fontSize: fontSizes.sm,
+		color: colors.gray500,
 		fontFamily: fonts.body,
-		textAlign: "center",
 	},
-	loginText: {
-		color: colors.green,
+	loginLink: {
+		color: GREEN,
 		fontFamily: fonts.bodySemiBold,
-		fontSize: fontSizes.md,
+		fontSize: fontSizes.sm,
 	},
 });

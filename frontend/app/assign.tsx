@@ -67,7 +67,7 @@ export default function AssignAmounts() {
     if (currentContactIndex > 0) {
       setCurrentContactIndex(currentContactIndex - 1);
     } else {
-      router.back();
+      router.push('/result');
     }
   };
 
@@ -95,7 +95,7 @@ export default function AssignAmounts() {
             onPress={() => setAgentVisible(true)}
             activeOpacity={0.8}
           >
-            <MaterialIcons name="auto-awesome" size={20} color={colors.white} />
+            <MaterialIcons name="auto-awesome" size={18} color={colors.green} />
           </TouchableOpacity>
         </View>
       </View>
@@ -265,17 +265,12 @@ const styles = StyleSheet.create({
     marginTop: spacing.xl,
   },
   agentButton: {
-    width: 38,
-    height: 38,
+    width: 36,
+    height: 36,
     borderRadius: radii.full,
-    backgroundColor: colors.black,
+    backgroundColor: `${colors.green}15`,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: colors.green,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 4,
   },
   modalSafeArea: {
     flex: 1,

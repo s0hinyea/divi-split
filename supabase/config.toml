@@ -388,6 +388,11 @@ enabled = true
 verify_jwt = false
 entrypoint = "./functions/agent-chat/index.ts"
 
+[functions.review-agent]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/review-agent/index.ts"
+
 [functions.ocr-vision]
 enabled = true
 verify_jwt = false

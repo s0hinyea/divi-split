@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 import {
   useAudioRecorder,
   RecordingPresets,
@@ -6,7 +6,6 @@ import {
   setAudioModeAsync,
 } from "expo-audio";
 import { File as ExpoFile } from "expo-file-system";
-import * as Speech from "expo-speech";
 import { supabase } from "../lib/supabase";
 import { useAgentChat } from "./useAgentChat";
 
@@ -15,15 +14,6 @@ export function useVoiceAgent() {
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
-
-  // Speak every new assistant message aloud
-  useEffect(() => {
-    const last = agentChat.messages[agentChat.messages.length - 1];
-    if (last?.role === "assistant") {
-      Speech.stop();
-      Speech.speak(last.content, { language: "en-US" });
-    }
-  }, [agentChat.messages]);
 
   const startRecording = useCallback(async () => {
     const { granted } = await requestRecordingPermissionsAsync();

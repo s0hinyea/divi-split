@@ -1,5 +1,5 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
     View,
     Text,
@@ -8,6 +8,8 @@ import {
     StyleSheet,
     ActivityIndicator,
     Alert,
+    Modal,
+    Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -20,6 +22,8 @@ import { useSplitStore, ReceiptItem, Contact } from '@/stores/splitStore';
 import { allocateAmount } from '@/utils/mathUtil';
 import { getUserFacingErrorMessage } from '@/utils/network';
 import { colors, fonts, fontSizes, spacing, radii } from '@/styles/theme';
+import { useReviewAgent, ReviewState, ReviewCallbacks } from '@/utils/useReviewAgent';
+import ReviewAgentPanel from '@/components/ReviewAgentPanel';
 
 type DbItem = { id: string; item_name: string; item_price: number };
 
@@ -46,6 +50,27 @@ export default function ReceiptDetail() {
     const [loadingAssignments, setLoadingAssignments] = useState(true);
     const [editLoading, setEditLoading] = useState(false);
     const [resending, setResending] = useState(false);
+    const [agentVisible, setAgentVisible] = useState(false);
+
+    const reviewStateRef = useRef<ReviewState>({
+        receiptName: '',
+        receiptDate: new Date().toISOString(),
+        contacts: [],
+        userItems: [],
+        tax: 0,
+        tip: 0,
+        total: 0,
+    });
+    const reviewCallbacksRef = useRef<ReviewCallbacks>({
+        setReceiptName: () => {},
+        setReceiptDate: () => {},
+        updateContactName: () => {},
+        setTax: () => {},
+        setTip: () => {},
+        moveItem: () => {},
+        triggerDispatch: () => setAgentVisible(false),
+    });
+    const agent = useReviewAgent(reviewStateRef, reviewCallbacksRef);
 
     const fetchAssignments = useCallback(async () => {
         if (!receipt) return;
@@ -247,6 +272,23 @@ export default function ReceiptDetail() {
         }
     };
 
+    if (receipt) {
+        reviewStateRef.current = {
+            receiptName: receipt.receipt_name,
+            receiptDate: receipt.created_at,
+            contacts: contacts.map((c) => ({
+                id: c.id,
+                name: c.name,
+                items: c.items.map((i) => ({ id: i.id, name: i.item_name, price: i.item_price })),
+            })),
+            userItems: unassignedItems.map((i) => ({ id: i.id, name: i.item_name, price: i.item_price })),
+            tax: receipt.tax_amount || 0,
+            tip: receipt.tip_amount || 0,
+            total: receipt.total_amount || 0,
+        };
+        reviewCallbacksRef.current.triggerDispatch = () => setAgentVisible(false);
+    }
+
     if (!receipt) {
         return (
             <SafeAreaView style={styles.container}>
@@ -275,6 +317,13 @@ export default function ReceiptDetail() {
                         })}
                     </Text>
                 </View>
+                <TouchableOpacity
+                    style={styles.agentButton}
+                    onPress={() => setAgentVisible(true)}
+                    activeOpacity={0.8}
+                >
+                    <MaterialIcons name="auto-awesome" size={18} color={colors.green} />
+                </TouchableOpacity>
             </View>
 
             <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
@@ -380,6 +429,24 @@ export default function ReceiptDetail() {
                     )}
                 </TouchableOpacity>
             </View>
+            <Modal
+                animationType="slide"
+                transparent={true}
+                visible={agentVisible}
+                onRequestClose={() => setAgentVisible(false)}
+            >
+                <View style={styles.agentModalOverlay}>
+                    <TouchableOpacity
+                        style={styles.agentModalDismiss}
+                        activeOpacity={1}
+                        onPress={() => setAgentVisible(false)}
+                    />
+                    <View style={styles.agentModalSheet}>
+                        <View style={styles.agentHandle} />
+                        <ReviewAgentPanel {...agent} />
+                    </View>
+                </View>
+            </Modal>
         </SafeAreaView>
     );
 }
@@ -528,5 +595,37 @@ const styles = StyleSheet.create({
         fontFamily: fonts.bodySemiBold,
         fontSize: fontSizes.md,
         color: colors.white,
+    },
+
+    agentButton: {
+        width: 36,
+        height: 36,
+        borderRadius: radii.full,
+        backgroundColor: `${colors.green}15`,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    agentModalOverlay: {
+        flex: 1,
+        justifyContent: 'flex-end',
+    },
+    agentModalDismiss: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.35)',
+    },
+    agentModalSheet: {
+        height: Dimensions.get('window').height * 0.72,
+        backgroundColor: colors.white,
+        borderTopLeftRadius: radii.xl,
+        borderTopRightRadius: radii.xl,
+        overflow: 'hidden',
+    },
+    agentHandle: {
+        width: 36,
+        height: 4,
+        borderRadius: 2,
+        backgroundColor: colors.gray300,
+        alignSelf: 'center',
+        marginTop: spacing.md,
     },
 });
