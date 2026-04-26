@@ -116,10 +116,16 @@ export const useSplitStore = create<SplitState>((set, get) => ({
 
     removeItem: (id) =>
         set((state) => {
-            const newItems = state.receiptData.items.filter((it) =>
-                it.id !== id
-            );
-            return { receiptData: { ...state.receiptData, items: newItems } };
+            const newItems = state.receiptData.items.filter((it) => it.id !== id);
+            const newUserItems = (state.receiptData.userItems ?? []).filter((it) => it.id !== id);
+            const newSelected = state.selected.map((contact) => ({
+                ...contact,
+                items: contact.items.filter((it) => it.id !== id),
+            }));
+            return {
+                receiptData: { ...state.receiptData, items: newItems, userItems: newUserItems },
+                selected: newSelected,
+            };
         }),
 
     splitItem: (id) => {

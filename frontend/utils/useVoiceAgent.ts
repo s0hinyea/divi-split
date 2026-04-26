@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import {
   useAudioRecorder,
   RecordingPresets,
@@ -14,8 +14,18 @@ export function useVoiceAgent() {
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
+  const isRecordingRef = useRef(false);
+
+  useEffect(() => {
+    return () => {
+      if (isRecordingRef.current) {
+        recorder.stop().catch(() => {});
+      }
+    };
+  }, []);
 
   const startRecording = useCallback(async () => {
+    if (agentChat.loading || isTranscribing) return;
     const { granted } = await requestRecordingPermissionsAsync();
     if (!granted) return;
 
@@ -23,11 +33,13 @@ export function useVoiceAgent() {
     await recorder.prepareToRecordAsync();
     recorder.record();
     setIsRecording(true);
-  }, [recorder]);
+    isRecordingRef.current = true;
+  }, [recorder, agentChat.loading, isTranscribing]);
 
   const stopAndSend = useCallback(async () => {
     if (!isRecording) return;
     setIsRecording(false);
+    isRecordingRef.current = false;
 
     await recorder.stop();
     const uri = recorder.uri;

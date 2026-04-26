@@ -113,10 +113,19 @@ export function useResultAgent(addChange: (c: Change) => void) {
 
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const messagesRef = useRef<AgentMessage[]>([]);
+  const isRecordingRef = useRef(false);
 
   useEffect(() => {
     messagesRef.current = messages;
   }, [messages]);
+
+  useEffect(() => {
+    return () => {
+      if (isRecordingRef.current) {
+        recorder.stop().catch(() => {});
+      }
+    };
+  }, []);
 
 
   const sendMessage = useCallback(
@@ -216,17 +225,20 @@ export function useResultAgent(addChange: (c: Change) => void) {
   );
 
   const startRecording = useCallback(async () => {
+    if (loading || isTranscribing) return;
     const { granted } = await requestRecordingPermissionsAsync();
     if (!granted) return;
     await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
     await recorder.prepareToRecordAsync();
     recorder.record();
     setIsRecording(true);
-  }, [recorder]);
+    isRecordingRef.current = true;
+  }, [recorder, loading, isTranscribing]);
 
   const stopAndSend = useCallback(async () => {
     if (!isRecording) return;
     setIsRecording(false);
+    isRecordingRef.current = false;
 
     await recorder.stop();
     const uri = recorder.uri;
