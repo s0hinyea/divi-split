@@ -17,6 +17,12 @@ export type AgentMessage = {
   content: string;
 };
 
+export type ActionSummary = {
+  verb: string;
+  name: string;
+  amount?: number;
+};
+
 export type ReviewState = {
   receiptName: string;
   receiptDate: string;
@@ -59,6 +65,7 @@ export function useReviewAgent(
   const [error, setError] = useState<string | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
+  const [lastActionSummary, setLastActionSummary] = useState<ActionSummary[] | null>(null);
 
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const messagesRef = useRef<AgentMessage[]>([]);
@@ -72,6 +79,7 @@ export function useReviewAgent(
     async (text: string) => {
       if (!text.trim() || loading) return;
 
+      setLastActionSummary(null);
       setError(null);
       setLoading(true);
 
@@ -112,34 +120,49 @@ export function useReviewAgent(
           actions: ReviewAction[];
         };
 
+        const summary: ActionSummary[] = [];
         if (actions?.length > 0) {
           const cb = callbacksRef.current;
           for (const action of actions) {
             switch (action.type) {
               case "set_receipt_name":
                 cb.setReceiptName(action.name);
+                summary.push({ verb: "Renamed", name: action.name });
                 break;
               case "set_receipt_date":
                 cb.setReceiptDate(new Date(action.date));
+                summary.push({ verb: "Updated", name: "Date" });
                 break;
               case "rename_contact":
                 cb.updateContactName(action.contact_id, action.new_name);
+                summary.push({ verb: "Renamed", name: action.new_name });
                 break;
               case "update_tax":
                 cb.setTax(action.amount);
+                summary.push({ verb: "Updated", name: "Tax", amount: action.amount });
                 break;
               case "update_tip":
                 cb.setTip(action.amount);
+                summary.push({ verb: "Updated", name: "Tip", amount: action.amount });
                 break;
-              case "move_item":
+              case "move_item": {
+                const allItems = [
+                  ...stateRef.current.contacts.flatMap((c) => c.items),
+                  ...stateRef.current.userItems,
+                ];
+                const movedItem = allItems.find((i) => i.id === action.item_id);
                 cb.moveItem(action.item_id, action.from_contact_id, action.to_contact_id);
+                summary.push({ verb: "Moved", name: movedItem?.name ?? "Item" });
                 break;
+              }
               case "trigger_dispatch":
                 cb.triggerDispatch();
+                summary.push({ verb: "Sent", name: "Summary" });
                 break;
             }
           }
         }
+        setLastActionSummary(summary);
 
         const assistantMsg: AgentMessage = {
           id: `${Date.now()}-a`,
@@ -227,6 +250,7 @@ export function useReviewAgent(
     messages,
     loading,
     error,
+    lastActionSummary,
     sendMessage,
     clearMessages,
     isRecording,

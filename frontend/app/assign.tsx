@@ -1,11 +1,14 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Image, StyleSheet, ActivityIndicator, Modal } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Animated } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSplitStore, ReceiptItem } from '../stores/splitStore';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { colors, fonts, fontSizes, spacing, radii, shadows } from '@/styles/theme';
+import { colors, fonts, fontSizes, spacing, radii } from '@/styles/theme';
 import { MaterialIcons } from '@expo/vector-icons';
-import AgentChatPanel from '../components/AgentChatPanel';
+import { BlurView } from 'expo-blur';
+import { useVoiceAgent } from '../utils/useVoiceAgent';
+import { ActionSummary } from '../utils/useAgentChat';
+import DiviLogoAnimated from '../components/DiviLogoAnimated';
 
 export default function AssignAmounts() {
   const router = useRouter();
@@ -15,7 +18,57 @@ export default function AssignAmounts() {
   const receiptData = useSplitStore((state) => state.receiptData);
   const setUserItems = useSplitStore((state) => state.setUserItems);
 
-  const [agentVisible, setAgentVisible] = useState(false);
+  const agent = useVoiceAgent();
+
+  // ── Agent overlay ─────────────────────────────────────────────────────────
+  const [overlayVisible, setOverlayVisible] = useState(false);
+  const [overlayPhase, setOverlayPhase] = useState<'processing' | 'revealing'>('processing');
+  const [revealItems, setRevealItems] = useState<{ summary: ActionSummary; opacity: Animated.Value; translateY: Animated.Value }[]>([]);
+  const overlayOpacity = useRef(new Animated.Value(0)).current;
+  const overlayActiveRef = useRef(false);
+
+  useEffect(() => {
+    const isProcessing = agent.loading || agent.isTranscribing;
+    if (isProcessing) {
+      if (!overlayActiveRef.current) {
+        overlayActiveRef.current = true;
+        setOverlayPhase('processing');
+        setOverlayVisible(true);
+        Animated.timing(overlayOpacity, { toValue: 1, duration: 200, useNativeDriver: true }).start();
+      }
+      return;
+    }
+    if (!overlayActiveRef.current) return;
+    overlayActiveRef.current = false;
+
+    const summary = agent.lastActionSummary;
+    if (summary && summary.length > 0) {
+      const items = summary.map(s => ({
+        summary: s,
+        opacity: new Animated.Value(0),
+        translateY: new Animated.Value(12),
+      }));
+      setRevealItems(items);
+      setOverlayPhase('revealing');
+      Animated.sequence([
+        Animated.stagger(500, items.map(item =>
+          Animated.parallel([
+            Animated.timing(item.opacity, { toValue: 1, duration: 450, useNativeDriver: true }),
+            Animated.timing(item.translateY, { toValue: 0, duration: 450, useNativeDriver: true }),
+          ])
+        )),
+        Animated.delay(2000),
+        Animated.timing(overlayOpacity, { toValue: 0, duration: 500, useNativeDriver: true }),
+      ]).start(() => {
+        setOverlayVisible(false);
+        setRevealItems([]);
+      });
+    } else {
+      Animated.timing(overlayOpacity, { toValue: 0, duration: 300, useNativeDriver: true }).start(() => {
+        setOverlayVisible(false);
+      });
+    }
+  }, [agent.loading, agent.isTranscribing, agent.lastActionSummary]);
 
   const [currentContactIndex, setCurrentContactIndex] = useState(() => {
     if (params.initialIndex) {
@@ -91,11 +144,16 @@ export default function AssignAmounts() {
             <Text style={{ color: colors.green }}>{currentContact?.name}</Text>
           </Text>
           <TouchableOpacity
-            style={styles.agentButton}
-            onPress={() => setAgentVisible(true)}
+            style={[styles.agentButton, agent.isRecording && styles.agentButtonRecording]}
+            onPress={agent.isRecording ? agent.stopAndSend : agent.startRecording}
+            disabled={agent.loading || agent.isTranscribing}
             activeOpacity={0.8}
           >
-            <MaterialIcons name="auto-awesome" size={18} color={colors.green} />
+            <MaterialIcons
+              name={agent.isRecording ? 'stop' : 'auto-awesome'}
+              size={18}
+              color={agent.isRecording ? colors.white : colors.green}
+            />
           </TouchableOpacity>
         </View>
       </View>
@@ -136,25 +194,45 @@ export default function AssignAmounts() {
         </TouchableOpacity>
       </View>
 
-      {/* Agent chat modal */}
-      <Modal
-        visible={agentVisible}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => setAgentVisible(false)}
-      >
-        <SafeAreaView style={styles.modalSafeArea} edges={['top']}>
-          <View style={styles.modalHandle} />
-          <TouchableOpacity
-            style={styles.modalClose}
-            onPress={() => setAgentVisible(false)}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <MaterialIcons name="keyboard-arrow-down" size={28} color={colors.gray500} />
-          </TouchableOpacity>
-          <AgentChatPanel />
-        </SafeAreaView>
-      </Modal>
+      {/* Agent overlay — processing spinner → action reveal → fade out */}
+      {overlayVisible && (
+        <Animated.View style={[styles.processingOverlay, { opacity: overlayOpacity }]}>
+          <BlurView intensity={55} style={StyleSheet.absoluteFill} />
+          <View style={styles.overlayContent}>
+            {overlayPhase === 'processing' && (
+              <DiviLogoAnimated size={140} />
+            )}
+            {overlayPhase === 'revealing' && (
+              <View style={styles.actionList}>
+                {revealItems.map((item, i) => {
+                  const verbColor =
+                    item.summary.verb === 'Assigned' ? colors.green :
+                    item.summary.verb === 'Unassigned' ? colors.error :
+                    colors.black;
+                  const iconName =
+                    item.summary.verb === 'Assigned' ? 'check-circle-outline' :
+                    item.summary.verb === 'Unassigned' ? 'remove-circle-outline' :
+                    item.summary.verb === 'Split' ? 'call-split' :
+                    'edit';
+                  return (
+                    <Animated.View
+                      key={i}
+                      style={[styles.actionRow, { opacity: item.opacity, transform: [{ translateY: item.translateY }] }]}
+                    >
+                      <MaterialIcons name={iconName as any} size={18} color={verbColor} />
+                      <Text style={[styles.actionVerb, { color: verbColor }]}>{item.summary.verb}</Text>
+                      <Text style={styles.actionName} numberOfLines={1}>{item.summary.name}</Text>
+                      {item.summary.amount !== undefined && (
+                        <Text style={styles.actionAmount}>${item.summary.amount.toFixed(2)}</Text>
+                      )}
+                    </Animated.View>
+                  );
+                })}
+              </View>
+            )}
+          </View>
+        </Animated.View>
+      )}
     </SafeAreaView>
   );
 }
@@ -272,23 +350,46 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  modalSafeArea: {
+  agentButtonRecording: {
+    backgroundColor: colors.error,
+  },
+  processingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 100,
+  },
+  overlayContent: {
     flex: 1,
-    backgroundColor: colors.white,
+    justifyContent: 'center',
+    alignItems: 'flex-start',
+    paddingHorizontal: spacing.xl + 8,
   },
-  modalHandle: {
-    width: 40,
-    height: 4,
-    borderRadius: radii.full,
-    backgroundColor: colors.gray300,
-    alignSelf: 'center',
-    marginTop: spacing.sm,
-    marginBottom: spacing.xs,
+  actionList: {
+    gap: spacing.xl,
+    width: '100%',
   },
-  modalClose: {
-    alignSelf: 'flex-end',
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.sm,
+  actionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  actionVerb: {
+    fontFamily: fonts.bodyBold,
+    fontSize: fontSizes.xl,
+    minWidth: 90,
+  },
+  actionName: {
+    fontFamily: fonts.body,
+    fontSize: fontSizes.xl,
+    color: colors.black,
+    flex: 1,
+  },
+  actionAmount: {
+    fontFamily: fonts.bodySemiBold,
+    fontSize: fontSizes.xl,
+    color: colors.green,
   },
 });
 
