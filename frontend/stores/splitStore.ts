@@ -1,10 +1,13 @@
 import { create } from "zustand";
 import { supabase } from "../lib/supabase";
 
+export type ItemCategory = 'drink' | 'appetizer' | 'entree' | 'dessert' | 'side' | 'other';
+
 export type ReceiptItem = {
     name: string;
     price: number;
     id: string;
+    category?: ItemCategory;
 };
 
 export type OCRResponse = {

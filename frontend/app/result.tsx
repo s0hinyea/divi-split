@@ -4,7 +4,7 @@ import { View, TextInput, StyleSheet, TouchableOpacity, Pressable, Image, Modal,
 import * as Haptics from 'expo-haptics';
 import { ScrollView } from 'react-native-gesture-handler';
 import { Button, Surface } from 'react-native-paper';
-import { useSplitStore, ReceiptItem } from '../stores/splitStore';
+import { useSplitStore, ReceiptItem, ItemCategory } from '../stores/splitStore';
 import { TouchableOpacity as GHTouchableOpacity } from 'react-native-gesture-handler';
 import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -102,6 +102,20 @@ export default function OCRResults() {
   // Get items from context instead of params
   const items = 'items' in receiptData ? receiptData.items : [];
   const displayItems = items.filter(item => item.name.trim().toLowerCase() !== 'tax');
+
+  const CATEGORY_ORDER: ItemCategory[] = ['entree', 'appetizer', 'side', 'drink', 'dessert', 'other'];
+  const CATEGORY_LABELS: Record<ItemCategory, string> = {
+    entree: 'Entrees',
+    appetizer: 'Appetizers',
+    side: 'Sides',
+    drink: 'Drinks',
+    dessert: 'Desserts',
+    other: 'Other',
+  };
+  const groupedItems = CATEGORY_ORDER
+    .map(cat => ({ cat, items: displayItems.filter(it => (it.category ?? 'other') === cat) }))
+    .filter(g => g.items.length > 0);
+  const hasCategoryData = displayItems.some(it => it.category != null);
 
   // Monitor changes array
   useEffect(() => {
@@ -368,9 +382,61 @@ export default function OCRResults() {
           }}
         >
           <View style={styles.itemsContainer}>
-            {items
-              .filter(item => item.name.trim().toLowerCase() !== 'tax')
-              .map(item => (
+            {hasCategoryData ? (
+              groupedItems.map(({ cat, items: groupItems }) => (
+                <View key={cat}>
+                  <Text style={styles.categoryHeader}>{CATEGORY_LABELS[cat]}</Text>
+                  <View style={styles.categoryGroup}>
+                    {groupItems.map(item => (
+                      changing === item.id ? (
+                        <View key={item.id} style={styles.changeRow}>
+                          <View style={[styles.changeInputContainer, { flex: 2 }]}>
+                            <TextInput
+                              style={styles.changeInput}
+                              value={newName}
+                              onChangeText={(text) => changeName(item.id, text, item)}
+                              onSubmitEditing={() => { Keyboard.dismiss(); finishChange(); }}
+                              autoFocus
+                            />
+                          </View>
+                          <View style={[styles.changeInputContainer, { flex: 1 }]}>
+                            <TextInput
+                              style={styles.changeInput}
+                              value={newPrice}
+                              onChangeText={(text) => changePrice(item.id, text, item)}
+                              keyboardType="decimal-pad"
+                              onSubmitEditing={() => { Keyboard.dismiss(); finishChange(); }}
+                            />
+                          </View>
+                        </View>
+                      ) : (
+                        <Swipeable
+                          key={item.id}
+                          renderRightActions={() => renderRightActions(item.id, item)}
+                          rightThreshold={40}
+                        >
+                          <Pressable
+                            onPress={() => { startChange(item.id) }}
+                            onLongPress={() => handleLongPress(item)}
+                            onPressOut={handlePressOut}
+                            delayLongPress={500}
+                            style={({ pressed }) => [
+                              styles.itemRow,
+                              splitTarget === item.id && { backgroundColor: `${colors.green}10`, borderColor: colors.green },
+                              (pressed && !splitTarget) && { backgroundColor: `${colors.green}18`, borderColor: colors.green }
+                            ]}
+                          >
+                            <Text style={styles.itemName}>{item.name}</Text>
+                            <Text style={styles.itemPrice}>${item.price.toFixed(2)}</Text>
+                          </Pressable>
+                        </Swipeable>
+                      )
+                    ))}
+                  </View>
+                </View>
+              ))
+            ) : (
+              displayItems.map(item => (
                 changing === item.id ? (
                   <View key={item.id} style={styles.changeRow}>
                     <View style={[styles.changeInputContainer, { flex: 2 }]}>
@@ -393,28 +459,29 @@ export default function OCRResults() {
                     </View>
                   </View>
                 ) : (
-                <Swipeable
-                  key={item.id}
-                  renderRightActions={() => renderRightActions(item.id, item)}
-                  rightThreshold={40}
-                >
-                  <Pressable
-                    onPress={() => { startChange(item.id) }}
-                    onLongPress={() => handleLongPress(item)}
-                    onPressOut={handlePressOut}
-                    delayLongPress={500}
-                    style={({ pressed }) => [
-                      styles.itemRow,
-                      splitTarget === item.id && { backgroundColor: `${colors.green}10`, borderColor: colors.green },
-                      (pressed && !splitTarget) && { backgroundColor: `${colors.green}18`, borderColor: colors.green }
-                    ]}
+                  <Swipeable
+                    key={item.id}
+                    renderRightActions={() => renderRightActions(item.id, item)}
+                    rightThreshold={40}
                   >
-                    <Text style={styles.itemName}>{item.name}</Text>
-                    <Text style={styles.itemPrice}>${item.price.toFixed(2)}</Text>
-                  </Pressable>
-                </Swipeable>
-              )
-            ))}
+                    <Pressable
+                      onPress={() => { startChange(item.id) }}
+                      onLongPress={() => handleLongPress(item)}
+                      onPressOut={handlePressOut}
+                      delayLongPress={500}
+                      style={({ pressed }) => [
+                        styles.itemRow,
+                        splitTarget === item.id && { backgroundColor: `${colors.green}10`, borderColor: colors.green },
+                        (pressed && !splitTarget) && { backgroundColor: `${colors.green}18`, borderColor: colors.green }
+                      ]}
+                    >
+                      <Text style={styles.itemName}>{item.name}</Text>
+                      <Text style={styles.itemPrice}>${item.price.toFixed(2)}</Text>
+                    </Pressable>
+                  </Swipeable>
+                )
+              ))
+            )}
           </View>
         </Pressable>
       </ScrollView>
@@ -642,6 +709,18 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.lg,
   },
   itemsContainer: {
+    gap: spacing.sm,
+  },
+  categoryHeader: {
+    fontFamily: fonts.bodyBold,
+    fontSize: fontSizes.xs,
+    color: colors.gray500,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    marginTop: spacing.md,
+    marginBottom: spacing.xs,
+  },
+  categoryGroup: {
     gap: spacing.sm,
   },
   itemRow: {

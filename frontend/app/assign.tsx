@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Animated } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { useSplitStore, ReceiptItem } from '../stores/splitStore';
+import { useSplitStore, ReceiptItem, ItemCategory } from '../stores/splitStore';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, fonts, fontSizes, spacing, radii } from '@/styles/theme';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -87,6 +87,20 @@ export default function AssignAmounts() {
 
   const available = items.filter(item => !assignedToOthers.some(assigned => assigned.id === item.id));
 
+  const CATEGORY_ORDER: ItemCategory[] = ['entree', 'appetizer', 'side', 'drink', 'dessert', 'other'];
+  const CATEGORY_LABELS: Record<ItemCategory, string> = {
+    entree: 'Entrees',
+    appetizer: 'Appetizers',
+    side: 'Sides',
+    drink: 'Drinks',
+    dessert: 'Desserts',
+    other: 'Other',
+  };
+  const groupedAvailable = CATEGORY_ORDER
+    .map(cat => ({ cat, items: available.filter(it => (it.category ?? 'other') === cat) }))
+    .filter(g => g.items.length > 0);
+  const hasCategoryData = available.some(it => it.category != null);
+
   const toggleItem = (item: ReceiptItem) => {
     if (currentContact) {
       manageItems(item, currentContact);
@@ -162,22 +176,49 @@ export default function AssignAmounts() {
         <View style={styles.itemsContainer}>
           {available.length === 0 ? (
             <Text style={styles.emptyText}>No more items to assign.</Text>
+          ) : hasCategoryData ? (
+            groupedAvailable.map(({ cat, items: groupItems }) => (
+              <View key={cat}>
+                <Text style={styles.categoryHeader}>{CATEGORY_LABELS[cat]}</Text>
+                <View style={styles.categoryGroup}>
+                  {groupItems.map(item => {
+                    const sel = isSelected(item);
+                    return (
+                      <TouchableOpacity
+                        key={item.id}
+                        style={[styles.itemCard, sel && styles.selectedItemCard]}
+                        onPress={() => toggleItem(item)}
+                        activeOpacity={0.8}
+                      >
+                        <View style={styles.itemInfo}>
+                          <Text style={[styles.itemName, sel && styles.selectedItemText]}>{item.name}</Text>
+                          <Text style={[styles.itemPrice, sel && styles.selectedItemText]}>${item.price.toFixed(2)}</Text>
+                        </View>
+                        <View style={[styles.checkbox, sel && styles.checkedBox]}>
+                          {sel && <MaterialIcons name="check" size={16} color={colors.white} />}
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+            ))
           ) : (
             available.map(item => {
-              const selected = isSelected(item);
+              const sel = isSelected(item);
               return (
                 <TouchableOpacity
                   key={item.id}
-                  style={[styles.itemCard, selected && styles.selectedItemCard]}
+                  style={[styles.itemCard, sel && styles.selectedItemCard]}
                   onPress={() => toggleItem(item)}
                   activeOpacity={0.8}
                 >
                   <View style={styles.itemInfo}>
-                    <Text style={[styles.itemName, selected && styles.selectedItemText]}>{item.name}</Text>
-                    <Text style={[styles.itemPrice, selected && styles.selectedItemText]}>${item.price.toFixed(2)}</Text>
+                    <Text style={[styles.itemName, sel && styles.selectedItemText]}>{item.name}</Text>
+                    <Text style={[styles.itemPrice, sel && styles.selectedItemText]}>${item.price.toFixed(2)}</Text>
                   </View>
-                  <View style={[styles.checkbox, selected && styles.checkedBox]}>
-                    {selected && <MaterialIcons name="check" size={16} color={colors.white} />}
+                  <View style={[styles.checkbox, sel && styles.checkedBox]}>
+                    {sel && <MaterialIcons name="check" size={16} color={colors.white} />}
                   </View>
                 </TouchableOpacity>
               );
@@ -260,6 +301,18 @@ const styles = StyleSheet.create({
     paddingBottom: 100, // Space for footer
   },
   itemsContainer: {
+    gap: spacing.md,
+  },
+  categoryHeader: {
+    fontFamily: fonts.bodyBold,
+    fontSize: fontSizes.xs,
+    color: colors.gray500,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    marginTop: spacing.md,
+    marginBottom: spacing.xs,
+  },
+  categoryGroup: {
     gap: spacing.md,
   },
   itemCard: {
