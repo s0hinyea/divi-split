@@ -350,6 +350,9 @@ export default function ReviewPage() {
               <Text style={{ color: colors.green }}>Split</Text>
             </Text>
           </View>
+          <TouchableOpacity onPress={() => router.replace('/(tabs)')} style={styles.homeButton}>
+            <MaterialIcons name="home" size={20} color={colors.gray400} />
+          </TouchableOpacity>
           <TouchableOpacity
             style={[styles.agentButton, agent.isRecording && styles.agentButtonRecording]}
             onPress={agent.isRecording ? agent.stopAndSend : agent.startRecording}
@@ -891,6 +894,13 @@ const styles = StyleSheet.create({
     color: colors.black,
   },
 
+  homeButton: {
+    width: 32,
+    height: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: spacing.xs,
+  },
   agentButton: {
     width: 36,
     height: 36,

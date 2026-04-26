@@ -304,6 +304,9 @@ export default function OCRResults() {
               <Text style={{ color: colors.black }}>Modify </Text>
               <Text style={{ color: colors.green }}>Receipt</Text>
             </Text>
+            <TouchableOpacity onPress={() => router.replace('/(tabs)')} style={styles.homeButton}>
+              <MaterialIcons name="home" size={20} color={colors.gray400} />
+            </TouchableOpacity>
             <TouchableOpacity
               style={[styles.agentButton, agent.isRecording && styles.agentButtonRecording]}
               onPress={agent.isRecording ? agent.stopAndSend : agent.startRecording}
@@ -938,6 +941,13 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bodySemiBold,
     fontSize: fontSizes.xl,
     color: colors.green,
+  },
+  homeButton: {
+    width: 32,
+    height: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: spacing.xs,
   },
   agentButton: {
     width: 36,
