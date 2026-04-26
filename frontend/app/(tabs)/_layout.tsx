@@ -26,7 +26,7 @@ export default function TabsLayout() {
     const router = useRouter();
     const C = useThemeColors();
     const [scanModalVisible, setScanModalVisible] = useState(false);
-    const [selectedOption, setSelectedOption] = useState<'scan' | 'library' | null>(null);
+    const [selectedOption, setSelectedOption] = useState<'scan' | 'library' | 'test' | null>(null);
     const slideAnim = useRef(new Animated.Value(0)).current;
 
     const showScanModal = () => {
@@ -50,17 +50,19 @@ export default function TabsLayout() {
         });
     };
 
-    const handleOptionPress = (option: 'scan' | 'library') => {
+    const handleOptionPress = (option: 'scan' | 'library' | 'test') => {
         setSelectedOption(option);
         setTimeout(() => {
             hideScanModal();
             setTimeout(() => {
-                router.push(option === 'scan' ? '/scan' : '/library');
+                if (option === 'scan') router.push('/scan');
+                else if (option === 'library') router.push('/library');
+                else router.push('/test-receipt');
             }, 100);
         }, 150);
     };
 
-    const bottomSheetHeight = screenHeight * 0.28;
+    const bottomSheetHeight = screenHeight * 0.36;
 
     return (
         <>
@@ -193,6 +195,22 @@ export default function TabsLayout() {
                                         <MaterialIcons name="photo-library" size={22} color={C.green} />
                                     </View>
                                     <Text style={[styles.sheetOptionText, { color: C.black }]}>Pick from gallery</Text>
+                                    <MaterialIcons name="chevron-right" size={20} color={C.gray400} />
+                                </TouchableOpacity>
+
+                                <TouchableOpacity
+                                    style={[
+                                        styles.sheetOption,
+                                        { borderColor: C.gray200 },
+                                        selectedOption === 'test' && { borderColor: C.green, backgroundColor: colors.greenLight },
+                                    ]}
+                                    onPress={() => handleOptionPress('test')}
+                                    activeOpacity={0.7}
+                                >
+                                    <View style={[styles.sheetOptionIcon, { backgroundColor: C.gray100 }]}>
+                                        <MaterialIcons name="science" size={22} color={C.green} />
+                                    </View>
+                                    <Text style={[styles.sheetOptionText, { color: C.black }]}>Test</Text>
                                     <MaterialIcons name="chevron-right" size={20} color={C.gray400} />
                                 </TouchableOpacity>
                             </Animated.View>
