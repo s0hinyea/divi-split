@@ -8,7 +8,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import DiviLogoAnimated from './DiviLogoAnimated';
 
-const MIN_DISPLAY_MS = 2000;
+const MIN_DISPLAY_MS = 1200;
 const FADE_DURATION_MS = 600;
 
 interface Props {

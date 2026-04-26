@@ -70,6 +70,9 @@ export default function TabsLayout() {
             <Tabs
                 screenOptions={{
                     headerShown: false,
+                    lazy: false,
+                    freezeOnBlur: true,
+                    animation: 'fade',
                     tabBarStyle: {
                         backgroundColor: C.white,
                         borderTopWidth: 1,
