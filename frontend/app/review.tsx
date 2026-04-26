@@ -558,11 +558,11 @@ export default function ReviewPage() {
 
       <View style={styles.footer}>
         <TouchableOpacity
-          style={styles.continueButton}
+          style={styles.finishButton}
           onPress={handleFinish}
           activeOpacity={0.8}
         >
-          <MaterialIcons name="check" size={28} color={colors.white} />
+          <Text style={styles.finishButtonText}>Proceed</Text>
         </TouchableOpacity>
       </View>
 
@@ -827,28 +827,31 @@ const styles = StyleSheet.create({
     color: colors.green,
   },
   footer: {
-    padding: spacing.xl,
-    backgroundColor: 'transparent',
-    alignItems: 'center',
-    justifyContent: 'center',
+    padding: spacing.lg,
+    backgroundColor: colors.white,
+    borderTopWidth: 1,
+    borderTopColor: colors.gray200,
   },
-  continueButton: {
-    width: 64,
-    height: 64,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: radii.full,
+  finishButton: {
     backgroundColor: colors.black,
+    borderRadius: radii.full,
+    paddingVertical: spacing.md,
+    alignItems: 'center',
     shadowColor: colors.green,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
-    elevation: 5,
+    elevation: 8,
+  },
+  finishButtonText: {
+    fontFamily: fonts.bodyBold,
+    fontSize: fontSizes.md,
+    color: colors.white,
   },
   headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xs,
+    gap: spacing.sm,
   },
   modalOverlay: {
     flex: 1,
@@ -902,6 +905,8 @@ const styles = StyleSheet.create({
   homeButton: {
     width: 32,
     height: 32,
+    borderRadius: radii.full,
+    backgroundColor: colors.gray100,
     justifyContent: 'center',
     alignItems: 'center',
   },

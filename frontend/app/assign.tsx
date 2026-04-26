@@ -408,11 +408,13 @@ const styles = StyleSheet.create({
   headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xs,
+    gap: spacing.sm,
   },
   homeButton: {
     width: 32,
     height: 32,
+    borderRadius: radii.full,
+    backgroundColor: colors.gray100,
     justifyContent: 'center',
     alignItems: 'center',
   },
