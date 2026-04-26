@@ -304,21 +304,23 @@ export default function OCRResults() {
               <Text style={{ color: colors.black }}>Modify </Text>
               <Text style={{ color: colors.green }}>Receipt</Text>
             </Text>
-            <TouchableOpacity onPress={() => router.replace('/(tabs)')} style={styles.homeButton}>
-              <MaterialIcons name="home" size={20} color={colors.gray400} />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.agentButton, agent.isRecording && styles.agentButtonRecording]}
-              onPress={agent.isRecording ? agent.stopAndSend : agent.startRecording}
-              disabled={agent.loading || agent.isTranscribing}
-              activeOpacity={0.8}
-            >
-              <MaterialIcons
-                name={agent.isRecording ? 'stop' : 'auto-awesome'}
-                size={18}
-                color={agent.isRecording ? colors.white : colors.green}
-              />
-            </TouchableOpacity>
+            <View style={styles.headerRight}>
+              <TouchableOpacity onPress={() => router.replace('/(tabs)')} style={styles.homeButton}>
+                <MaterialIcons name="home" size={20} color={colors.gray400} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.agentButton, agent.isRecording && styles.agentButtonRecording]}
+                onPress={agent.isRecording ? agent.stopAndSend : agent.startRecording}
+                disabled={agent.loading || agent.isTranscribing}
+                activeOpacity={0.8}
+              >
+                <MaterialIcons
+                  name={agent.isRecording ? 'stop' : 'auto-awesome'}
+                  size={18}
+                  color={agent.isRecording ? colors.white : colors.green}
+                />
+              </TouchableOpacity>
+            </View>
           </View>
           <Text style={styles.headerSubtitle}>Tap to edit, swipe left to delete, hold to split</Text>
         </View>
@@ -942,12 +944,16 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.xl,
     color: colors.green,
   },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
   homeButton: {
     width: 32,
     height: 32,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: spacing.xs,
   },
   agentButton: {
     width: 36,

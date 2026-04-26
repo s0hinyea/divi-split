@@ -162,21 +162,23 @@ export default function AssignAmounts() {
             <Text style={{ color: colors.black }}>Assign Items to </Text>
             <Text style={{ color: colors.green }}>{currentContact?.name}</Text>
           </Text>
-          <TouchableOpacity onPress={() => router.replace('/(tabs)')} style={styles.homeButton}>
-            <MaterialIcons name="home" size={20} color={colors.gray400} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.agentButton, agent.isRecording && styles.agentButtonRecording]}
-            onPress={agent.isRecording ? agent.stopAndSend : agent.startRecording}
-            disabled={agent.loading || agent.isTranscribing}
-            activeOpacity={0.8}
-          >
-            <MaterialIcons
-              name={agent.isRecording ? 'stop' : 'auto-awesome'}
-              size={18}
-              color={agent.isRecording ? colors.white : colors.green}
-            />
-          </TouchableOpacity>
+          <View style={styles.headerRight}>
+            <TouchableOpacity onPress={() => router.replace('/(tabs)')} style={styles.homeButton}>
+              <MaterialIcons name="home" size={20} color={colors.gray400} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.agentButton, agent.isRecording && styles.agentButtonRecording]}
+              onPress={agent.isRecording ? agent.stopAndSend : agent.startRecording}
+              disabled={agent.loading || agent.isTranscribing}
+              activeOpacity={0.8}
+            >
+              <MaterialIcons
+                name={agent.isRecording ? 'stop' : 'auto-awesome'}
+                size={18}
+                color={agent.isRecording ? colors.white : colors.green}
+              />
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
 
@@ -403,12 +405,16 @@ const styles = StyleSheet.create({
     color: colors.gray500,
     marginTop: spacing.xl,
   },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
   homeButton: {
     width: 32,
     height: 32,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: spacing.xs,
   },
   agentButton: {
     width: 36,

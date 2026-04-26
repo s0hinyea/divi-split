@@ -350,21 +350,23 @@ export default function ReviewPage() {
               <Text style={{ color: colors.green }}>Split</Text>
             </Text>
           </View>
-          <TouchableOpacity onPress={() => router.replace('/(tabs)')} style={styles.homeButton}>
-            <MaterialIcons name="home" size={20} color={colors.gray400} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.agentButton, agent.isRecording && styles.agentButtonRecording]}
-            onPress={agent.isRecording ? agent.stopAndSend : agent.startRecording}
-            disabled={agent.loading || agent.isTranscribing}
-            activeOpacity={0.8}
-          >
-            <MaterialIcons
-              name={agent.isRecording ? 'stop' : 'auto-awesome'}
-              size={18}
-              color={agent.isRecording ? colors.white : colors.green}
-            />
-          </TouchableOpacity>
+          <View style={styles.headerRight}>
+            <TouchableOpacity onPress={() => router.replace('/(tabs)')} style={styles.homeButton}>
+              <MaterialIcons name="home" size={20} color={colors.gray400} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.agentButton, agent.isRecording && styles.agentButtonRecording]}
+              onPress={agent.isRecording ? agent.stopAndSend : agent.startRecording}
+              disabled={agent.loading || agent.isTranscribing}
+              activeOpacity={0.8}
+            >
+              <MaterialIcons
+                name={agent.isRecording ? 'stop' : 'auto-awesome'}
+                size={18}
+                color={agent.isRecording ? colors.white : colors.green}
+              />
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
 
@@ -556,10 +558,11 @@ export default function ReviewPage() {
 
       <View style={styles.footer}>
         <TouchableOpacity
-          style={styles.finishButton}
+          style={styles.continueButton}
           onPress={handleFinish}
+          activeOpacity={0.8}
         >
-          <Text style={styles.finishButtonText}>Proceed</Text>
+          <MaterialIcons name="check" size={28} color={colors.white} />
         </TouchableOpacity>
       </View>
 
@@ -824,26 +827,28 @@ const styles = StyleSheet.create({
     color: colors.green,
   },
   footer: {
-    padding: spacing.lg,
-    backgroundColor: colors.white,
-    borderTopWidth: 1,
-    borderTopColor: colors.gray200,
-  },
-  finishButton: {
-    backgroundColor: colors.black,
-    borderRadius: radii.full,
-    paddingVertical: spacing.md,
+    padding: spacing.xl,
+    backgroundColor: 'transparent',
     alignItems: 'center',
+    justifyContent: 'center',
+  },
+  continueButton: {
+    width: 64,
+    height: 64,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: radii.full,
+    backgroundColor: colors.black,
     shadowColor: colors.green,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
-    elevation: 8,
+    elevation: 5,
   },
-  finishButtonText: {
-    fontFamily: fonts.bodyBold,
-    fontSize: fontSizes.md,
-    color: colors.white,
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
   },
   modalOverlay: {
     flex: 1,
@@ -899,7 +904,6 @@ const styles = StyleSheet.create({
     height: 32,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: spacing.xs,
   },
   agentButton: {
     width: 36,
