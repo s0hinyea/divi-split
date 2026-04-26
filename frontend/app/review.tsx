@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Modal, Alert, ActivityIndicator, TextInput, Platform, StyleSheet, Animated } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Modal, ActivityIndicator, TextInput, Platform, StyleSheet, Animated } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSplitStore, ReceiptItem } from '../stores/splitStore';
 import { useHistory } from '../utils/HistoryContext';
@@ -13,6 +13,7 @@ import { BlurView } from 'expo-blur';
 import { allocateAmount } from '../utils/mathUtil';
 import { useReviewAgent, executeMoveItem, ReviewState, ReviewCallbacks, ActionSummary } from '../utils/useReviewAgent';
 import DiviLogoAnimated from '../components/DiviLogoAnimated';
+import { useToast } from '../components/ToastProvider';
 
 export default function ReviewPage() {
   const router = useRouter();
@@ -61,6 +62,7 @@ export default function ReviewPage() {
   });
 
   const agent = useReviewAgent(reviewStateRef, reviewCallbacksRef);
+  const { showToast } = useToast();
 
   // Receipt name and date states — pre-populated when editing an existing receipt
   const [receiptName, setReceiptName] = useState(editingReceiptName || '');
@@ -188,7 +190,7 @@ export default function ReviewPage() {
     try {
       const isAvailable = await SMS.isAvailableAsync();
       if (!isAvailable) {
-        Alert.alert('SMS Not Available', 'This device cannot send text messages.');
+        showToast('This device cannot send text messages.', 'error');
         return;
       }
 
@@ -198,7 +200,7 @@ export default function ReviewPage() {
         .filter((num): num is string => !!num);
 
       if (phoneNumbers.length === 0) {
-        Alert.alert('No Phone Numbers', 'None of the selected contacts have phone numbers.');
+        showToast('None of the selected contacts have phone numbers.', 'warning');
         return;
       }
 
@@ -271,7 +273,7 @@ export default function ReviewPage() {
 
     } catch (error) {
       console.error('SMS Error:', error);
-      Alert.alert('Error', 'Failed to open Messages.');
+      showToast('Failed to open Messages.', 'error');
       setShowSmsModal(false);
     }
   };
@@ -495,6 +497,16 @@ export default function ReviewPage() {
           })()
         )}
 
+        {/* Level 4: Math mismatch warning */}
+        {'confidence' in receiptData && receiptData.confidence === 'low' && (
+          <View style={styles.mismatchCard}>
+            <MaterialIcons name="warning" size={16} color={colors.warning} />
+            <Text style={styles.mismatchText}>
+              The item totals don't perfectly match the scanned receipt. Please review the amounts before finalizing.
+            </Text>
+          </View>
+        )}
+
         {/* Show final total calculation */}
         {(() => {
           const allMealItems = 'items' in receiptData ? receiptData.items : [];
@@ -713,6 +725,24 @@ const styles = StyleSheet.create({
     marginTop: spacing.lg,
     borderWidth: 1,
     borderColor: colors.green,
+  },
+  mismatchCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+    backgroundColor: `${colors.warning}15`,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: `${colors.warning}40`,
+    padding: spacing.md,
+    marginTop: spacing.lg,
+  },
+  mismatchText: {
+    fontFamily: fonts.body,
+    fontSize: fontSizes.sm,
+    color: colors.gray600,
+    flex: 1,
+    lineHeight: 18,
   },
   cardTitle: {
     fontFamily: fonts.bodyBold,

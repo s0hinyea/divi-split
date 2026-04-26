@@ -7,7 +7,6 @@ import {
     TouchableOpacity,
     StyleSheet,
     ActivityIndicator,
-    Alert,
     Modal,
     Dimensions,
 } from 'react-native';
@@ -24,6 +23,8 @@ import { getUserFacingErrorMessage } from '@/utils/network';
 import { colors, fonts, fontSizes, spacing, radii } from '@/styles/theme';
 import { useReviewAgent, ReviewState, ReviewCallbacks } from '@/utils/useReviewAgent';
 import ReviewAgentPanel from '@/components/ReviewAgentPanel';
+import { useToast } from '@/components/ToastProvider';
+import { useCustomAlert } from '@/components/CustomAlert';
 
 type DbItem = { id: string; item_name: string; item_price: number };
 
@@ -40,6 +41,8 @@ export default function ReceiptDetail() {
     const router = useRouter();
     const { receipts } = useHistory();
     const { profile } = useProfile();
+    const { showToast } = useToast();
+    const { showAlert } = useCustomAlert();
     const resetStore = useSplitStore((s) => s.resetStore);
     const hydrateForEdit = useSplitStore((s) => s.hydrateForEdit);
 
@@ -176,7 +179,7 @@ export default function ReceiptDetail() {
 
             router.push('/contacts');
         } catch (err) {
-            Alert.alert('Error', getUserFacingErrorMessage(err, 'Could not load receipt for editing.'));
+            showToast(getUserFacingErrorMessage(err, 'Could not load receipt for editing.'), 'error');
         } finally {
             setEditLoading(false);
         }
@@ -186,14 +189,14 @@ export default function ReceiptDetail() {
         if (!receipt) return;
         const inProgress = useSplitStore.getState().receiptData.items.length > 0;
         if (inProgress) {
-            Alert.alert(
-                'Discard In-Progress Split?',
-                'You have an unfinished split in progress. Editing this receipt will discard it.',
-                [
+            showAlert({
+                title: 'Discard In-Progress Split?',
+                message: 'You have an unfinished split in progress. Editing this receipt will discard it.',
+                buttons: [
                     { text: 'Cancel', style: 'cancel' },
                     { text: 'Discard & Edit', style: 'destructive', onPress: performEdit },
-                ]
-            );
+                ],
+            });
             return;
         }
         performEdit();
@@ -205,12 +208,12 @@ export default function ReceiptDetail() {
         try {
             const isAvailable = await SMS.isAvailableAsync();
             if (!isAvailable) {
-                Alert.alert('SMS Not Available', 'This device cannot send text messages.');
+                showToast('This device cannot send text messages.', 'error');
                 return;
             }
 
             if (contacts.length === 0) {
-                Alert.alert('No Assignments', 'No item assignments found for this receipt.');
+                showToast('No item assignments found for this receipt.', 'warning');
                 return;
             }
 
@@ -219,7 +222,7 @@ export default function ReceiptDetail() {
                 .filter((p) => !!p && p !== 'no-phone');
 
             if (phoneNumbers.length === 0) {
-                Alert.alert('No Phone Numbers', 'None of the assigned contacts have phone numbers.');
+                showToast('None of the assigned contacts have phone numbers.', 'warning');
                 return;
             }
 
@@ -283,7 +286,7 @@ export default function ReceiptDetail() {
 
             await SMS.sendSMSAsync(phoneNumbers, message);
         } catch (err) {
-            Alert.alert('Error', getUserFacingErrorMessage(err, 'Failed to send SMS.'));
+            showToast(getUserFacingErrorMessage(err, 'Failed to send SMS.'), 'error');
         } finally {
             setResending(false);
         }

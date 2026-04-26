@@ -17,6 +17,7 @@ export type OCRResponse = {
     tax?: number;
     tip?: number;
     userItems?: ReceiptItem[];
+    confidence?: 'high' | 'low';
 };
 
 export type Contact = {

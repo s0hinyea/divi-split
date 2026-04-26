@@ -3,7 +3,6 @@ import {
     StyleSheet,
     TouchableOpacity,
     RefreshControl,
-    Alert,
     Pressable,
 } from 'react-native';
 import { Text } from 'react-native-paper';
@@ -18,6 +17,7 @@ import { useThemeColors } from '@/utils/ThemeContext';
 import { useHistory, Receipt } from '@/utils/HistoryContext';
 import { getUserFacingErrorMessage } from '@/utils/network';
 import { HistorySkeleton } from '@/components/SkeletonLoader';
+import { useToast } from '@/components/ToastProvider';
 
 function createStyles(C: ReturnType<typeof useThemeColors>) {
     return StyleSheet.create({
@@ -156,6 +156,7 @@ export default function History() {
     const router = useRouter();
 
     const { receipts, loading, hasMore, fetchReceipts, deleteReceipt: contextDeleteReceipt, refreshReceipts } = useHistory();
+    const { showToast } = useToast();
     const [loadingMore, setLoadingMore] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
 
@@ -176,7 +177,7 @@ export default function History() {
         try {
             await contextDeleteReceipt(receiptId);
         } catch (error) {
-            Alert.alert('Delete failed', getUserFacingErrorMessage(error, 'We could not delete that receipt right now.'));
+            showToast(getUserFacingErrorMessage(error, 'We could not delete that receipt right now.'), 'error');
         }
     };
 
