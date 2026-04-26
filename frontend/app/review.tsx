@@ -38,6 +38,7 @@ export default function ReviewPage() {
   const [revealItems, setRevealItems] = useState<{ summary: ActionSummary; opacity: Animated.Value; translateY: Animated.Value }[]>([]);
   const overlayOpacity = useRef(new Animated.Value(0)).current;
   const overlayActiveRef = useRef(false);
+  const pendingDispatchRef = useRef(false);
 
   // Refs for the review agent — always current, no stale closure issues
   const reviewStateRef = useRef<ReviewState>({
@@ -114,10 +115,18 @@ export default function ReviewPage() {
       ]).start(() => {
         setOverlayVisible(false);
         setRevealItems([]);
+        if (pendingDispatchRef.current) {
+          pendingDispatchRef.current = false;
+          handleFinish();
+        }
       });
     } else {
       Animated.timing(overlayOpacity, { toValue: 0, duration: 300, useNativeDriver: true }).start(() => {
         setOverlayVisible(false);
+        if (pendingDispatchRef.current) {
+          pendingDispatchRef.current = false;
+          handleFinish();
+        }
       });
     }
   }, [agent.loading, agent.isTranscribing, agent.lastActionSummary]);
@@ -316,7 +325,7 @@ export default function ReviewPage() {
     setTip: (amount) => updateReceiptData({ tip: amount }),
     moveItem: executeMoveItem,
     triggerDispatch: () => {
-      handleFinish();
+      pendingDispatchRef.current = true;
     },
   };
 
@@ -326,7 +335,7 @@ export default function ReviewPage() {
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <TouchableOpacity
-              onPress={() => router.push({ pathname: '/assign', params: { initialIndex: selected.length - 1 } })}
+              onPress={() => router.back()}
               style={{ marginRight: spacing.sm }}
             >
               <MaterialIcons name="arrow-back" size={28} color={colors.black} />

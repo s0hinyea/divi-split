@@ -101,6 +101,7 @@ export default function OCRResults() {
 
   // Get items from context instead of params
   const items = 'items' in receiptData ? receiptData.items : [];
+  const displayItems = items.filter(item => item.name.trim().toLowerCase() !== 'tax');
 
   // Monitor changes array
   useEffect(() => {
@@ -279,7 +280,7 @@ export default function OCRResults() {
       <View style={styles.headerContainer}>
         <View style={styles.header}>
           <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.sm }}>
-            <TouchableOpacity onPress={() => router.push('/contacts')} style={{ marginRight: spacing.sm }}>
+            <TouchableOpacity onPress={() => router.back()} style={{ marginRight: spacing.sm }}>
               <MaterialIcons name="arrow-back" size={28} color={colors.black} />
             </TouchableOpacity>
             <Text style={[styles.headerTitle, { flex: 1 }]}>
@@ -458,12 +459,13 @@ export default function OCRResults() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.continueButton}
+            style={[styles.continueButton, displayItems.length === 0 && { backgroundColor: colors.gray300, shadowOpacity: 0 }]}
             onPress={() => {
               Keyboard.dismiss();
               if (changing) finishChange();
               router.push("/assign");
             }}
+            disabled={displayItems.length === 0}
             activeOpacity={0.8}
           >
             <MaterialIcons name="check" size={28} color={colors.white} />

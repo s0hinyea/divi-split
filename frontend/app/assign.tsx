@@ -120,7 +120,7 @@ export default function AssignAmounts() {
     if (currentContactIndex > 0) {
       setCurrentContactIndex(currentContactIndex - 1);
     } else {
-      router.push('/result');
+      router.back();
     }
   };
 

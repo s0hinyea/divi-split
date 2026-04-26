@@ -131,7 +131,7 @@ export default function ReceiptDetail() {
         fetchAssignments();
     }, [fetchAssignments]);
 
-    const handleEditSplit = async () => {
+    const performEdit = async () => {
         if (!receipt) return;
         setEditLoading(true);
         try {
@@ -180,6 +180,23 @@ export default function ReceiptDetail() {
         } finally {
             setEditLoading(false);
         }
+    };
+
+    const handleEditSplit = () => {
+        if (!receipt) return;
+        const inProgress = useSplitStore.getState().receiptData.items.length > 0;
+        if (inProgress) {
+            Alert.alert(
+                'Discard In-Progress Split?',
+                'You have an unfinished split in progress. Editing this receipt will discard it.',
+                [
+                    { text: 'Cancel', style: 'cancel' },
+                    { text: 'Discard & Edit', style: 'destructive', onPress: performEdit },
+                ]
+            );
+            return;
+        }
+        performEdit();
     };
 
     const handleResendSMS = async () => {
