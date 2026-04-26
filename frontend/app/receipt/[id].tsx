@@ -359,7 +359,7 @@ export default function ReceiptDetail() {
                 <View style={styles.card}>
                     {receipt.receipt_items.map((item) => (
                         <View key={item.id} style={styles.row}>
-                            <Text style={styles.rowLabel}>{item.item_name}</Text>
+                            <Text style={styles.rowLabel} numberOfLines={1}>{item.item_name}</Text>
                             <Text style={styles.rowValue}>${item.item_price.toFixed(2)}</Text>
                         </View>
                     ))}
@@ -382,7 +382,7 @@ export default function ReceiptDetail() {
                                 <View style={styles.divider} />
                                 {c.items.map((item) => (
                                     <View key={item.id} style={styles.row}>
-                                        <Text style={styles.rowLabel}>{item.item_name}</Text>
+                                        <Text style={styles.rowLabel} numberOfLines={1}>{item.item_name}</Text>
                                         <Text style={styles.rowValue}>${item.item_price.toFixed(2)}</Text>
                                     </View>
                                 ))}
@@ -483,16 +483,19 @@ const styles = StyleSheet.create({
     },
 
     sectionTitle: {
-        fontFamily: fonts.bodyBold,
-        fontSize: fontSizes.md,
-        color: colors.black,
+        fontFamily: fonts.bodySemiBold,
+        fontSize: fontSizes.xs,
+        color: colors.gray500,
+        letterSpacing: 0.8,
+        textTransform: 'uppercase',
         marginTop: spacing.lg,
-        marginBottom: spacing.sm,
+        marginBottom: spacing.xs,
     },
     card: {
         backgroundColor: colors.white,
         borderRadius: radii.md,
-        padding: spacing.md,
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.sm,
         marginBottom: spacing.sm,
         shadowColor: colors.black,
         shadowOffset: { width: 0, height: 1 },
@@ -501,53 +504,57 @@ const styles = StyleSheet.create({
         elevation: 2,
     },
     cardTitle: {
-        fontFamily: fonts.bodyBold,
-        fontSize: fontSizes.md,
-        color: colors.black,
-        marginBottom: spacing.sm,
+        fontFamily: fonts.bodySemiBold,
+        fontSize: fontSizes.xs,
+        color: colors.gray500,
+        letterSpacing: 0.8,
+        textTransform: 'uppercase',
+        marginBottom: spacing.xs,
+        marginTop: spacing.xs,
     },
     divider: {
         height: 1,
         backgroundColor: colors.gray200,
-        marginVertical: spacing.sm,
+        marginVertical: spacing.xs,
     },
     row: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        paddingVertical: 2,
+        paddingVertical: 5,
     },
     rowLabel: {
         fontFamily: fonts.body,
-        fontSize: fontSizes.md,
+        fontSize: fontSizes.sm,
         color: colors.gray800,
         flex: 1,
         marginRight: spacing.sm,
     },
     rowValue: {
-        fontFamily: fonts.body,
-        fontSize: fontSizes.md,
+        fontFamily: fonts.mono,
+        fontSize: fontSizes.sm,
         color: colors.gray600,
     },
     totalLabel: {
         fontFamily: fonts.bodyBold,
-        fontSize: fontSizes.md,
+        fontSize: fontSizes.sm,
         color: colors.black,
     },
     totalValue: {
-        fontFamily: fonts.bodyBold,
-        fontSize: fontSizes.md,
+        fontFamily: fonts.mono,
+        fontSize: fontSizes.sm,
         color: colors.green,
     },
     contactName: {
-        fontFamily: fonts.bodyBold,
-        fontSize: fontSizes.md,
+        fontFamily: fonts.bodySemiBold,
+        fontSize: fontSizes.sm,
         color: colors.black,
-        marginBottom: spacing.xs,
+        marginBottom: 2,
+        marginTop: spacing.xs,
     },
     emptyText: {
         fontFamily: fonts.body,
-        fontSize: fontSizes.md,
+        fontSize: fontSizes.sm,
         color: colors.gray400,
         textAlign: 'center',
         paddingVertical: spacing.md,
