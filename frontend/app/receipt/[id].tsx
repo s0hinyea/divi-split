@@ -545,24 +545,24 @@ const styles = StyleSheet.create({
     },
     rowLabel: {
         fontFamily: fonts.body,
-        fontSize: fontSizes.sm,
-        color: colors.gray800,
+        fontSize: fontSizes.md,
+        color: colors.black,
         flex: 1,
         marginRight: spacing.sm,
     },
     rowValue: {
-        fontFamily: fonts.mono,
-        fontSize: fontSizes.sm,
-        color: colors.gray600,
+        fontFamily: fonts.bodySemiBold,
+        fontSize: fontSizes.md,
+        color: colors.green,
     },
     totalLabel: {
         fontFamily: fonts.bodyBold,
-        fontSize: fontSizes.sm,
+        fontSize: fontSizes.md,
         color: colors.black,
     },
     totalValue: {
-        fontFamily: fonts.mono,
-        fontSize: fontSizes.sm,
+        fontFamily: fonts.bodyBold,
+        fontSize: fontSizes.lg,
         color: colors.green,
     },
     contactName: {

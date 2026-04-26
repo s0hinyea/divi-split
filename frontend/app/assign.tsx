@@ -17,6 +17,8 @@ export default function AssignAmounts() {
   const manageItems = useSplitStore((state) => state.manageItems);
   const receiptData = useSplitStore((state) => state.receiptData);
   const setUserItems = useSplitStore((state) => state.setUserItems);
+  const setCurrentStep = useSplitStore((state) => state.setCurrentStep);
+  const setResumeContactIndex = useSplitStore((state) => state.setResumeContactIndex);
 
   const agent = useVoiceAgent();
 
@@ -77,6 +79,9 @@ export default function AssignAmounts() {
     }
     return 0;
   });
+
+  useEffect(() => { setCurrentStep('assign'); }, []);
+  useEffect(() => { setResumeContactIndex(currentContactIndex); }, [currentContactIndex]);
 
   const currentContact = selected[currentContactIndex];
   const items = 'items' in receiptData ? receiptData.items.filter(item => !/tax/i.test(item.name)) : [];
@@ -344,7 +349,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   itemPrice: {
-    fontFamily: fonts.bodyBold,
+    fontFamily: fonts.bodySemiBold,
     fontSize: fontSizes.md,
     color: colors.green,
   },

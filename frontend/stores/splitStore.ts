@@ -60,6 +60,12 @@ interface SplitState {
     ) => void;
     updateReceipt: (receiptId: string, receiptName: string, receiptDate?: Date) => Promise<boolean>;
 
+    // Resume-split tracking
+    currentStep: 'contacts' | 'result' | 'assign' | 'review' | null;
+    resumeContactIndex: number;
+    setCurrentStep: (step: 'contacts' | 'result' | 'assign' | 'review' | null) => void;
+    setResumeContactIndex: (index: number) => void;
+
     resetStore: () => void;
     // Completion overlay
     showCompletion: boolean;
@@ -83,6 +89,11 @@ export const useSplitStore = create<SplitState>((set, get) => ({
     editingReceiptId: null,
     editingReceiptName: '',
     editingReceiptCreatedAt: '',
+    currentStep: null,
+    resumeContactIndex: 0,
+
+    setCurrentStep: (step) => set({ currentStep: step }),
+    setResumeContactIndex: (index) => set({ resumeContactIndex: index }),
 
     updateReceiptData: (data) =>
         set((state) => ({
@@ -321,6 +332,8 @@ export const useSplitStore = create<SplitState>((set, get) => ({
         editingReceiptId: null,
         editingReceiptName: '',
         editingReceiptCreatedAt: '',
+        currentStep: null,
+        resumeContactIndex: 0,
     }),
 
     // Completion overlay actions

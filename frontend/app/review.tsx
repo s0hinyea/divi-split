@@ -63,6 +63,9 @@ export default function ReviewPage() {
 
   const agent = useReviewAgent(reviewStateRef, reviewCallbacksRef);
   const { showToast } = useToast();
+  const setCurrentStep = useSplitStore((state) => state.setCurrentStep);
+
+  useEffect(() => { setCurrentStep('review'); }, []);
 
   // Receipt name and date states — pre-populated when editing an existing receipt
   const [receiptName, setReceiptName] = useState(editingReceiptName || '');
@@ -777,13 +780,14 @@ const styles = StyleSheet.create({
   itemName: {
     fontFamily: fonts.body,
     fontSize: fontSizes.md,
-    color: colors.gray600,
+    color: colors.black,
     flex: 1,
+    marginRight: spacing.sm,
   },
   itemPrice: {
-    fontFamily: fonts.body,
+    fontFamily: fonts.bodySemiBold,
     fontSize: fontSizes.md,
-    color: colors.black,
+    color: colors.green,
   },
   summaryRow: {
     flexDirection: 'row',

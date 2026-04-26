@@ -7,6 +7,8 @@ import { useState, useRef } from 'react';
 import { fonts, spacing, radii, colors, shadows } from '@/styles/theme';
 import { useThemeColors } from '@/utils/ThemeContext';
 import NetworkBanner from '@/components/NetworkBanner';
+import { useSplitStore } from '@/stores/splitStore';
+import { useCustomAlert } from '@/components/CustomAlert';
 
 const { height: screenHeight } = Dimensions.get('window');
 
@@ -29,6 +31,14 @@ export default function TabsLayout() {
     const [selectedOption, setSelectedOption] = useState<'scan' | 'library' | 'test' | null>(null);
     const slideAnim = useRef(new Animated.Value(0)).current;
 
+    const currentStep = useSplitStore((state) => state.currentStep);
+    const resumeContactIndex = useSplitStore((state) => state.resumeContactIndex);
+    const receiptItems = useSplitStore((state) => state.receiptData.items);
+    const resetStore = useSplitStore((state) => state.resetStore);
+    const { showAlert } = useCustomAlert();
+
+    const splitInProgress = currentStep !== null && receiptItems.length > 0;
+
     const showScanModal = () => {
         setScanModalVisible(true);
         Animated.spring(slideAnim, {
@@ -48,6 +58,31 @@ export default function TabsLayout() {
             setScanModalVisible(false);
             setSelectedOption(null);
         });
+    };
+
+    const resumeSplit = () => {
+        if (!currentStep) return;
+        if (currentStep === 'assign') {
+            router.push({ pathname: '/assign', params: { initialIndex: resumeContactIndex } });
+        } else {
+            router.push(`/${currentStep}` as any);
+        }
+    };
+
+    const handleAddPress = () => {
+        if (splitInProgress) {
+            showAlert({
+                title: 'Split already in progress',
+                message: 'You have an unfinished split. Resume it or start over?',
+                buttons: [
+                    { text: 'Resume', onPress: resumeSplit },
+                    { text: 'Start over', style: 'destructive', onPress: () => { resetStore(); showScanModal(); } },
+                    { text: 'Cancel', style: 'cancel' },
+                ],
+            });
+        } else {
+            showScanModal();
+        }
     };
 
     const handleOptionPress = (option: 'scan' | 'library' | 'test') => {
@@ -132,7 +167,7 @@ export default function TabsLayout() {
             {usePathname() === '/' && (
                 <TouchableOpacity
                     style={[styles.floatingAddButton, { backgroundColor: C.green }]}
-                    onPress={showScanModal}
+                    onPress={handleAddPress}
                     activeOpacity={0.85}
                 >
                     <MaterialIcons name="add" size={28} color={C.white} />

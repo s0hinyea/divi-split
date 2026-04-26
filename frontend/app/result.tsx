@@ -27,7 +27,10 @@ export default function OCRResults() {
   const splitItemStore = useSplitStore((state) => state.splitItem);
   const updateReceiptData = useSplitStore((state) => state.updateReceiptData);
   const receiptData = useSplitStore((state) => state.receiptData);
+  const setCurrentStep = useSplitStore((state) => state.setCurrentStep);
   const { addChange, undoChange, clearChanges, changes } = useChange();
+
+  useEffect(() => { setCurrentStep('result'); }, []);
 
   const agent = useResultAgent(addChange);
 
