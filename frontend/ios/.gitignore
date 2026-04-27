@@ -1,0 +1,12 @@
+# CocoaPods - installed at build time by EAS
+Pods/
+
+# Xcode build output
+build/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+
+# Sensitive files
+*.p12
+*.mobileprovision
