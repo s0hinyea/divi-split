@@ -60,31 +60,47 @@ export default function HelpPage() {
   const faqs = [
     {
       question: "How does Divi work?",
-      answer: "Divi makes splitting expenses easy. Tap the plus button to scan a receipt or choose an image from your photos. Divi reads the items, lets you adjust the prices or names, and then allows you to assign each item to people in your contacts. Finally, we calculate the totals including tax and tip, and generate a summary you can text to your group."
+      answer: "Divi makes splitting expenses effortless. Tap the plus button to scan a receipt using your camera's document scanner — it automatically detects edges and crops the receipt for you. Divi's AI reads every item, lets you adjust prices or names, and then you assign each item to people from your contacts. Tax and tip are distributed proportionally, and Divi generates a summary you can text to your group with one tap."
+    },
+    {
+      question: "What is the AI Assistant?",
+      answer: "Look for the sparkle (✦) button on the Assign and Review screens. Tapping it opens Divi's AI Assistant — a chat-powered helper that can assign items, move items between people, rename things, and adjust tax or tip for you. Just tell it what you need in plain English, like 'Give the steak to John' or 'Split the appetizer evenly.'"
+    },
+    {
+      question: "How do I split a shared item?",
+      answer: "On the Modify Receipt screen, press and hold any item for about 3 seconds. You'll see a green progress bar fill up with haptic feedback. When it completes, the item is split into two equal halves that you can assign to different people. You can split items as many times as needed."
+    },
+    {
+      question: "Can I undo a delete or split?",
+      answer: "Yes! After deleting or splitting an item, an 'Undo' button appears at the bottom of the screen. Tapping it restores the item to its exact original position in the list — it won't just get added to the end."
     },
     {
       question: "What if multiple people shared the same item?",
-      answer: "On the Assign screen, simply tap the same item for every person who shared it. Divi will automatically divide the cost of that item equally among everyone who is assigned to it."
+      answer: "You have two options: use the long-press split gesture to divide the item into halves first, or on the Assign screen, tap the same item for every person who shared it. Divi will automatically divide the cost equally among everyone assigned to it."
     },
     {
       question: "How do I set up my payment links?",
-      answer: "Go to the Profile tab and enter your Venmo, Cash App, or Zelle handles. When you send the final split summary via SMS, Divi will automatically include convenient, clickable links so your friends can easily pay you back."
+      answer: "Go to the Profile tab and enter your Venmo, Cash App, or Zelle handles. When you send the final split summary via SMS, Divi will automatically include convenient, clickable payment links so your friends can pay you back in one tap."
+    },
+    {
+      question: "Can I view or edit past receipts?",
+      answer: "Yes! Go to the History tab to see all your saved splits. Tap or swipe on any receipt to view the full breakdown. You can also re-edit a past split — reassign items, update contacts, and resend the SMS summary."
     },
     {
       question: "Is the receipt scanning accurate?",
-      answer: "We use advanced AI vision to read your receipts with high accuracy. However, blurry images, weird lighting, or complex receipt formats might occasionaly cause misreads. Always double-check the items and prices on the 'Modify Receipt' screen before proceeding."
+      answer: "Divi uses advanced AI vision with built-in validation. It checks whether the image is actually a receipt before processing, warns you if the photo is too dark or overexposed, and cross-checks the item totals against the receipt's reported total. That said, always double-check the items on the Modify Receipt screen before proceeding."
     },
     {
       question: "Can I manually add or edit items?",
-      answer: "Yes! On the 'Modify Receipt' screen right after scanning, you can tap any item to edit its name or price, swipe left to delete it, or tap the plus (+) button at the bottom right to manually add a new item."
+      answer: "Yes! On the Modify Receipt screen right after scanning, you can tap any item to edit its name or price, swipe left to delete it, or tap the plus (+) button at the bottom right to manually add a new item."
     },
     {
       question: "How are tax and tip calculated?",
-      answer: "Divi uses the 'Largest Remainder Method' (Penny Allocation) to ensure mathematically perfect distribution of the overall tax and tip amounts based on the specific total value of the items each person ordered. No rounding errors!"
+      answer: "Divi uses the 'Largest Remainder Method' (Penny Allocation) to distribute tax proportionally based on each person's subtotal, and tip evenly across all participants. This ensures mathematically perfect distribution — no rounding errors or lost pennies!"
     },
     {
-      question: "Can I edit contact names before sending the summary?",
-      answer: "Absolutely. On the final Review screen, you can tap anybody's name in the breakdown card to edit it. This ensures that even if you have a friend saved in your contacts as 'John (From Work)', they won't receive a group text calling them that."
+      question: "Can I edit contact names before sending?",
+      answer: "Absolutely. On the final Review screen, tap anybody's name in their breakdown card to edit it. This way, even if you have a friend saved as 'John (From Work)', they won't receive a group text with that label."
     }
   ];
 

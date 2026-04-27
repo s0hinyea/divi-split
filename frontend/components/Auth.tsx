@@ -66,6 +66,7 @@ export default function Auth({ initialMode }: AuthProps) {
 	const [isUsernameTaken, setIsUsernameTaken] = useState(false);
 	const [errors, setErrors] = useState<Record<string, string>>({});
 	const [touched, setTouched] = useState<Record<string, boolean>>({});
+	const [loginError, setLoginError] = useState("");
 	
 	const router = useRouter();
 	const { mode: paramMode } = useLocalSearchParams<{ mode: string }>();
@@ -382,34 +383,28 @@ export default function Auth({ initialMode }: AuthProps) {
 
 	const performLogin = async () => {
 		// Login validation
-		if (!email.trim()) { Alert.alert("Missing Email", "Please enter your email."); return; }
-		if (!isValidEmail(email)) { Alert.alert("Invalid Email", "Please enter a valid email address."); return; }
-		if (!password) { Alert.alert("Missing Password", "Please enter your password."); return; }
+		if (!email.trim()) { setLoginError("Please enter your email."); return; }
+		if (!isValidEmail(email)) { setLoginError("Please enter a valid email address."); return; }
+		if (!password) { setLoginError("Please enter your password."); return; }
 
+		setLoginError("");
 		setLoading(true);
 		try {
 			const { error } = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password });
 
 			if (error) {
 				if (error.message.includes("Email not confirmed")) {
-					Alert.alert(
-						"Email Not Verified",
-						"You need to verify your email before logging in. Check your inbox or resend the link.",
-						[
-							{ text: "Resend Email", onPress: resendVerification },
-							{ text: "OK", style: "cancel" },
-						]
-					);
+					setLoginError("Email not verified. Check your inbox or tap 'Forgot password?' to resend.");
 				} else if (error.message.includes("Invalid login")) {
-					Alert.alert("Login Failed", "Incorrect email or password. Please try again.");
+					setLoginError("Incorrect email or password. Please try again.");
 				} else {
-					Alert.alert("Login Failed", error.message);
+					setLoginError(error.message);
 				}
 			} else {
 				router.replace("/(tabs)");
 			}
 		} catch (error) {
-			Alert.alert("Login Failed", getUserFacingErrorMessage(error, "We couldn't sign you in right now."));
+			setLoginError(getUserFacingErrorMessage(error, "We couldn't sign you in right now."));
 		} finally {
 			setLoading(false);
 		}
@@ -646,8 +641,9 @@ export default function Auth({ initialMode }: AuthProps) {
 					<Animated.View entering={FadeIn.duration(150)} style={styles.stepContainer}>
 						<Text style={styles.title}>Log In</Text>
 						<Text style={styles.subtitle}>Enter your credentials to continue.</Text>
-						<TextInput style={styles.input} placeholder="Email" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" textContentType="emailAddress" />
-						<TextInput style={[styles.input, { marginTop: 16 }]} placeholder="Password" value={password} onChangeText={setPassword} secureTextEntry textContentType="password" />
+						<TextInput style={styles.input} placeholder="Email" value={email} onChangeText={(t) => { setEmail(t); setLoginError(""); }} autoCapitalize="none" keyboardType="email-address" textContentType="emailAddress" />
+						<TextInput style={[styles.input, { marginTop: 16 }, !!loginError && styles.inputError]} placeholder="Password" value={password} onChangeText={(t) => { setPassword(t); setLoginError(""); }} secureTextEntry textContentType="password" />
+						{!!loginError && <Text style={styles.loginErrorText}>{loginError}</Text>}
 						<TouchableOpacity style={styles.forgotBtn} onPress={() => router.replace({ pathname: "/auth", params: { mode: "forgot-password" } })}>
 							<Text style={styles.forgotText}>Forgot password?</Text>
 						</TouchableOpacity>
@@ -809,6 +805,7 @@ const styles = StyleSheet.create({
 	inputError: { borderWidth: 1.5, borderColor: colors.error },
 	inputGroupError: { borderWidth: 1.5, borderColor: colors.error },
 	errorText: { fontSize: 13, color: colors.error, fontFamily: fonts.bodyMedium, marginTop: 8, marginLeft: 4 },
+	loginErrorText: { fontSize: 13, color: colors.error, fontFamily: fonts.bodyMedium, marginTop: 8, marginLeft: 4 },
 	successText: { fontSize: 13, color: colors.green, fontFamily: fonts.bodyMedium, marginTop: 8, marginLeft: 4 },
 	checklistContainer: { marginTop: 16, paddingLeft: 4, gap: 6 },
 	checkItem: { fontSize: 13, fontFamily: fonts.body },

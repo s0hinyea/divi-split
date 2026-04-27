@@ -4,13 +4,15 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useCallback, useMemo } from 'react';
 import { useRouter } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
-import { fonts, fontSizes, spacing } from '@/styles/theme';
+import { fonts, fontSizes, spacing, colors, radii } from '@/styles/theme';
 import { useThemeColors } from '@/utils/ThemeContext';
 import ReceiptCard from '@/components/ReceiptCard';
 import { useHistory } from '@/utils/HistoryContext';
 import { useProfile } from '@/utils/ProfileContext';
 import { useSession } from '@/utils/SessionContext';
 import { DashboardSkeleton } from '@/components/SkeletonLoader';
+import { useSplitStore } from '@/stores/splitStore';
+import { useCustomAlert } from '@/components/CustomAlert';
 
 function ReceiptLines({ color }: { color: string }) {
     return (
@@ -139,6 +141,86 @@ function createStyles(C: ReturnType<typeof useThemeColors>) {
 const styles = StyleSheet.create({
     receiptLines: { gap: 6, marginTop: spacing.sm },
     receiptLine: { height: 2, borderRadius: 1 },
+
+    resumeBanner: {
+        flexDirection: 'row',
+        backgroundColor: colors.white,
+        borderRadius: radii.md,
+        marginBottom: spacing.lg,
+        overflow: 'hidden',
+        shadowColor: colors.black,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.07,
+        shadowRadius: 8,
+        elevation: 3,
+    },
+    resumeBannerAccent: {
+        width: 4,
+        backgroundColor: colors.green,
+    },
+    resumeBannerBody: {
+        flex: 1,
+        padding: spacing.md,
+        gap: spacing.xs,
+    },
+    resumeBannerTop: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: spacing.xs,
+    },
+    resumeBannerTitle: {
+        fontFamily: fonts.bodyBold,
+        fontSize: fontSizes.sm,
+        color: colors.black,
+        flex: 1,
+    },
+    resumeStepPill: {
+        backgroundColor: colors.gray100,
+        borderRadius: radii.full,
+        paddingHorizontal: spacing.sm,
+        paddingVertical: 2,
+    },
+    resumeStepText: {
+        fontFamily: fonts.body,
+        fontSize: fontSizes.xs,
+        color: colors.gray500,
+    },
+    resumeBannerSubtitle: {
+        fontFamily: fonts.body,
+        fontSize: fontSizes.xs,
+        color: colors.gray500,
+        marginBottom: spacing.xs,
+    },
+    resumeBannerActions: {
+        flexDirection: 'row',
+        gap: spacing.sm,
+        marginTop: spacing.xs,
+    },
+    resumeButton: {
+        flex: 1,
+        backgroundColor: colors.black,
+        borderRadius: radii.full,
+        paddingVertical: spacing.sm,
+        alignItems: 'center',
+    },
+    resumeButtonText: {
+        fontFamily: fonts.bodySemiBold,
+        fontSize: fontSizes.sm,
+        color: colors.white,
+    },
+    discardButton: {
+        paddingVertical: spacing.sm,
+        paddingHorizontal: spacing.md,
+        borderRadius: radii.full,
+        borderWidth: 1,
+        borderColor: colors.gray300,
+        alignItems: 'center',
+    },
+    discardButtonText: {
+        fontFamily: fonts.bodySemiBold,
+        fontSize: fontSizes.sm,
+        color: colors.gray500,
+    },
 });
 
 export default function Dashboard() {
@@ -149,6 +231,41 @@ export default function Dashboard() {
     const [refreshing, setRefreshing] = useState(false);
     const C = useThemeColors();
     const themed = useMemo(() => createStyles(C), [C]);
+
+    const currentStep = useSplitStore((state) => state.currentStep);
+    const resumeContactIndex = useSplitStore((state) => state.resumeContactIndex);
+    const receiptItems = useSplitStore((state) => state.receiptData.items);
+    const resetStore = useSplitStore((state) => state.resetStore);
+    const { showAlert } = useCustomAlert();
+
+    const splitInProgress = currentStep !== null && receiptItems.length > 0;
+
+    const STEP_LABELS: Record<string, string> = {
+        contacts: 'Selecting contacts',
+        result: 'Editing items',
+        assign: 'Assigning items',
+        review: 'Reviewing',
+    };
+
+    const resumeSplit = () => {
+        if (!currentStep) return;
+        if (currentStep === 'assign') {
+            router.push({ pathname: '/assign', params: { initialIndex: resumeContactIndex } });
+        } else {
+            router.push(`/${currentStep}` as any);
+        }
+    };
+
+    const discardSplit = () => {
+        showAlert({
+            title: 'Discard split?',
+            message: 'Your in-progress split will be lost.',
+            buttons: [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Discard', style: 'destructive', onPress: resetStore },
+            ],
+        });
+    };
 
     const onRefresh = useCallback(async () => {
         setRefreshing(true);
@@ -187,6 +304,43 @@ export default function Dashboard() {
             >
                 <Text style={themed.greeting}>{getGreeting()},</Text>
                 <Text style={themed.userName}>{getUserName()}.</Text>
+
+                {/* Resume in-progress split banner */}
+                {splitInProgress && (
+                    <View style={styles.resumeBanner}>
+                        <View style={styles.resumeBannerAccent} />
+                        <View style={styles.resumeBannerBody}>
+                            <View style={styles.resumeBannerTop}>
+                                <MaterialIcons name="schedule" size={18} color={colors.green} />
+                                <Text style={styles.resumeBannerTitle}>Split in progress</Text>
+                                <View style={styles.resumeStepPill}>
+                                    <Text style={styles.resumeStepText}>
+                                        {currentStep ? STEP_LABELS[currentStep] : ''}
+                                    </Text>
+                                </View>
+                            </View>
+                            <Text style={styles.resumeBannerSubtitle}>
+                                Tap Resume to pick up where you left off.
+                            </Text>
+                            <View style={styles.resumeBannerActions}>
+                                <TouchableOpacity
+                                    style={styles.resumeButton}
+                                    onPress={resumeSplit}
+                                    activeOpacity={0.85}
+                                >
+                                    <Text style={styles.resumeButtonText}>Resume</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={styles.discardButton}
+                                    onPress={discardSplit}
+                                    activeOpacity={0.7}
+                                >
+                                    <Text style={styles.discardButtonText}>Discard</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    </View>
+                )}
 
                 {/* Stat cards */}
                 <View style={themed.statRow}>

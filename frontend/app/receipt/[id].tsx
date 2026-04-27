@@ -7,7 +7,6 @@ import {
     TouchableOpacity,
     StyleSheet,
     ActivityIndicator,
-    Alert,
     Modal,
     Dimensions,
 } from 'react-native';
@@ -24,6 +23,8 @@ import { getUserFacingErrorMessage } from '@/utils/network';
 import { colors, fonts, fontSizes, spacing, radii } from '@/styles/theme';
 import { useReviewAgent, ReviewState, ReviewCallbacks } from '@/utils/useReviewAgent';
 import ReviewAgentPanel from '@/components/ReviewAgentPanel';
+import { useToast } from '@/components/ToastProvider';
+import { useCustomAlert } from '@/components/CustomAlert';
 
 type DbItem = { id: string; item_name: string; item_price: number };
 
@@ -40,6 +41,8 @@ export default function ReceiptDetail() {
     const router = useRouter();
     const { receipts } = useHistory();
     const { profile } = useProfile();
+    const { showToast } = useToast();
+    const { showAlert } = useCustomAlert();
     const resetStore = useSplitStore((s) => s.resetStore);
     const hydrateForEdit = useSplitStore((s) => s.hydrateForEdit);
 
@@ -131,7 +134,7 @@ export default function ReceiptDetail() {
         fetchAssignments();
     }, [fetchAssignments]);
 
-    const handleEditSplit = async () => {
+    const performEdit = async () => {
         if (!receipt) return;
         setEditLoading(true);
         try {
@@ -176,10 +179,27 @@ export default function ReceiptDetail() {
 
             router.push('/contacts');
         } catch (err) {
-            Alert.alert('Error', getUserFacingErrorMessage(err, 'Could not load receipt for editing.'));
+            showToast(getUserFacingErrorMessage(err, 'Could not load receipt for editing.'), 'error');
         } finally {
             setEditLoading(false);
         }
+    };
+
+    const handleEditSplit = () => {
+        if (!receipt) return;
+        const inProgress = useSplitStore.getState().receiptData.items.length > 0;
+        if (inProgress) {
+            showAlert({
+                title: 'Discard In-Progress Split?',
+                message: 'You have an unfinished split in progress. Editing this receipt will discard it.',
+                buttons: [
+                    { text: 'Cancel', style: 'cancel' },
+                    { text: 'Discard & Edit', style: 'destructive', onPress: performEdit },
+                ],
+            });
+            return;
+        }
+        performEdit();
     };
 
     const handleResendSMS = async () => {
@@ -188,12 +208,12 @@ export default function ReceiptDetail() {
         try {
             const isAvailable = await SMS.isAvailableAsync();
             if (!isAvailable) {
-                Alert.alert('SMS Not Available', 'This device cannot send text messages.');
+                showToast('This device cannot send text messages.', 'error');
                 return;
             }
 
             if (contacts.length === 0) {
-                Alert.alert('No Assignments', 'No item assignments found for this receipt.');
+                showToast('No item assignments found for this receipt.', 'warning');
                 return;
             }
 
@@ -202,7 +222,7 @@ export default function ReceiptDetail() {
                 .filter((p) => !!p && p !== 'no-phone');
 
             if (phoneNumbers.length === 0) {
-                Alert.alert('No Phone Numbers', 'None of the assigned contacts have phone numbers.');
+                showToast('None of the assigned contacts have phone numbers.', 'warning');
                 return;
             }
 
@@ -266,7 +286,7 @@ export default function ReceiptDetail() {
 
             await SMS.sendSMSAsync(phoneNumbers, message);
         } catch (err) {
-            Alert.alert('Error', getUserFacingErrorMessage(err, 'Failed to send SMS.'));
+            showToast(getUserFacingErrorMessage(err, 'Failed to send SMS.'), 'error');
         } finally {
             setResending(false);
         }
@@ -359,7 +379,7 @@ export default function ReceiptDetail() {
                 <View style={styles.card}>
                     {receipt.receipt_items.map((item) => (
                         <View key={item.id} style={styles.row}>
-                            <Text style={styles.rowLabel}>{item.item_name}</Text>
+                            <Text style={styles.rowLabel} numberOfLines={1}>{item.item_name}</Text>
                             <Text style={styles.rowValue}>${item.item_price.toFixed(2)}</Text>
                         </View>
                     ))}
@@ -382,7 +402,7 @@ export default function ReceiptDetail() {
                                 <View style={styles.divider} />
                                 {c.items.map((item) => (
                                     <View key={item.id} style={styles.row}>
-                                        <Text style={styles.rowLabel}>{item.item_name}</Text>
+                                        <Text style={styles.rowLabel} numberOfLines={1}>{item.item_name}</Text>
                                         <Text style={styles.rowValue}>${item.item_price.toFixed(2)}</Text>
                                     </View>
                                 ))}
@@ -483,16 +503,19 @@ const styles = StyleSheet.create({
     },
 
     sectionTitle: {
-        fontFamily: fonts.bodyBold,
-        fontSize: fontSizes.md,
-        color: colors.black,
+        fontFamily: fonts.bodySemiBold,
+        fontSize: fontSizes.xs,
+        color: colors.gray500,
+        letterSpacing: 0.8,
+        textTransform: 'uppercase',
         marginTop: spacing.lg,
-        marginBottom: spacing.sm,
+        marginBottom: spacing.xs,
     },
     card: {
         backgroundColor: colors.white,
         borderRadius: radii.md,
-        padding: spacing.md,
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.sm,
         marginBottom: spacing.sm,
         shadowColor: colors.black,
         shadowOffset: { width: 0, height: 1 },
@@ -501,33 +524,36 @@ const styles = StyleSheet.create({
         elevation: 2,
     },
     cardTitle: {
-        fontFamily: fonts.bodyBold,
-        fontSize: fontSizes.md,
-        color: colors.black,
-        marginBottom: spacing.sm,
+        fontFamily: fonts.bodySemiBold,
+        fontSize: fontSizes.xs,
+        color: colors.gray500,
+        letterSpacing: 0.8,
+        textTransform: 'uppercase',
+        marginBottom: spacing.xs,
+        marginTop: spacing.xs,
     },
     divider: {
         height: 1,
         backgroundColor: colors.gray200,
-        marginVertical: spacing.sm,
+        marginVertical: spacing.xs,
     },
     row: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        paddingVertical: 2,
+        paddingVertical: 5,
     },
     rowLabel: {
         fontFamily: fonts.body,
         fontSize: fontSizes.md,
-        color: colors.gray800,
+        color: colors.black,
         flex: 1,
         marginRight: spacing.sm,
     },
     rowValue: {
-        fontFamily: fonts.body,
+        fontFamily: fonts.bodySemiBold,
         fontSize: fontSizes.md,
-        color: colors.gray600,
+        color: colors.green,
     },
     totalLabel: {
         fontFamily: fonts.bodyBold,
@@ -536,18 +562,19 @@ const styles = StyleSheet.create({
     },
     totalValue: {
         fontFamily: fonts.bodyBold,
-        fontSize: fontSizes.md,
+        fontSize: fontSizes.lg,
         color: colors.green,
     },
     contactName: {
-        fontFamily: fonts.bodyBold,
-        fontSize: fontSizes.md,
+        fontFamily: fonts.bodySemiBold,
+        fontSize: fontSizes.sm,
         color: colors.black,
-        marginBottom: spacing.xs,
+        marginBottom: 2,
+        marginTop: spacing.xs,
     },
     emptyText: {
         fontFamily: fonts.body,
-        fontSize: fontSizes.md,
+        fontSize: fontSizes.sm,
         color: colors.gray400,
         textAlign: 'center',
         paddingVertical: spacing.md,

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Modal, Alert, ActivityIndicator, TextInput, Platform, StyleSheet, Dimensions } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Modal, ActivityIndicator, TextInput, Platform, StyleSheet, Animated } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSplitStore, ReceiptItem } from '../stores/splitStore';
 import { useHistory } from '../utils/HistoryContext';
@@ -7,12 +7,13 @@ import { useProfile } from '../utils/ProfileContext';
 import * as SMS from 'expo-sms';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { colors, fonts, fontSizes, spacing, radii, shadows } from '@/styles/theme';
+import { colors, fonts, fontSizes, spacing, radii } from '@/styles/theme';
 import { MaterialIcons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { allocateAmount } from '../utils/mathUtil';
-import { useReviewAgent, executeMoveItem, ReviewState, ReviewCallbacks } from '../utils/useReviewAgent';
-import ReviewAgentPanel from '../components/ReviewAgentPanel';
+import { useReviewAgent, executeMoveItem, ReviewState, ReviewCallbacks, ActionSummary } from '../utils/useReviewAgent';
+import DiviLogoAnimated from '../components/DiviLogoAnimated';
+import { useToast } from '../components/ToastProvider';
 
 export default function ReviewPage() {
   const router = useRouter();
@@ -31,7 +32,15 @@ export default function ReviewPage() {
   const { profile } = useProfile();
   // Modal state
   const [showSmsModal, setShowSmsModal] = useState(false);
-  const [agentVisible, setAgentVisible] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // ── Agent overlay ───────────────────────────────────────────────────────────
+  const [overlayVisible, setOverlayVisible] = useState(false);
+  const [overlayPhase, setOverlayPhase] = useState<'processing' | 'revealing'>('processing');
+  const [revealItems, setRevealItems] = useState<{ summary: ActionSummary; opacity: Animated.Value; translateY: Animated.Value }[]>([]);
+  const overlayOpacity = useRef(new Animated.Value(0)).current;
+  const overlayActiveRef = useRef(false);
+  const pendingDispatchRef = useRef(false);
 
   // Refs for the review agent — always current, no stale closure issues
   const reviewStateRef = useRef<ReviewState>({
@@ -54,6 +63,10 @@ export default function ReviewPage() {
   });
 
   const agent = useReviewAgent(reviewStateRef, reviewCallbacksRef);
+  const { showToast } = useToast();
+  const setCurrentStep = useSplitStore((state) => state.setCurrentStep);
+
+  useEffect(() => { setCurrentStep('review'); }, []);
 
   // Receipt name and date states — pre-populated when editing an existing receipt
   const [receiptName, setReceiptName] = useState(editingReceiptName || '');
@@ -72,6 +85,57 @@ export default function ReviewPage() {
       updateReceiptData({ ...receiptData, total: grandTotal })
     }
   }, [receiptData.items, receiptData.tax, receiptData.tip, selected]);
+
+  useEffect(() => {
+    const isProcessing = agent.loading || agent.isTranscribing;
+    if (isProcessing) {
+      if (!overlayActiveRef.current) {
+        overlayActiveRef.current = true;
+        setOverlayPhase('processing');
+        setOverlayVisible(true);
+        Animated.timing(overlayOpacity, { toValue: 1, duration: 200, useNativeDriver: true }).start();
+      }
+      return;
+    }
+    if (!overlayActiveRef.current) return;
+    overlayActiveRef.current = false;
+
+    const summary = agent.lastActionSummary;
+    if (summary && summary.length > 0) {
+      const items = summary.map(s => ({
+        summary: s,
+        opacity: new Animated.Value(0),
+        translateY: new Animated.Value(12),
+      }));
+      setRevealItems(items);
+      setOverlayPhase('revealing');
+      Animated.sequence([
+        Animated.stagger(500, items.map(item =>
+          Animated.parallel([
+            Animated.timing(item.opacity, { toValue: 1, duration: 450, useNativeDriver: true }),
+            Animated.timing(item.translateY, { toValue: 0, duration: 450, useNativeDriver: true }),
+          ])
+        )),
+        Animated.delay(2000),
+        Animated.timing(overlayOpacity, { toValue: 0, duration: 500, useNativeDriver: true }),
+      ]).start(() => {
+        setOverlayVisible(false);
+        setRevealItems([]);
+        if (pendingDispatchRef.current) {
+          pendingDispatchRef.current = false;
+          handleFinish();
+        }
+      });
+    } else {
+      Animated.timing(overlayOpacity, { toValue: 0, duration: 300, useNativeDriver: true }).start(() => {
+        setOverlayVisible(false);
+        if (pendingDispatchRef.current) {
+          pendingDispatchRef.current = false;
+          handleFinish();
+        }
+      });
+    }
+  }, [agent.loading, agent.isTranscribing, agent.lastActionSummary]);
 
   const calculateTaxBreakdown = () => {
     if (!('tax' in receiptData) || !receiptData.tax || receiptData.tax <= 0) {
@@ -130,7 +194,7 @@ export default function ReviewPage() {
     try {
       const isAvailable = await SMS.isAvailableAsync();
       if (!isAvailable) {
-        Alert.alert('SMS Not Available', 'This device cannot send text messages.');
+        showToast('This device cannot send text messages.', 'error');
         return;
       }
 
@@ -140,7 +204,7 @@ export default function ReviewPage() {
         .filter((num): num is string => !!num);
 
       if (phoneNumbers.length === 0) {
-        Alert.alert('No Phone Numbers', 'None of the selected contacts have phone numbers.');
+        showToast('None of the selected contacts have phone numbers.', 'warning');
         return;
       }
 
@@ -213,7 +277,7 @@ export default function ReviewPage() {
 
     } catch (error) {
       console.error('SMS Error:', error);
-      Alert.alert('Error', 'Failed to open Messages.');
+      showToast('Failed to open Messages.', 'error');
       setShowSmsModal(false);
     }
   };
@@ -242,13 +306,14 @@ export default function ReviewPage() {
   // Handle finish — save (new) or update (edit) receipt, then prompt for SMS
   const handleFinish = async () => {
     const name = receiptName.trim() || `Split - ${receiptDate.toLocaleDateString()}`;
-
-    const success = editingReceiptId
-      ? await updateReceipt(editingReceiptId, name, receiptDate)
-      : await saveReceipt(name, receiptDate);
-
-    if (success) {
-      await refreshReceipts();
+    setIsSaving(true);
+    try {
+      const success = editingReceiptId
+        ? await updateReceipt(editingReceiptId, name, receiptDate)
+        : await saveReceipt(name, receiptDate);
+      if (success) await refreshReceipts();
+    } finally {
+      setIsSaving(false);
     }
 
     if (selected.length > 0) {
@@ -267,8 +332,7 @@ export default function ReviewPage() {
     setTip: (amount) => updateReceiptData({ tip: amount }),
     moveItem: executeMoveItem,
     triggerDispatch: () => {
-      setAgentVisible(false);
-      handleFinish();
+      pendingDispatchRef.current = true;
     },
   };
 
@@ -278,7 +342,7 @@ export default function ReviewPage() {
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <TouchableOpacity
-              onPress={() => router.push({ pathname: '/assign', params: { initialIndex: selected.length - 1 } })}
+              onPress={() => router.back()}
               style={{ marginRight: spacing.sm }}
             >
               <MaterialIcons name="arrow-back" size={28} color={colors.black} />
@@ -288,13 +352,23 @@ export default function ReviewPage() {
               <Text style={{ color: colors.green }}>Split</Text>
             </Text>
           </View>
-          <TouchableOpacity
-            style={styles.agentButton}
-            onPress={() => setAgentVisible(true)}
-            activeOpacity={0.8}
-          >
-            <MaterialIcons name="auto-awesome" size={18} color={colors.green} />
-          </TouchableOpacity>
+          <View style={styles.headerRight}>
+            <TouchableOpacity onPress={() => router.replace('/(tabs)')} style={styles.homeButton}>
+              <MaterialIcons name="home" size={20} color={colors.gray400} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.agentButton, agent.isRecording && styles.agentButtonRecording]}
+              onPress={agent.isRecording ? agent.stopAndSend : agent.startRecording}
+              disabled={agent.loading || agent.isTranscribing}
+              activeOpacity={0.8}
+            >
+              <MaterialIcons
+                name={agent.isRecording ? 'stop' : 'auto-awesome'}
+                size={18}
+                color={agent.isRecording ? colors.white : colors.green}
+              />
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
 
@@ -433,6 +507,16 @@ export default function ReviewPage() {
           })()
         )}
 
+        {/* Level 4: Math mismatch warning */}
+        {'confidence' in receiptData && receiptData.confidence === 'low' && (
+          <View style={styles.mismatchCard}>
+            <MaterialIcons name="warning" size={16} color={colors.warning} />
+            <Text style={styles.mismatchText}>
+              The item totals don't perfectly match the scanned receipt. Please review the amounts before finalizing.
+            </Text>
+          </View>
+        )}
+
         {/* Show final total calculation */}
         {(() => {
           const allMealItems = 'items' in receiptData ? receiptData.items : [];
@@ -476,32 +560,57 @@ export default function ReviewPage() {
 
       <View style={styles.footer}>
         <TouchableOpacity
-          style={styles.finishButton}
+          style={[styles.finishButton, isSaving && { opacity: 0.7 }]}
           onPress={handleFinish}
+          disabled={isSaving}
+          activeOpacity={0.8}
         >
-          <Text style={styles.finishButtonText}>Proceed</Text>
+          {isSaving
+            ? <ActivityIndicator size="small" color={colors.white} />
+            : <Text style={styles.finishButtonText}>Proceed</Text>
+          }
         </TouchableOpacity>
       </View>
 
-      {/* Review Agent Modal */}
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={agentVisible}
-        onRequestClose={() => setAgentVisible(false)}
-      >
-        <View style={styles.agentModalOverlay}>
-          <TouchableOpacity
-            style={styles.agentModalDismiss}
-            activeOpacity={1}
-            onPress={() => setAgentVisible(false)}
-          />
-          <View style={styles.agentModalSheet}>
-            <View style={styles.agentHandle} />
-            <ReviewAgentPanel {...agent} />
+      {/* Agent overlay — processing spinner → action reveal → fade out */}
+      {overlayVisible && (
+        <Animated.View style={[styles.processingOverlay, { opacity: overlayOpacity }]}>
+          <BlurView intensity={55} style={StyleSheet.absoluteFill} />
+          <View style={styles.overlayContent}>
+            {overlayPhase === 'processing' && (
+              <DiviLogoAnimated size={140} />
+            )}
+            {overlayPhase === 'revealing' && (
+              <View style={styles.actionList}>
+                {revealItems.map((item, i) => {
+                  const verbColor =
+                    item.summary.verb === 'Sent' ? colors.green :
+                    item.summary.verb === 'Moved' ? colors.black :
+                    colors.black;
+                  const iconName =
+                    item.summary.verb === 'Renamed' ? 'edit' :
+                    item.summary.verb === 'Moved' ? 'swap-horiz' :
+                    item.summary.verb === 'Sent' ? 'send' :
+                    'edit';
+                  return (
+                    <Animated.View
+                      key={i}
+                      style={[styles.actionRow, { opacity: item.opacity, transform: [{ translateY: item.translateY }] }]}
+                    >
+                      <MaterialIcons name={iconName as any} size={18} color={verbColor} />
+                      <Text style={[styles.actionVerb, { color: verbColor }]}>{item.summary.verb}</Text>
+                      <Text style={styles.actionName} numberOfLines={1}>{item.summary.name}</Text>
+                      {item.summary.amount !== undefined && (
+                        <Text style={styles.actionAmount}>${item.summary.amount.toFixed(2)}</Text>
+                      )}
+                    </Animated.View>
+                  );
+                })}
+              </View>
+            )}
           </View>
-        </View>
-      </Modal>
+        </Animated.View>
+      )}
 
       {/* Group SMS Modal */}
       <Modal
@@ -632,6 +741,24 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.green,
   },
+  mismatchCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+    backgroundColor: `${colors.warning}15`,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: `${colors.warning}40`,
+    padding: spacing.md,
+    marginTop: spacing.lg,
+  },
+  mismatchText: {
+    fontFamily: fonts.body,
+    fontSize: fontSizes.sm,
+    color: colors.gray600,
+    flex: 1,
+    lineHeight: 18,
+  },
   cardTitle: {
     fontFamily: fonts.bodyBold,
     fontSize: fontSizes.lg,
@@ -665,13 +792,14 @@ const styles = StyleSheet.create({
   itemName: {
     fontFamily: fonts.body,
     fontSize: fontSizes.md,
-    color: colors.gray600,
+    color: colors.black,
     flex: 1,
+    marginRight: spacing.sm,
   },
   itemPrice: {
-    fontFamily: fonts.body,
+    fontFamily: fonts.bodySemiBold,
     fontSize: fontSizes.md,
-    color: colors.black,
+    color: colors.green,
   },
   summaryRow: {
     flexDirection: 'row',
@@ -726,6 +854,11 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.md,
     color: colors.white,
   },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
   modalOverlay: {
     flex: 1,
     justifyContent: 'center',
@@ -775,7 +908,14 @@ const styles = StyleSheet.create({
     color: colors.black,
   },
 
-  // Agent button in header
+  homeButton: {
+    width: 32,
+    height: 32,
+    borderRadius: radii.full,
+    backgroundColor: colors.gray100,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   agentButton: {
     width: 36,
     height: 36,
@@ -784,29 +924,45 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-
-  // Agent modal bottom sheet
-  agentModalOverlay: {
+  agentButtonRecording: {
+    backgroundColor: colors.error,
+  },
+  processingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 100,
+  },
+  overlayContent: {
     flex: 1,
-    justifyContent: 'flex-end',
+    justifyContent: 'center',
+    alignItems: 'flex-start',
+    paddingHorizontal: spacing.xl + 8,
   },
-  agentModalDismiss: {
+  actionList: {
+    gap: spacing.xl,
+    width: '100%',
+  },
+  actionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  actionVerb: {
+    fontFamily: fonts.bodyBold,
+    fontSize: fontSizes.xl,
+    minWidth: 90,
+  },
+  actionName: {
+    fontFamily: fonts.body,
+    fontSize: fontSizes.xl,
+    color: colors.black,
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.35)',
   },
-  agentModalSheet: {
-    height: Dimensions.get('window').height * 0.72,
-    backgroundColor: colors.white,
-    borderTopLeftRadius: radii.xl,
-    borderTopRightRadius: radii.xl,
-    overflow: 'hidden',
-  },
-  agentHandle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: colors.gray300,
-    alignSelf: 'center',
-    marginTop: spacing.md,
+  actionAmount: {
+    fontFamily: fonts.bodySemiBold,
+    fontSize: fontSizes.xl,
+    color: colors.green,
   },
 });

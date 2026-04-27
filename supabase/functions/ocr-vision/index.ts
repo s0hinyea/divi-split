@@ -90,7 +90,8 @@ Deno.serve(async (req) => {
             `You are an expert receipt parser. Analyze the image and extract structured receipt data according to the schema.
 - If the image is NOT a valid receipt (e.g. a person, wall, blank image), set is_receipt to false.
 - Do NOT include 'Subtotal', 'Tax', 'Tip', or 'Total' as items.
-- Price MUST be the LINE TOTAL for that item.`
+- Price MUST be the LINE TOTAL for that item.
+- Categorize every item: drink (any beverage), appetizer (starters/small plates), entree (main courses), side (fries/rice/extras), dessert (sweets), other (fees/add-ons/unclear).`
         },
         {
           role: "user",
@@ -124,9 +125,14 @@ Deno.serve(async (req) => {
                     id: { type: "string" },
                     name: { type: "string", description: "Cleaned item name" },
                     price: { type: "number", description: "The LINE TOTAL using only numbers" },
-                    quantity: { type: "number", description: "The number of items shown. Default 1" }
+                    quantity: { type: "number", description: "The number of items shown. Default 1" },
+                    category: {
+                      type: "string",
+                      enum: ["drink", "appetizer", "entree", "dessert", "side", "other"],
+                      description: "Categorize the item into one of the allowed types. Use 'other' if unclear or for fees/upcharges."
+                    }
                   },
-                  required: ["id", "name", "price", "quantity"],
+                  required: ["id", "name", "price", "quantity", "category"],
                   additionalProperties: false
                 }
               },
@@ -182,6 +188,7 @@ Deno.serve(async (req) => {
           id: crypto.randomUUID(), // Deno Web API
           name: itemName,
           price: Math.round(unitPrice * 100) / 100,
+          category: item.category ?? "other",
         });
       }
     });

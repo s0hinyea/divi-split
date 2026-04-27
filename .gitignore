@@ -56,6 +56,5 @@ eas.json
 
 # Personal
 resume.md
-frontend/ios/
-frontend/android/
+# ios/android are committed so EAS skips prebuild and uses the correct native target name
 app.json

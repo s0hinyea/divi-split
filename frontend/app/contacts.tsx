@@ -27,6 +27,12 @@ export default function ChooseContacts() {
   const receiptData = useSplitStore((state) => state.receiptData);
   const [searchQuery, setSearchQuery] = useState("");
   const router = useRouter();
+  const setCurrentStep = useSplitStore((state) => state.setCurrentStep);
+  const resetStore = useSplitStore((state) => state.resetStore);
+
+  useEffect(() => {
+    setCurrentStep('contacts');
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -85,7 +91,7 @@ export default function ChooseContacts() {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
-          <TouchableOpacity onPress={() => router.replace('/(tabs)')} style={{ marginRight: spacing.sm }}>
+          <TouchableOpacity onPress={() => { resetStore(); router.replace('/(tabs)'); }} style={{ marginRight: spacing.sm }}>
             <MaterialIcons name="arrow-back" size={28} color={colors.black} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>
@@ -152,7 +158,7 @@ export default function ChooseContacts() {
             <Text style={[styles.statusText, { color: colors.error }]}>{ocrError}</Text>
             <TouchableOpacity
               style={[styles.continueButton, { marginTop: spacing.sm }]}
-              onPress={() => router.replace('/(tabs)')}
+              onPress={() => { resetStore(); router.replace('/(tabs)'); }}
               activeOpacity={0.8}
             >
               <Text style={styles.buttonText}>Go Home</Text>
@@ -179,7 +185,7 @@ export default function ChooseContacts() {
                     "No Items Found",
                     "We couldn't detect any assignable items on this receipt. Please try scanning again.",
                     [
-                      { text: "Go Home", onPress: () => router.replace('/(tabs)') }
+                      { text: "Go Home", onPress: () => { resetStore(); router.replace('/(tabs)'); } }
                     ]
                   );
                 });

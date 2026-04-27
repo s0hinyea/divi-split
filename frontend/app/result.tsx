@@ -4,7 +4,7 @@ import { View, TextInput, StyleSheet, TouchableOpacity, Pressable, Image, Modal,
 import * as Haptics from 'expo-haptics';
 import { ScrollView } from 'react-native-gesture-handler';
 import { Button, Surface } from 'react-native-paper';
-import { useSplitStore, ReceiptItem } from '../stores/splitStore';
+import { useSplitStore, ReceiptItem, ItemCategory } from '../stores/splitStore';
 import { TouchableOpacity as GHTouchableOpacity } from 'react-native-gesture-handler';
 import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -27,7 +27,10 @@ export default function OCRResults() {
   const splitItemStore = useSplitStore((state) => state.splitItem);
   const updateReceiptData = useSplitStore((state) => state.updateReceiptData);
   const receiptData = useSplitStore((state) => state.receiptData);
+  const setCurrentStep = useSplitStore((state) => state.setCurrentStep);
   const { addChange, undoChange, clearChanges, changes } = useChange();
+
+  useEffect(() => { setCurrentStep('result'); }, []);
 
   const agent = useResultAgent(addChange);
 
@@ -101,6 +104,21 @@ export default function OCRResults() {
 
   // Get items from context instead of params
   const items = 'items' in receiptData ? receiptData.items : [];
+  const displayItems = items.filter(item => item.name.trim().toLowerCase() !== 'tax');
+
+  const CATEGORY_ORDER: ItemCategory[] = ['entree', 'appetizer', 'side', 'drink', 'dessert', 'other'];
+  const CATEGORY_LABELS: Record<ItemCategory, string> = {
+    entree: 'Entrees',
+    appetizer: 'Appetizers',
+    side: 'Sides',
+    drink: 'Drinks',
+    dessert: 'Desserts',
+    other: 'Other',
+  };
+  const groupedItems = CATEGORY_ORDER
+    .map(cat => ({ cat, items: displayItems.filter(it => (it.category ?? 'other') === cat) }))
+    .filter(g => g.items.length > 0);
+  const hasCategoryData = displayItems.some(it => it.category != null);
 
   // Monitor changes array
   useEffect(() => {
@@ -279,25 +297,30 @@ export default function OCRResults() {
       <View style={styles.headerContainer}>
         <View style={styles.header}>
           <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.sm }}>
-            <TouchableOpacity onPress={() => router.push('/contacts')} style={{ marginRight: spacing.sm }}>
+            <TouchableOpacity onPress={() => router.back()} style={{ marginRight: spacing.sm }}>
               <MaterialIcons name="arrow-back" size={28} color={colors.black} />
             </TouchableOpacity>
             <Text style={[styles.headerTitle, { flex: 1 }]}>
               <Text style={{ color: colors.black }}>Modify </Text>
               <Text style={{ color: colors.green }}>Receipt</Text>
             </Text>
-            <TouchableOpacity
-              style={[styles.agentButton, agent.isRecording && styles.agentButtonRecording]}
-              onPress={agent.isRecording ? agent.stopAndSend : agent.startRecording}
-              disabled={agent.loading || agent.isTranscribing}
-              activeOpacity={0.8}
-            >
-              <MaterialIcons
-                name={agent.isRecording ? 'stop' : 'auto-awesome'}
-                size={18}
-                color={agent.isRecording ? colors.white : colors.green}
-              />
-            </TouchableOpacity>
+            <View style={styles.headerRight}>
+              <TouchableOpacity onPress={() => router.replace('/(tabs)')} style={styles.homeButton}>
+                <MaterialIcons name="home" size={20} color={colors.gray400} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.agentButton, agent.isRecording && styles.agentButtonRecording]}
+                onPress={agent.isRecording ? agent.stopAndSend : agent.startRecording}
+                disabled={agent.loading || agent.isTranscribing}
+                activeOpacity={0.8}
+              >
+                <MaterialIcons
+                  name={agent.isRecording ? 'stop' : 'auto-awesome'}
+                  size={18}
+                  color={agent.isRecording ? colors.white : colors.green}
+                />
+              </TouchableOpacity>
+            </View>
           </View>
           <Text style={styles.headerSubtitle}>Tap to edit, swipe left to delete, hold to split</Text>
         </View>
@@ -367,9 +390,61 @@ export default function OCRResults() {
           }}
         >
           <View style={styles.itemsContainer}>
-            {items
-              .filter(item => item.name.trim().toLowerCase() !== 'tax')
-              .map(item => (
+            {hasCategoryData ? (
+              groupedItems.map(({ cat, items: groupItems }) => (
+                <View key={cat}>
+                  <Text style={styles.categoryHeader}>{CATEGORY_LABELS[cat]}</Text>
+                  <View style={styles.categoryGroup}>
+                    {groupItems.map(item => (
+                      changing === item.id ? (
+                        <View key={item.id} style={styles.changeRow}>
+                          <View style={[styles.changeInputContainer, { flex: 2 }]}>
+                            <TextInput
+                              style={styles.changeInput}
+                              value={newName}
+                              onChangeText={(text) => changeName(item.id, text, item)}
+                              onSubmitEditing={() => { Keyboard.dismiss(); finishChange(); }}
+                              autoFocus
+                            />
+                          </View>
+                          <View style={[styles.changeInputContainer, { flex: 1 }]}>
+                            <TextInput
+                              style={styles.changeInput}
+                              value={newPrice}
+                              onChangeText={(text) => changePrice(item.id, text, item)}
+                              keyboardType="decimal-pad"
+                              onSubmitEditing={() => { Keyboard.dismiss(); finishChange(); }}
+                            />
+                          </View>
+                        </View>
+                      ) : (
+                        <Swipeable
+                          key={item.id}
+                          renderRightActions={() => renderRightActions(item.id, item)}
+                          rightThreshold={40}
+                        >
+                          <Pressable
+                            onPress={() => { startChange(item.id) }}
+                            onLongPress={() => handleLongPress(item)}
+                            onPressOut={handlePressOut}
+                            delayLongPress={500}
+                            style={({ pressed }) => [
+                              styles.itemRow,
+                              splitTarget === item.id && { backgroundColor: `${colors.green}10`, borderColor: colors.green },
+                              (pressed && !splitTarget) && { backgroundColor: `${colors.green}18`, borderColor: colors.green }
+                            ]}
+                          >
+                            <Text style={styles.itemName}>{item.name}</Text>
+                            <Text style={styles.itemPrice}>${item.price.toFixed(2)}</Text>
+                          </Pressable>
+                        </Swipeable>
+                      )
+                    ))}
+                  </View>
+                </View>
+              ))
+            ) : (
+              displayItems.map(item => (
                 changing === item.id ? (
                   <View key={item.id} style={styles.changeRow}>
                     <View style={[styles.changeInputContainer, { flex: 2 }]}>
@@ -392,28 +467,29 @@ export default function OCRResults() {
                     </View>
                   </View>
                 ) : (
-                <Swipeable
-                  key={item.id}
-                  renderRightActions={() => renderRightActions(item.id, item)}
-                  rightThreshold={40}
-                >
-                  <Pressable
-                    onPress={() => { startChange(item.id) }}
-                    onLongPress={() => handleLongPress(item)}
-                    onPressOut={handlePressOut}
-                    delayLongPress={500}
-                    style={({ pressed }) => [
-                      styles.itemRow,
-                      splitTarget === item.id && { backgroundColor: `${colors.green}10`, borderColor: colors.green },
-                      (pressed && !splitTarget) && { backgroundColor: `${colors.green}18`, borderColor: colors.green }
-                    ]}
+                  <Swipeable
+                    key={item.id}
+                    renderRightActions={() => renderRightActions(item.id, item)}
+                    rightThreshold={40}
                   >
-                    <Text style={styles.itemName}>{item.name}</Text>
-                    <Text style={styles.itemPrice}>${item.price.toFixed(2)}</Text>
-                  </Pressable>
-                </Swipeable>
-              )
-            ))}
+                    <Pressable
+                      onPress={() => { startChange(item.id) }}
+                      onLongPress={() => handleLongPress(item)}
+                      onPressOut={handlePressOut}
+                      delayLongPress={500}
+                      style={({ pressed }) => [
+                        styles.itemRow,
+                        splitTarget === item.id && { backgroundColor: `${colors.green}10`, borderColor: colors.green },
+                        (pressed && !splitTarget) && { backgroundColor: `${colors.green}18`, borderColor: colors.green }
+                      ]}
+                    >
+                      <Text style={styles.itemName}>{item.name}</Text>
+                      <Text style={styles.itemPrice}>${item.price.toFixed(2)}</Text>
+                    </Pressable>
+                  </Swipeable>
+                )
+              ))
+            )}
           </View>
         </Pressable>
       </ScrollView>
@@ -458,12 +534,13 @@ export default function OCRResults() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.continueButton}
+            style={[styles.continueButton, displayItems.length === 0 && { backgroundColor: colors.gray300, shadowOpacity: 0 }]}
             onPress={() => {
               Keyboard.dismiss();
               if (changing) finishChange();
               router.push("/assign");
             }}
+            disabled={displayItems.length === 0}
             activeOpacity={0.8}
           >
             <MaterialIcons name="check" size={28} color={colors.white} />
@@ -640,6 +717,18 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.lg,
   },
   itemsContainer: {
+    gap: spacing.sm,
+  },
+  categoryHeader: {
+    fontFamily: fonts.bodyBold,
+    fontSize: fontSizes.xs,
+    color: colors.gray500,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    marginTop: spacing.md,
+    marginBottom: spacing.xs,
+  },
+  categoryGroup: {
     gap: spacing.sm,
   },
   itemRow: {
@@ -854,6 +943,19 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bodySemiBold,
     fontSize: fontSizes.xl,
     color: colors.green,
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  homeButton: {
+    width: 32,
+    height: 32,
+    borderRadius: radii.full,
+    backgroundColor: colors.gray100,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   agentButton: {
     width: 36,

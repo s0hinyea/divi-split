@@ -1,11 +1,14 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Image, StyleSheet, ActivityIndicator, Modal } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, Pressable, StyleSheet, ActivityIndicator, Animated } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { useSplitStore, ReceiptItem } from '../stores/splitStore';
+import { useSplitStore, ReceiptItem, ItemCategory } from '../stores/splitStore';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { colors, fonts, fontSizes, spacing, radii, shadows } from '@/styles/theme';
+import { colors, fonts, fontSizes, spacing, radii } from '@/styles/theme';
 import { MaterialIcons } from '@expo/vector-icons';
-import AgentChatPanel from '../components/AgentChatPanel';
+import { BlurView } from 'expo-blur';
+import { useVoiceAgent } from '../utils/useVoiceAgent';
+import { ActionSummary } from '../utils/useAgentChat';
+import DiviLogoAnimated from '../components/DiviLogoAnimated';
 
 export default function AssignAmounts() {
   const router = useRouter();
@@ -14,8 +17,60 @@ export default function AssignAmounts() {
   const manageItems = useSplitStore((state) => state.manageItems);
   const receiptData = useSplitStore((state) => state.receiptData);
   const setUserItems = useSplitStore((state) => state.setUserItems);
+  const setCurrentStep = useSplitStore((state) => state.setCurrentStep);
+  const setResumeContactIndex = useSplitStore((state) => state.setResumeContactIndex);
 
-  const [agentVisible, setAgentVisible] = useState(false);
+  const agent = useVoiceAgent();
+
+  // ── Agent overlay ─────────────────────────────────────────────────────────
+  const [overlayVisible, setOverlayVisible] = useState(false);
+  const [overlayPhase, setOverlayPhase] = useState<'processing' | 'revealing'>('processing');
+  const [revealItems, setRevealItems] = useState<{ summary: ActionSummary; opacity: Animated.Value; translateY: Animated.Value }[]>([]);
+  const overlayOpacity = useRef(new Animated.Value(0)).current;
+  const overlayActiveRef = useRef(false);
+
+  useEffect(() => {
+    const isProcessing = agent.loading || agent.isTranscribing;
+    if (isProcessing) {
+      if (!overlayActiveRef.current) {
+        overlayActiveRef.current = true;
+        setOverlayPhase('processing');
+        setOverlayVisible(true);
+        Animated.timing(overlayOpacity, { toValue: 1, duration: 200, useNativeDriver: true }).start();
+      }
+      return;
+    }
+    if (!overlayActiveRef.current) return;
+    overlayActiveRef.current = false;
+
+    const summary = agent.lastActionSummary;
+    if (summary && summary.length > 0) {
+      const items = summary.map(s => ({
+        summary: s,
+        opacity: new Animated.Value(0),
+        translateY: new Animated.Value(12),
+      }));
+      setRevealItems(items);
+      setOverlayPhase('revealing');
+      Animated.sequence([
+        Animated.stagger(500, items.map(item =>
+          Animated.parallel([
+            Animated.timing(item.opacity, { toValue: 1, duration: 450, useNativeDriver: true }),
+            Animated.timing(item.translateY, { toValue: 0, duration: 450, useNativeDriver: true }),
+          ])
+        )),
+        Animated.delay(2000),
+        Animated.timing(overlayOpacity, { toValue: 0, duration: 500, useNativeDriver: true }),
+      ]).start(() => {
+        setOverlayVisible(false);
+        setRevealItems([]);
+      });
+    } else {
+      Animated.timing(overlayOpacity, { toValue: 0, duration: 300, useNativeDriver: true }).start(() => {
+        setOverlayVisible(false);
+      });
+    }
+  }, [agent.loading, agent.isTranscribing, agent.lastActionSummary]);
 
   const [currentContactIndex, setCurrentContactIndex] = useState(() => {
     if (params.initialIndex) {
@@ -25,6 +80,9 @@ export default function AssignAmounts() {
     return 0;
   });
 
+  useEffect(() => { setCurrentStep('assign'); }, []);
+  useEffect(() => { setResumeContactIndex(currentContactIndex); }, [currentContactIndex]);
+
   const currentContact = selected[currentContactIndex];
   const items = 'items' in receiptData ? receiptData.items.filter(item => !/tax/i.test(item.name)) : [];
 
@@ -33,6 +91,20 @@ export default function AssignAmounts() {
     .flatMap(c => c.items);
 
   const available = items.filter(item => !assignedToOthers.some(assigned => assigned.id === item.id));
+
+  const CATEGORY_ORDER: ItemCategory[] = ['entree', 'appetizer', 'side', 'drink', 'dessert', 'other'];
+  const CATEGORY_LABELS: Record<ItemCategory, string> = {
+    entree: 'Entrees',
+    appetizer: 'Appetizers',
+    side: 'Sides',
+    drink: 'Drinks',
+    dessert: 'Desserts',
+    other: 'Other',
+  };
+  const groupedAvailable = CATEGORY_ORDER
+    .map(cat => ({ cat, items: available.filter(it => (it.category ?? 'other') === cat) }))
+    .filter(g => g.items.length > 0);
+  const hasCategoryData = available.some(it => it.category != null);
 
   const toggleItem = (item: ReceiptItem) => {
     if (currentContact) {
@@ -67,7 +139,7 @@ export default function AssignAmounts() {
     if (currentContactIndex > 0) {
       setCurrentContactIndex(currentContactIndex - 1);
     } else {
-      router.push('/result');
+      router.back();
     }
   };
 
@@ -87,16 +159,26 @@ export default function AssignAmounts() {
             <MaterialIcons name="arrow-back" size={28} color={colors.black} />
           </TouchableOpacity>
           <Text style={styles.headerTitle} numberOfLines={1} ellipsizeMode="tail">
-            <Text style={{ color: colors.black }}>Assign Items to </Text>
+            <Text style={{ color: colors.black }}>Assigning: </Text>
             <Text style={{ color: colors.green }}>{currentContact?.name}</Text>
           </Text>
-          <TouchableOpacity
-            style={styles.agentButton}
-            onPress={() => setAgentVisible(true)}
-            activeOpacity={0.8}
-          >
-            <MaterialIcons name="auto-awesome" size={18} color={colors.green} />
-          </TouchableOpacity>
+          <View style={styles.headerRight}>
+            <TouchableOpacity onPress={() => router.replace('/(tabs)')} style={styles.homeButton}>
+              <MaterialIcons name="home" size={20} color={colors.gray400} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.agentButton, agent.isRecording && styles.agentButtonRecording]}
+              onPress={agent.isRecording ? agent.stopAndSend : agent.startRecording}
+              disabled={agent.loading || agent.isTranscribing}
+              activeOpacity={0.8}
+            >
+              <MaterialIcons
+                name={agent.isRecording ? 'stop' : 'auto-awesome'}
+                size={18}
+                color={agent.isRecording ? colors.white : colors.green}
+              />
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
 
@@ -104,24 +186,49 @@ export default function AssignAmounts() {
         <View style={styles.itemsContainer}>
           {available.length === 0 ? (
             <Text style={styles.emptyText}>No more items to assign.</Text>
+          ) : hasCategoryData ? (
+            groupedAvailable.map(({ cat, items: groupItems }) => (
+              <View key={cat}>
+                <Text style={styles.categoryHeader}>{CATEGORY_LABELS[cat]}</Text>
+                <View style={styles.categoryGroup}>
+                  {groupItems.map(item => {
+                    const sel = isSelected(item);
+                    return (
+                      <Pressable
+                        key={item.id}
+                        style={({ pressed }) => [styles.itemCard, sel && styles.selectedItemCard, pressed && styles.itemCardPressed]}
+                        onPress={() => toggleItem(item)}
+                      >
+                        <View style={styles.itemInfo}>
+                          <Text style={[styles.itemName, sel && styles.selectedItemText]}>{item.name}</Text>
+                          <Text style={[styles.itemPrice, sel && styles.selectedItemText]}>${item.price.toFixed(2)}</Text>
+                        </View>
+                        <View style={[styles.checkbox, sel && styles.checkedBox]}>
+                          {sel && <MaterialIcons name="check" size={16} color={colors.white} />}
+                        </View>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </View>
+            ))
           ) : (
             available.map(item => {
-              const selected = isSelected(item);
+              const sel = isSelected(item);
               return (
-                <TouchableOpacity
+                <Pressable
                   key={item.id}
-                  style={[styles.itemCard, selected && styles.selectedItemCard]}
+                  style={({ pressed }) => [styles.itemCard, sel && styles.selectedItemCard, pressed && styles.itemCardPressed]}
                   onPress={() => toggleItem(item)}
-                  activeOpacity={0.8}
                 >
                   <View style={styles.itemInfo}>
-                    <Text style={[styles.itemName, selected && styles.selectedItemText]}>{item.name}</Text>
-                    <Text style={[styles.itemPrice, selected && styles.selectedItemText]}>${item.price.toFixed(2)}</Text>
+                    <Text style={[styles.itemName, sel && styles.selectedItemText]}>{item.name}</Text>
+                    <Text style={[styles.itemPrice, sel && styles.selectedItemText]}>${item.price.toFixed(2)}</Text>
                   </View>
-                  <View style={[styles.checkbox, selected && styles.checkedBox]}>
-                    {selected && <MaterialIcons name="check" size={16} color={colors.white} />}
+                  <View style={[styles.checkbox, sel && styles.checkedBox]}>
+                    {sel && <MaterialIcons name="check" size={16} color={colors.white} />}
                   </View>
-                </TouchableOpacity>
+                </Pressable>
               );
             })
           )}
@@ -136,25 +243,45 @@ export default function AssignAmounts() {
         </TouchableOpacity>
       </View>
 
-      {/* Agent chat modal */}
-      <Modal
-        visible={agentVisible}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => setAgentVisible(false)}
-      >
-        <SafeAreaView style={styles.modalSafeArea} edges={['top']}>
-          <View style={styles.modalHandle} />
-          <TouchableOpacity
-            style={styles.modalClose}
-            onPress={() => setAgentVisible(false)}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <MaterialIcons name="keyboard-arrow-down" size={28} color={colors.gray500} />
-          </TouchableOpacity>
-          <AgentChatPanel />
-        </SafeAreaView>
-      </Modal>
+      {/* Agent overlay — processing spinner → action reveal → fade out */}
+      {overlayVisible && (
+        <Animated.View style={[styles.processingOverlay, { opacity: overlayOpacity }]}>
+          <BlurView intensity={55} style={StyleSheet.absoluteFill} />
+          <View style={styles.overlayContent}>
+            {overlayPhase === 'processing' && (
+              <DiviLogoAnimated size={140} />
+            )}
+            {overlayPhase === 'revealing' && (
+              <View style={styles.actionList}>
+                {revealItems.map((item, i) => {
+                  const verbColor =
+                    item.summary.verb === 'Assigned' ? colors.green :
+                    item.summary.verb === 'Unassigned' ? colors.error :
+                    colors.black;
+                  const iconName =
+                    item.summary.verb === 'Assigned' ? 'check-circle-outline' :
+                    item.summary.verb === 'Unassigned' ? 'remove-circle-outline' :
+                    item.summary.verb === 'Split' ? 'call-split' :
+                    'edit';
+                  return (
+                    <Animated.View
+                      key={i}
+                      style={[styles.actionRow, { opacity: item.opacity, transform: [{ translateY: item.translateY }] }]}
+                    >
+                      <MaterialIcons name={iconName as any} size={18} color={verbColor} />
+                      <Text style={[styles.actionVerb, { color: verbColor }]}>{item.summary.verb}</Text>
+                      <Text style={styles.actionName} numberOfLines={1}>{item.summary.name}</Text>
+                      {item.summary.amount !== undefined && (
+                        <Text style={styles.actionAmount}>${item.summary.amount.toFixed(2)}</Text>
+                      )}
+                    </Animated.View>
+                  );
+                })}
+              </View>
+            )}
+          </View>
+        </Animated.View>
+      )}
     </SafeAreaView>
   );
 }
@@ -184,6 +311,18 @@ const styles = StyleSheet.create({
   itemsContainer: {
     gap: spacing.md,
   },
+  categoryHeader: {
+    fontFamily: fonts.bodyBold,
+    fontSize: fontSizes.xs,
+    color: colors.gray500,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    marginTop: spacing.md,
+    marginBottom: spacing.xs,
+  },
+  categoryGroup: {
+    gap: spacing.md,
+  },
   itemCard: {
     backgroundColor: colors.white,
     borderRadius: radii.md,
@@ -203,6 +342,9 @@ const styles = StyleSheet.create({
     borderColor: colors.green,
     backgroundColor: colors.white, // Keep white bg but emphasize border
   },
+  itemCardPressed: {
+    opacity: 0.75,
+  },
   itemInfo: {
     flex: 1,
   },
@@ -213,7 +355,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   itemPrice: {
-    fontFamily: fonts.bodyBold,
+    fontFamily: fonts.bodySemiBold,
     fontSize: fontSizes.md,
     color: colors.green,
   },
@@ -264,6 +406,19 @@ const styles = StyleSheet.create({
     color: colors.gray500,
     marginTop: spacing.xl,
   },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  homeButton: {
+    width: 32,
+    height: 32,
+    borderRadius: radii.full,
+    backgroundColor: colors.gray100,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   agentButton: {
     width: 36,
     height: 36,
@@ -272,23 +427,46 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  modalSafeArea: {
+  agentButtonRecording: {
+    backgroundColor: colors.error,
+  },
+  processingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 100,
+  },
+  overlayContent: {
     flex: 1,
-    backgroundColor: colors.white,
+    justifyContent: 'center',
+    alignItems: 'flex-start',
+    paddingHorizontal: spacing.xl + 8,
   },
-  modalHandle: {
-    width: 40,
-    height: 4,
-    borderRadius: radii.full,
-    backgroundColor: colors.gray300,
-    alignSelf: 'center',
-    marginTop: spacing.sm,
-    marginBottom: spacing.xs,
+  actionList: {
+    gap: spacing.xl,
+    width: '100%',
   },
-  modalClose: {
-    alignSelf: 'flex-end',
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.sm,
+  actionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  actionVerb: {
+    fontFamily: fonts.bodyBold,
+    fontSize: fontSizes.xl,
+    minWidth: 90,
+  },
+  actionName: {
+    fontFamily: fonts.body,
+    fontSize: fontSizes.xl,
+    color: colors.black,
+    flex: 1,
+  },
+  actionAmount: {
+    fontFamily: fonts.bodySemiBold,
+    fontSize: fontSizes.xl,
+    color: colors.green,
   },
 });
 

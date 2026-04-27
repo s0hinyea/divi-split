@@ -1,5 +1,5 @@
 import { Tabs, useRouter, usePathname } from 'expo-router';
-import { View, TouchableOpacity, StyleSheet, Modal, Animated, Dimensions, TouchableWithoutFeedback } from 'react-native';
+import { View, TouchableOpacity, Pressable, StyleSheet, Modal, Animated, Dimensions, TouchableWithoutFeedback } from 'react-native';
 import { Text } from 'react-native-paper';
 import { MaterialIcons } from '@expo/vector-icons';
 import Svg, { Circle, Rect } from 'react-native-svg';
@@ -7,6 +7,8 @@ import { useState, useRef } from 'react';
 import { fonts, spacing, radii, colors, shadows } from '@/styles/theme';
 import { useThemeColors } from '@/utils/ThemeContext';
 import NetworkBanner from '@/components/NetworkBanner';
+import { useSplitStore } from '@/stores/splitStore';
+import { useCustomAlert } from '@/components/CustomAlert';
 
 const { height: screenHeight } = Dimensions.get('window');
 
@@ -26,8 +28,16 @@ export default function TabsLayout() {
     const router = useRouter();
     const C = useThemeColors();
     const [scanModalVisible, setScanModalVisible] = useState(false);
-    const [selectedOption, setSelectedOption] = useState<'scan' | 'library' | null>(null);
+    const [selectedOption, setSelectedOption] = useState<'scan' | 'library' | 'test' | null>(null);
     const slideAnim = useRef(new Animated.Value(0)).current;
+
+    const currentStep = useSplitStore((state) => state.currentStep);
+    const resumeContactIndex = useSplitStore((state) => state.resumeContactIndex);
+    const receiptItems = useSplitStore((state) => state.receiptData.items);
+    const resetStore = useSplitStore((state) => state.resetStore);
+    const { showAlert } = useCustomAlert();
+
+    const splitInProgress = currentStep !== null && receiptItems.length > 0;
 
     const showScanModal = () => {
         setScanModalVisible(true);
@@ -50,17 +60,44 @@ export default function TabsLayout() {
         });
     };
 
-    const handleOptionPress = (option: 'scan' | 'library') => {
+    const resumeSplit = () => {
+        if (!currentStep) return;
+        if (currentStep === 'assign') {
+            router.push({ pathname: '/assign', params: { initialIndex: resumeContactIndex } });
+        } else {
+            router.push(`/${currentStep}` as any);
+        }
+    };
+
+    const handleAddPress = () => {
+        if (splitInProgress) {
+            showAlert({
+                title: 'Split already in progress',
+                message: 'You have an unfinished split. Resume it or start over?',
+                buttons: [
+                    { text: 'Resume', onPress: resumeSplit },
+                    { text: 'Start over', style: 'destructive', onPress: () => { resetStore(); showScanModal(); } },
+                    { text: 'Cancel', style: 'cancel' },
+                ],
+            });
+        } else {
+            showScanModal();
+        }
+    };
+
+    const handleOptionPress = (option: 'scan' | 'library' | 'test') => {
         setSelectedOption(option);
         setTimeout(() => {
             hideScanModal();
             setTimeout(() => {
-                router.push(option === 'scan' ? '/scan' : '/library');
+                if (option === 'scan') router.push('/scan');
+                else if (option === 'library') router.push('/library');
+                else router.push('/test-receipt');
             }, 100);
         }, 150);
     };
 
-    const bottomSheetHeight = screenHeight * 0.28;
+    const bottomSheetHeight = screenHeight * 0.36;
 
     return (
         <>
@@ -68,6 +105,9 @@ export default function TabsLayout() {
             <Tabs
                 screenOptions={{
                     headerShown: false,
+                    lazy: false,
+                    freezeOnBlur: true,
+                    animation: 'fade',
                     tabBarStyle: {
                         backgroundColor: C.white,
                         borderTopWidth: 1,
@@ -125,13 +165,12 @@ export default function TabsLayout() {
 
             {/* Floating scan button — only on home tab */}
             {usePathname() === '/' && (
-                <TouchableOpacity
-                    style={[styles.floatingAddButton, { backgroundColor: C.green }]}
-                    onPress={showScanModal}
-                    activeOpacity={0.85}
+                <Pressable
+                    style={({ pressed }) => [styles.floatingAddButton, { backgroundColor: C.green }, pressed && { opacity: 0.85 }]}
+                    onPress={handleAddPress}
                 >
                     <MaterialIcons name="add" size={28} color={C.white} />
-                </TouchableOpacity>
+                </Pressable>
             )}
 
             {/* Scan options bottom sheet */}
@@ -193,6 +232,22 @@ export default function TabsLayout() {
                                         <MaterialIcons name="photo-library" size={22} color={C.green} />
                                     </View>
                                     <Text style={[styles.sheetOptionText, { color: C.black }]}>Pick from gallery</Text>
+                                    <MaterialIcons name="chevron-right" size={20} color={C.gray400} />
+                                </TouchableOpacity>
+
+                                <TouchableOpacity
+                                    style={[
+                                        styles.sheetOption,
+                                        { borderColor: C.gray200 },
+                                        selectedOption === 'test' && { borderColor: C.green, backgroundColor: colors.greenLight },
+                                    ]}
+                                    onPress={() => handleOptionPress('test')}
+                                    activeOpacity={0.7}
+                                >
+                                    <View style={[styles.sheetOptionIcon, { backgroundColor: C.gray100 }]}>
+                                        <MaterialIcons name="science" size={22} color={C.green} />
+                                    </View>
+                                    <Text style={[styles.sheetOptionText, { color: C.black }]}>Test</Text>
                                     <MaterialIcons name="chevron-right" size={20} color={C.gray400} />
                                 </TouchableOpacity>
                             </Animated.View>
