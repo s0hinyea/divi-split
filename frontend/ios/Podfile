@@ -1,3 +1,9 @@
+# Set PROJECT_ROOT before pods are evaluated so expo-constants's podspec
+# hard-codes the correct frontend path into its build script phase.
+# Without this, the script falls back to $PROJECT_DIR/../.. which can
+# resolve to the monorepo root instead of the frontend app directory.
+ENV['PROJECT_ROOT'] = File.expand_path('..', __dir__)
+
 require File.join(File.dirname(`node --print "require.resolve('expo/package.json')"`), "scripts/autolinking")
 require File.join(File.dirname(`node --print "require.resolve('react-native/package.json')"`), "scripts/react_native_pods")
 
