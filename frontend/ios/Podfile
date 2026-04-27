@@ -48,5 +48,14 @@ target 'Divi' do
       :mac_catalyst_enabled => false,
       :ccache_enabled => podfile_properties['apple.ccacheEnabled'] == 'true',
     )
+    # Ensure expo-constants reads app.json from the correct frontend directory,
+    # not the monorepo root. Without this, EXConstants.bundle/app.config is
+    # generated without `scheme`, causing a crash on launch.
+    project_root = File.expand_path('..', Pod::Config.instance.installation_root)
+    installer.pods_project.targets.each do |target|
+      target.build_configurations.each do |config|
+        config.build_settings['PROJECT_ROOT'] = project_root
+      end
+    end
   end
 end
