@@ -1,4 +1,4 @@
-# Divi — AI-Powered Bill Splitting
+# Divi : AI-Powered Bill Splitting
 
 > Split dinner, not friendships.
 
