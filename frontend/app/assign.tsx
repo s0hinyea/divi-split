@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Animated } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Pressable, StyleSheet, ActivityIndicator, Animated } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSplitStore, ReceiptItem, ItemCategory } from '../stores/splitStore';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -159,7 +159,7 @@ export default function AssignAmounts() {
             <MaterialIcons name="arrow-back" size={28} color={colors.black} />
           </TouchableOpacity>
           <Text style={styles.headerTitle} numberOfLines={1} ellipsizeMode="tail">
-            <Text style={{ color: colors.black }}>Assign Items to </Text>
+            <Text style={{ color: colors.black }}>Assigning: </Text>
             <Text style={{ color: colors.green }}>{currentContact?.name}</Text>
           </Text>
           <View style={styles.headerRight}>
@@ -194,11 +194,10 @@ export default function AssignAmounts() {
                   {groupItems.map(item => {
                     const sel = isSelected(item);
                     return (
-                      <TouchableOpacity
+                      <Pressable
                         key={item.id}
-                        style={[styles.itemCard, sel && styles.selectedItemCard]}
+                        style={({ pressed }) => [styles.itemCard, sel && styles.selectedItemCard, pressed && styles.itemCardPressed]}
                         onPress={() => toggleItem(item)}
-                        activeOpacity={0.8}
                       >
                         <View style={styles.itemInfo}>
                           <Text style={[styles.itemName, sel && styles.selectedItemText]}>{item.name}</Text>
@@ -207,7 +206,7 @@ export default function AssignAmounts() {
                         <View style={[styles.checkbox, sel && styles.checkedBox]}>
                           {sel && <MaterialIcons name="check" size={16} color={colors.white} />}
                         </View>
-                      </TouchableOpacity>
+                      </Pressable>
                     );
                   })}
                 </View>
@@ -217,11 +216,10 @@ export default function AssignAmounts() {
             available.map(item => {
               const sel = isSelected(item);
               return (
-                <TouchableOpacity
+                <Pressable
                   key={item.id}
-                  style={[styles.itemCard, sel && styles.selectedItemCard]}
+                  style={({ pressed }) => [styles.itemCard, sel && styles.selectedItemCard, pressed && styles.itemCardPressed]}
                   onPress={() => toggleItem(item)}
-                  activeOpacity={0.8}
                 >
                   <View style={styles.itemInfo}>
                     <Text style={[styles.itemName, sel && styles.selectedItemText]}>{item.name}</Text>
@@ -230,7 +228,7 @@ export default function AssignAmounts() {
                   <View style={[styles.checkbox, sel && styles.checkedBox]}>
                     {sel && <MaterialIcons name="check" size={16} color={colors.white} />}
                   </View>
-                </TouchableOpacity>
+                </Pressable>
               );
             })
           )}
@@ -343,6 +341,9 @@ const styles = StyleSheet.create({
   selectedItemCard: {
     borderColor: colors.green,
     backgroundColor: colors.white, // Keep white bg but emphasize border
+  },
+  itemCardPressed: {
+    opacity: 0.75,
   },
   itemInfo: {
     flex: 1,

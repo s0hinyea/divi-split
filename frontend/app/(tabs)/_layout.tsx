@@ -1,5 +1,5 @@
 import { Tabs, useRouter, usePathname } from 'expo-router';
-import { View, TouchableOpacity, StyleSheet, Modal, Animated, Dimensions, TouchableWithoutFeedback } from 'react-native';
+import { View, TouchableOpacity, Pressable, StyleSheet, Modal, Animated, Dimensions, TouchableWithoutFeedback } from 'react-native';
 import { Text } from 'react-native-paper';
 import { MaterialIcons } from '@expo/vector-icons';
 import Svg, { Circle, Rect } from 'react-native-svg';
@@ -165,13 +165,12 @@ export default function TabsLayout() {
 
             {/* Floating scan button — only on home tab */}
             {usePathname() === '/' && (
-                <TouchableOpacity
-                    style={[styles.floatingAddButton, { backgroundColor: C.green }]}
+                <Pressable
+                    style={({ pressed }) => [styles.floatingAddButton, { backgroundColor: C.green }, pressed && { opacity: 0.85 }]}
                     onPress={handleAddPress}
-                    activeOpacity={0.85}
                 >
                     <MaterialIcons name="add" size={28} color={C.white} />
-                </TouchableOpacity>
+                </Pressable>
             )}
 
             {/* Scan options bottom sheet */}

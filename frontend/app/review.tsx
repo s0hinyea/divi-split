@@ -32,6 +32,7 @@ export default function ReviewPage() {
   const { profile } = useProfile();
   // Modal state
   const [showSmsModal, setShowSmsModal] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   // ── Agent overlay ───────────────────────────────────────────────────────────
   const [overlayVisible, setOverlayVisible] = useState(false);
@@ -305,13 +306,14 @@ export default function ReviewPage() {
   // Handle finish — save (new) or update (edit) receipt, then prompt for SMS
   const handleFinish = async () => {
     const name = receiptName.trim() || `Split - ${receiptDate.toLocaleDateString()}`;
-
-    const success = editingReceiptId
-      ? await updateReceipt(editingReceiptId, name, receiptDate)
-      : await saveReceipt(name, receiptDate);
-
-    if (success) {
-      await refreshReceipts();
+    setIsSaving(true);
+    try {
+      const success = editingReceiptId
+        ? await updateReceipt(editingReceiptId, name, receiptDate)
+        : await saveReceipt(name, receiptDate);
+      if (success) await refreshReceipts();
+    } finally {
+      setIsSaving(false);
     }
 
     if (selected.length > 0) {
@@ -558,11 +560,15 @@ export default function ReviewPage() {
 
       <View style={styles.footer}>
         <TouchableOpacity
-          style={styles.finishButton}
+          style={[styles.finishButton, isSaving && { opacity: 0.7 }]}
           onPress={handleFinish}
+          disabled={isSaving}
           activeOpacity={0.8}
         >
-          <Text style={styles.finishButtonText}>Proceed</Text>
+          {isSaving
+            ? <ActivityIndicator size="small" color={colors.white} />
+            : <Text style={styles.finishButtonText}>Proceed</Text>
+          }
         </TouchableOpacity>
       </View>
 
