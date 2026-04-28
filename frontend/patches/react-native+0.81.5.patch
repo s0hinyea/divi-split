@@ -1,0 +1,14 @@
+diff --git a/node_modules/react-native/third-party-podspecs/fmt.podspec b/node_modules/react-native/third-party-podspecs/fmt.podspec
+index 2f38990..858a97f 100644
+--- a/node_modules/react-native/third-party-podspecs/fmt.podspec
++++ b/node_modules/react-native/third-party-podspecs/fmt.podspec
+@@ -19,7 +19,8 @@ Pod::Spec.new do |spec|
+   }
+   spec.pod_target_xcconfig = {
+     "CLANG_CXX_LANGUAGE_STANDARD" => rct_cxx_language_standard(),
+-    "GCC_WARN_INHIBIT_ALL_WARNINGS" => "YES" # Disable warnings because we don't control this library
++    "GCC_WARN_INHIBIT_ALL_WARNINGS" => "YES", # Disable warnings because we don't control this library
++    "OTHER_CPLUSPLUSFLAGS" => "-DFMT_HAS_CONSTEVAL=0"
+   }
+   spec.platforms = min_supported_versions
+   spec.libraries = "c++"
