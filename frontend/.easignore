@@ -1,4 +1,2 @@
-# Only exclude android - we MUST include ios/ so EAS uses our
-# pre-verified native code with the correct bundle ID (com.sohi.divi)
-# instead of regenerating it on their server (which produces com.anonymous.divi)
+ios/
 android/
