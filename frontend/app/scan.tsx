@@ -8,7 +8,7 @@ import { ActivityIndicator } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Camera } from 'expo-camera';
-import DocumentScanner from 'react-native-document-scanner-plugin';
+import { scanDocument } from '@dariyd/react-native-document-scanner';
 
 export default function Scan() {
   const router = useRouter();
@@ -43,7 +43,7 @@ export default function Scan() {
     }
 
     try {
-      const result = await DocumentScanner.scanDocument({
+      const result = await scanDocument({
         maxNumDocuments: 1,
       });
 
