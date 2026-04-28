@@ -1,7 +1,6 @@
 {
   "expo": {
-    "name": "divi",
-    "displayName": "Divi",
+    "name": "Divi",
     "slug": "divi",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -12,7 +11,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.sohi.divi",
-      "buildNumber": "25",
+      "buildNumber": "26",
       "infoDictionary": {
         "NSCameraUsageDescription": "Divi needs access to your camera to scan receipts.",
         "NSPhotoLibraryUsageDescription": "Divi needs access to your photos so you can upload receipts.",
