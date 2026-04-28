@@ -8,11 +8,11 @@
     "icon": "./assets/images/icon.png",
     "scheme": "divi",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.sohi.divi",
-      "buildNumber": "32",
+      "buildNumber": "33",
       "infoDictionary": {
         "NSCameraUsageDescription": "Divi needs access to your camera to scan receipts.",
         "NSPhotoLibraryUsageDescription": "Divi needs access to your photos so you can upload receipts.",
