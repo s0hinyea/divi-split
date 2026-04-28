@@ -7,8 +7,7 @@ import { useOCR } from '../utils/OCRContext';
 import { ActivityIndicator } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
-import { Camera } from 'expo-camera';
-import { scanDocument } from '@dariyd/react-native-document-scanner';
+import * as ImagePicker from 'expo-image-picker';
 
 export default function Scan() {
   const router = useRouter();
@@ -17,18 +16,17 @@ export default function Scan() {
   const { setIsProcessing, setStatus, setError } = useOCR();
 
   useEffect(() => {
-    // Small delay to let VisionKit initialize after the screen mounts
-    // Without this, scanDocument() hangs on first launch but works after hot reload
-    const timer = setTimeout(() => launchScanner(), 500);
+    // Open camera immediately
+    const timer = setTimeout(() => launchCamera(), 500);
     return () => clearTimeout(timer);
   }, []);
 
-  const launchScanner = async () => {
+  const launchCamera = async () => {
     if (launching) return;
     setLaunching(true);
 
     // Check camera permissions first
-    const { status } = await Camera.requestCameraPermissionsAsync();
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
       setLaunching(false);
       Alert.alert(
@@ -43,16 +41,18 @@ export default function Scan() {
     }
 
     try {
-      const result = await scanDocument({
-        maxNumDocuments: 1,
+      const result = await ImagePicker.launchCameraAsync({
+        allowsEditing: false, // Set to true if you want default crop UI
+        quality: 1, // High quality for OCR
       });
 
-      if (result?.scannedImages && result.scannedImages.length > 0) {
-        const scannedUri = result.scannedImages[0];
-        console.log('🟢 [Scanner] Document scanned:', scannedUri);
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const scannedUri = result.assets[0].uri;
+        console.log('🟢 [Scanner] Photo taken:', scannedUri);
+        // Pass to OCR pipeline natively handles image paths
         await handleOCR(scannedUri, updateReceiptData, setIsProcessing, setStatus, setError, router);
       } else {
-        // User cancelled the scanner
+        // User cancelled
         if (router.canGoBack()) router.back();
         else router.replace('/(tabs)');
       }
@@ -70,14 +70,14 @@ export default function Scan() {
     <SafeAreaView style={s.container}>
       <View style={s.centered}>
         <ActivityIndicator size="large" color="#205237" />
-        <Text style={s.loadingText}>Opening scanner...</Text>
+        <Text style={s.loadingText}>Opening camera...</Text>
       </View>
 
       {!launching && (
         <View style={s.bottomBar}>
-          <TouchableOpacity style={s.retryButton} onPress={launchScanner} activeOpacity={0.7}>
-            <MaterialIcons name="document-scanner" size={24} color="#fff" />
-            <Text style={s.retryText}>Open Scanner</Text>
+          <TouchableOpacity style={s.retryButton} onPress={launchCamera} activeOpacity={0.7}>
+            <MaterialIcons name="camera-alt" size={24} color="#fff" />
+            <Text style={s.retryText}>Open Camera</Text>
           </TouchableOpacity>
           <TouchableOpacity style={s.backButton} onPress={() => router.back()} activeOpacity={0.7}>
             <Text style={s.backText}>Go Back</Text>
