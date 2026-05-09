@@ -8,7 +8,19 @@ import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
+import { Alert } from "react-native";
 import Purchases, { LOG_LEVEL } from "react-native-purchases";
+
+// TEMPORARY DEBUG — captures the actual fatal JS error before crash
+const _origHandler = ErrorUtils.getGlobalHandler();
+ErrorUtils.setGlobalHandler((error, isFatal) => {
+  if (isFatal) {
+    Alert.alert('Fatal JS Error', `${error.message}\n\n${error.stack?.slice(0, 600)}`);
+    setTimeout(() => _origHandler(error, isFatal), 4000);
+  } else {
+    _origHandler(error, isFatal);
+  }
+});
 import { PaperProvider } from "react-native-paper";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { ChangeProvider } from "@/utils/ChangesContext";
