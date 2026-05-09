@@ -9,6 +9,9 @@ import { BlurView } from 'expo-blur';
 import { useVoiceAgent } from '../utils/useVoiceAgent';
 import { ActionSummary } from '../utils/useAgentChat';
 import DiviLogoAnimated from '../components/DiviLogoAnimated';
+import { usePaywall } from '../utils/usePaywall';
+import PaywallModal from '../components/PaywallModal';
+import { useCustomAlert } from '../components/CustomAlert';
 
 export default function AssignAmounts() {
   const router = useRouter();
@@ -21,6 +24,8 @@ export default function AssignAmounts() {
   const setResumeContactIndex = useSplitStore((state) => state.setResumeContactIndex);
 
   const agent = useVoiceAgent();
+  const paywall = usePaywall();
+  const { showAlert } = useCustomAlert();
 
   // ── Agent overlay ─────────────────────────────────────────────────────────
   const [overlayVisible, setOverlayVisible] = useState(false);
@@ -168,7 +173,44 @@ export default function AssignAmounts() {
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.agentButton, agent.isRecording && styles.agentButtonRecording]}
-              onPress={agent.isRecording ? agent.stopAndSend : agent.startRecording}
+              onPress={async () => {
+                if (agent.isRecording) {
+                  agent.stopAndSend();
+                  return;
+                }
+
+                // Subscribed users go straight through
+                if (paywall.isSubscribed) {
+                  agent.startRecording();
+                  return;
+                }
+
+                // Free tier: warn before consuming a scan
+                const remaining = paywall.scansRemaining;
+                if (remaining > 0) {
+                  const label = remaining === 1 ? '1 free scan left' : `${remaining} free scans left`;
+                  showAlert({
+                    title: label,
+                    message: remaining === 1
+                      ? "This is your last free AI scan. After this you'll need Divi Pro."
+                      : `You have ${remaining} free AI scans remaining. Use one now?`,
+                    buttons: [
+                      { text: 'Cancel', style: 'cancel' },
+                      {
+                        text: 'Use scan',
+                        onPress: async () => {
+                          const allowed = await paywall.attemptAgentUse();
+                          if (allowed) agent.startRecording();
+                        },
+                      },
+                    ],
+                  });
+                } else {
+                  // No scans left — go straight to paywall
+                  const allowed = await paywall.attemptAgentUse();
+                  if (allowed) agent.startRecording();
+                }
+              }}
               disabled={agent.loading || agent.isTranscribing}
               activeOpacity={0.8}
             >
@@ -242,6 +284,15 @@ export default function AssignAmounts() {
           <MaterialIcons name="check" size={32} color={colors.white} />
         </TouchableOpacity>
       </View>
+
+      <PaywallModal
+        visible={paywall.paywallVisible}
+        onClose={paywall.hidePaywall}
+        onSubscribe={paywall.purchaseSubscription}
+        onRestore={paywall.restorePurchases}
+        currentPackage={paywall.currentPackage}
+        purchaseError={paywall.purchaseError}
+      />
 
       {/* Agent overlay — processing spinner → action reveal → fade out */}
       {overlayVisible && (

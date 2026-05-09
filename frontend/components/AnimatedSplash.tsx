@@ -1,11 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { StyleSheet } from 'react-native';
-import Animated, {
-    useSharedValue,
-    useAnimatedStyle,
-    withTiming,
-    runOnJS,
-} from 'react-native-reanimated';
+import { Animated, StyleSheet } from 'react-native';
 import DiviLogoAnimated from './DiviLogoAnimated';
 
 const MIN_DISPLAY_MS = 1200;
@@ -17,20 +11,21 @@ interface Props {
 }
 
 export default function AnimatedSplash({ appReady, onComplete }: Props) {
-    const opacity = useSharedValue(1);
+    const opacity = useRef(new Animated.Value(1)).current;
     const mountTime = useRef(Date.now());
 
-    // Fade out when app is ready (after minimum display time)
     useEffect(() => {
         if (appReady) {
             const elapsed = Date.now() - mountTime.current;
             const remaining = Math.max(0, MIN_DISPLAY_MS - elapsed);
 
             const timer = setTimeout(() => {
-                opacity.value = withTiming(0, { duration: FADE_DURATION_MS }, (finished) => {
-                    if (finished) {
-                        runOnJS(onComplete)();
-                    }
+                Animated.timing(opacity, {
+                    toValue: 0,
+                    duration: FADE_DURATION_MS,
+                    useNativeDriver: true,
+                }).start(({ finished }) => {
+                    if (finished) onComplete();
                 });
             }, remaining);
 
@@ -38,12 +33,8 @@ export default function AnimatedSplash({ appReady, onComplete }: Props) {
         }
     }, [appReady]);
 
-    const fadeStyle = useAnimatedStyle(() => ({
-        opacity: opacity.value,
-    }));
-
     return (
-        <Animated.View style={[styles.container, fadeStyle]}>
+        <Animated.View style={[styles.container, { opacity }]}>
             <DiviLogoAnimated size={240} />
         </Animated.View>
     );

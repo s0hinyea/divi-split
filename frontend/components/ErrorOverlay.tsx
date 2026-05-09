@@ -1,28 +1,9 @@
-/**
- * ErrorOverlay — A full-screen error display.
- * Shows a centered error message over a blurred background,
- * with a subtle screen shake. Auto-dismisses after 3 seconds with fade-out.
- *
- * Usage:
- *   const [error, setError] = useState<string | null>(null);
- *   <ErrorOverlay message={error} onDismiss={() => setError(null)} />
- */
-
-import React, { useEffect } from 'react';
-import { StyleSheet, Text } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { Animated, StyleSheet, Text } from 'react-native';
 import { BlurView } from 'expo-blur';
-import Animated, {
-    useSharedValue,
-    useAnimatedStyle,
-    withTiming,
-    withSequence,
-    withDelay,
-    runOnJS,
-    Easing,
-} from 'react-native-reanimated';
 import { colors, fonts, fontSizes, spacing, radii, animation } from '@/styles/theme';
 
-const DISPLAY_DURATION = 3000; // show for 3 seconds
+const DISPLAY_DURATION = 3000;
 const SHAKE_MAGNITUDE = 8;
 
 interface Props {
@@ -31,49 +12,43 @@ interface Props {
 }
 
 export default function ErrorOverlay({ message, onDismiss }: Props) {
-    const opacity = useSharedValue(0);
-    const shakeX = useSharedValue(0);
+    const opacity = useRef(new Animated.Value(0)).current;
+    const shakeX = useRef(new Animated.Value(0)).current;
 
     useEffect(() => {
         if (message) {
-            // Fade in
-            opacity.value = withTiming(1, { duration: animation.normal });
+            opacity.setValue(0);
+            shakeX.setValue(0);
 
-            // Quick shake sequence
-            shakeX.value = withSequence(
-                withTiming(SHAKE_MAGNITUDE, { duration: 50 }),
-                withTiming(-SHAKE_MAGNITUDE, { duration: 50 }),
-                withTiming(SHAKE_MAGNITUDE * 0.6, { duration: 50 }),
-                withTiming(-SHAKE_MAGNITUDE * 0.6, { duration: 50 }),
-                withTiming(0, { duration: 50 }),
-            );
+            // Fade in → hold → fade out, then call onDismiss
+            Animated.sequence([
+                Animated.timing(opacity, { toValue: 1, duration: animation.normal, useNativeDriver: true }),
+                Animated.delay(DISPLAY_DURATION),
+                Animated.timing(opacity, { toValue: 0, duration: animation.slow, useNativeDriver: true }),
+            ]).start(({ finished }) => {
+                if (finished) onDismiss();
+            });
 
-            // Auto-dismiss: fade out after DISPLAY_DURATION, then call onDismiss
-            opacity.value = withDelay(
-                DISPLAY_DURATION,
-                withTiming(0, { duration: animation.slow, easing: Easing.out(Easing.cubic) }, (finished) => {
-                    if (finished) {
-                        runOnJS(onDismiss)();
-                    }
-                }),
-            );
+            // Screen shake runs independently
+            Animated.sequence([
+                Animated.timing(shakeX, { toValue: SHAKE_MAGNITUDE, duration: 50, useNativeDriver: true }),
+                Animated.timing(shakeX, { toValue: -SHAKE_MAGNITUDE, duration: 50, useNativeDriver: true }),
+                Animated.timing(shakeX, { toValue: SHAKE_MAGNITUDE * 0.6, duration: 50, useNativeDriver: true }),
+                Animated.timing(shakeX, { toValue: -SHAKE_MAGNITUDE * 0.6, duration: 50, useNativeDriver: true }),
+                Animated.timing(shakeX, { toValue: 0, duration: 50, useNativeDriver: true }),
+            ]).start();
         }
     }, [message]);
-
-    const containerStyle = useAnimatedStyle(() => ({
-        opacity: opacity.value,
-    }));
-
-    const cardStyle = useAnimatedStyle(() => ({
-        transform: [{ translateX: shakeX.value }],
-    }));
 
     if (!message) return null;
 
     return (
-        <Animated.View style={[styles.overlay, containerStyle]} pointerEvents="none">
+        <Animated.View
+            style={[styles.overlay, { opacity }]}
+            pointerEvents="none"
+        >
             <BlurView intensity={40} tint="dark" style={styles.blur}>
-                <Animated.View style={[styles.card, cardStyle]}>
+                <Animated.View style={[styles.card, { transform: [{ translateX: shakeX }] }]}>
                     <Text style={styles.errorText}>{message}</Text>
                 </Animated.View>
             </BlurView>

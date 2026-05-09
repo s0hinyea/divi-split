@@ -6,12 +6,6 @@ import { colors, fonts, fontSizes, spacing } from '@/styles/theme';
 import Svg, { Path } from "react-native-svg";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import DiviLogo from "@/components/DiviLogo";
-import Animated, {
-	useSharedValue,
-	useAnimatedStyle,
-	withTiming,
-	interpolateColor,
-} from "react-native-reanimated";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const GREEN = colors.green;
@@ -38,12 +32,6 @@ function ZigzagEdge({ width }: { width: number }) {
 
 export default function Home() {
 	const router = useRouter();
-	const emailProgress = useSharedValue(0);
-
-	const animatedEmailStyle = useAnimatedStyle(() => ({
-		backgroundColor: interpolateColor(emailProgress.value, [0, 1], ["#ffffff", colors.gray100]),
-	}));
-
 	const logos = [
 		{ top: 8,   left: 12,  size: 64, rotate: "-12deg", opacity: 0.9  },
 		{ top: 12,  left: 190, size: 56, rotate: "14deg",  opacity: 0.88 },
@@ -122,9 +110,7 @@ export default function Home() {
 					<TouchableOpacity
 						style={styles.emailButton}
 						onPress={() => router.push({ pathname: "/auth", params: { mode: "signup" } })}
-						onPressIn={() => { emailProgress.value = withTiming(1, { duration: 120 }); }}
-						onPressOut={() => { emailProgress.value = withTiming(0, { duration: 200 }); }}
-						activeOpacity={1}
+						activeOpacity={0.85}
 					>
 						<MaterialIcons name="email" size={18} color={BLACK} />
 						<Text style={styles.emailText}>Sign Up with Email</Text>

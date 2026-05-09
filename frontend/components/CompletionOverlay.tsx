@@ -1,73 +1,49 @@
-import React, { useEffect } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { Animated, View, Text, StyleSheet } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { MaterialIcons } from '@expo/vector-icons';
-import Animated, {
-    useSharedValue,
-    useAnimatedStyle,
-    withTiming,
-    withSequence,
-    withDelay,
-    runOnJS,
-} from 'react-native-reanimated';
 import { colors, fonts, fontSizes } from '@/styles/theme';
 import { useSplitStore } from '@/stores/splitStore';
 
-/**
- * Global completion overlay — rendered in _layout.tsx so it sits above
- * every route.  Uses an absolute-positioned View (not a Modal) to avoid
- * native-window timing glitches that cause black flashes.
- */
 export default function CompletionOverlay() {
     const visible = useSplitStore((s) => s.showCompletion);
     const clearCompletion = useSplitStore((s) => s.clearCompletion);
 
-    const containerOpacity = useSharedValue(0);
-    const contentScale = useSharedValue(0.5);
+    const containerOpacity = useRef(new Animated.Value(0)).current;
+    const contentScale = useRef(new Animated.Value(0.5)).current;
 
     useEffect(() => {
         if (visible) {
-            // Reset values immediately
-            containerOpacity.value = 0;
-            contentScale.value = 0.5;
+            containerOpacity.setValue(0);
+            contentScale.setValue(0.5);
 
-            // Single sequence for container: Fade in -> Hold -> Fade out
-            containerOpacity.value = withSequence(
-                withTiming(1, { duration: 200 }),                          // Fade in the blur/overlay
-                withDelay(1400, withTiming(0, { duration: 150 }, () => {   // Hold then fade out
-                    runOnJS(clearCompletion)();
-                }))
-            );
+            Animated.sequence([
+                Animated.timing(containerOpacity, { toValue: 1, duration: 200, useNativeDriver: true }),
+                Animated.delay(1400),
+                Animated.timing(containerOpacity, { toValue: 0, duration: 150, useNativeDriver: true }),
+            ]).start(({ finished }) => {
+                if (finished) clearCompletion();
+            });
 
-            // Pop in the checkmark
-            contentScale.value = withSequence(
-                withTiming(1, { duration: 150 }),                          // Pop in
-                withDelay(1200, withTiming(0.9, { duration: 200 }))        // Stay then slight shrink
-            );
+            Animated.sequence([
+                Animated.timing(contentScale, { toValue: 1, duration: 150, useNativeDriver: true }),
+                Animated.delay(1200),
+                Animated.timing(contentScale, { toValue: 0.9, duration: 200, useNativeDriver: true }),
+            ]).start();
         } else {
-            containerOpacity.value = 0;
-            contentScale.value = 0.5;
+            containerOpacity.setValue(0);
+            contentScale.setValue(0.5);
         }
     }, [visible]);
 
-    const containerStyle = useAnimatedStyle(() => ({
-        opacity: containerOpacity.value,
-    }));
-
-    const contentStyle = useAnimatedStyle(() => ({
-        transform: [{ scale: contentScale.value }],
-    }));
-
-    // Only render when visible to prevent blocking touches
     if (!visible) return null;
 
     return (
-        <Animated.View style={[styles.overlay, containerStyle]} pointerEvents="auto">
-            {/* Immediate light fallback to prevent black frame while blur initializes */}
+        <Animated.View style={[styles.overlay, { opacity: containerOpacity }]} pointerEvents="auto">
             <View style={styles.fallbackLight} />
             <BlurView intensity={50} tint="light" style={StyleSheet.absoluteFill} />
             <View style={styles.center}>
-                <Animated.View style={[styles.content, contentStyle]}>
+                <Animated.View style={[styles.content, { transform: [{ scale: contentScale }] }]}>
                     <MaterialIcons name="check-circle" size={80} color={colors.green} />
                     <Text style={styles.text}>Completed!</Text>
                 </Animated.View>

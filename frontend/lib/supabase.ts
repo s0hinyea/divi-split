@@ -4,10 +4,14 @@ import { offlineAwareFetch } from "@/utils/network";
 
 // Expo automatically exposes EXPO_PUBLIC_ prefixed env variables
 // No need for dotenv - it doesn't work in React Native anyway
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL ?? '';
+const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '';
 
-export const supabase = createClient(supabaseUrl!, supabaseAnonKey!, {
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.error('[supabase] Missing env vars — EXPO_PUBLIC_SUPABASE_URL or EXPO_PUBLIC_SUPABASE_ANON_KEY not set. Check EAS secrets.');
+}
+
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 	auth: {
 		storage: AsyncStorage,
 		autoRefreshToken: true,

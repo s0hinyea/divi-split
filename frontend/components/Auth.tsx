@@ -8,20 +8,22 @@ import {
 	Text,
 	TextInput,
 	ActivityIndicator,
+	Animated,
 } from "react-native";
 import { supabase } from "../lib/supabase";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { colors, fonts, spacing } from '@/styles/theme';
 import { MaterialIcons, Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import Animated, { 
-	useSharedValue, 
-	useAnimatedStyle, 
-	withTiming, 
-	FadeIn, 
-	FadeOut,
-} from 'react-native-reanimated';
 import { getUserFacingErrorMessage, hasInternetConnection } from '@/utils/network';
+
+function FadeInView({ children, style }: { children: React.ReactNode; style?: object }) {
+	const opacity = useRef(new Animated.Value(0)).current;
+	useEffect(() => {
+		Animated.timing(opacity, { toValue: 1, duration: 150, useNativeDriver: true }).start();
+	}, []);
+	return <Animated.View style={[style, { opacity }]}>{children}</Animated.View>;
+}
 
 // Automatically refresh if foreground
 AppState.addEventListener("change", (state) => {
@@ -75,7 +77,7 @@ export default function Auth({ initialMode }: AuthProps) {
 	const isSignUp = mode === "signup";
 	const isForgotPassword = mode === "forgot-password";
 	const isResetPassword = mode === "reset-password";
-	const progress = useSharedValue(0.2);
+	const progressAnim = useRef(new Animated.Value(0.2)).current;
 
 	useEffect(() => {
 		if (cooldown > 0) {
@@ -85,8 +87,8 @@ export default function Auth({ initialMode }: AuthProps) {
 	}, [cooldown]);
 
 	useEffect(() => {
-		if (isSignUp) progress.value = withTiming(step / 5, { duration: 150 });
-		else progress.value = withTiming(1, { duration: 150 });
+		const target = isSignUp ? step / 5 : 1;
+		Animated.timing(progressAnim, { toValue: target, duration: 150, useNativeDriver: false }).start();
 	}, [step, isSignUp]);
 
 	// ──── Validation Helpers ────────────────────────────────
@@ -410,11 +412,6 @@ export default function Auth({ initialMode }: AuthProps) {
 		}
 	};
 
-	const progressStyle = useAnimatedStyle(() => ({
-		width: `${progress.value * 100}%`,
-		backgroundColor: isUsernameTaken && step === 4 ? colors.error : colors.green,
-	}));
-
 	// Determines if the Continue button should be disabled
 	const isContinueDisabled = () => {
 		if (loading) return true;
@@ -444,13 +441,16 @@ export default function Auth({ initialMode }: AuthProps) {
 			{/* Progress Bar */}
 			{isSignUp && (
 				<View style={styles.progressTrack}>
-					<Animated.View style={[styles.progressBar, progressStyle]} />
+					<Animated.View style={[styles.progressBar, {
+						width: progressAnim.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }),
+						backgroundColor: isUsernameTaken && step === 4 ? colors.error : colors.green,
+					}]} />
 				</View>
 			)}
 
 			<View style={styles.content}>
 				{isSignUp ? (
-					<Animated.View entering={FadeIn.duration(150)} exiting={FadeOut.duration(150)} style={styles.stepContainer} key={step}>
+					<FadeInView style={styles.stepContainer} key={step}>
 						{/* Step 1: Name */}
 						{step === 1 && (
 							<>
@@ -636,9 +636,9 @@ export default function Auth({ initialMode }: AuthProps) {
 								</TouchableOpacity>
 							</View>
 						)}
-					</Animated.View>
+					</FadeInView>
 				) : (!isForgotPassword && !isResetPassword) ? (
-					<Animated.View entering={FadeIn.duration(150)} style={styles.stepContainer}>
+					<FadeInView style={styles.stepContainer}>
 						<Text style={styles.title}>Log In</Text>
 						<Text style={styles.subtitle}>Enter your credentials to continue.</Text>
 						<TextInput style={styles.input} placeholder="Email" value={email} onChangeText={(t) => { setEmail(t); setLoginError(""); }} autoCapitalize="none" keyboardType="email-address" textContentType="emailAddress" />
@@ -656,11 +656,11 @@ export default function Auth({ initialMode }: AuthProps) {
 								<Text style={styles.toggleLink}>Join Divi</Text>
 							</TouchableOpacity>
 						</View>
-					</Animated.View>
+					</FadeInView>
 				) : null}
 
 				{(isForgotPassword || isResetPassword) && (
-					<Animated.View entering={FadeIn.duration(150)} style={styles.stepContainer}>
+					<FadeInView style={styles.stepContainer}>
 						<Text style={styles.title}>{isForgotPassword ? "Reset Password" : "Set New Password"}</Text>
 						<Text style={styles.subtitle}>
 							{isForgotPassword 
@@ -757,7 +757,7 @@ export default function Auth({ initialMode }: AuthProps) {
 									: "Update Password"}
 							</Text>}
 						</TouchableOpacity>
-					</Animated.View>
+					</FadeInView>
 				)}
 			</View>
 		</View>

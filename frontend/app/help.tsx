@@ -60,11 +60,11 @@ export default function HelpPage() {
   const faqs = [
     {
       question: "How does Divi work?",
-      answer: "Divi makes splitting expenses effortless. Tap the plus button to scan a receipt using your camera's document scanner — it automatically detects edges and crops the receipt for you. Divi's AI reads every item, lets you adjust prices or names, and then you assign each item to people from your contacts. Tax and tip are distributed proportionally, and Divi generates a summary you can text to your group with one tap."
+      answer: "Divi makes splitting expenses effortless. Tap the plus button to scan a receipt using your camera's document scanner; it automatically detects edges and crops the receipt for you. Divi's AI reads every item, lets you adjust prices or names, and then you assign each item to people from your contacts. Tax and tip are distributed proportionally, and Divi generates a summary you can text to your group with one tap."
     },
     {
       question: "What is the AI Assistant?",
-      answer: "Look for the sparkle (✦) button on the Assign and Review screens. Tapping it opens Divi's AI Assistant — a chat-powered helper that can assign items, move items between people, rename things, and adjust tax or tip for you. Just tell it what you need in plain English, like 'Give the steak to John' or 'Split the appetizer evenly.'"
+      answer: "Look for the sparkle (✦) button on the Assign and Review screens. Tapping it opens Divi's AI Assistant, a chat-powered helper that can assign items, move items between people, rename things, and adjust tax or tip for you. Just tell it what you need in plain English, like 'Give the steak to John' or 'Split the appetizer evenly.'"
     },
     {
       question: "How do I split a shared item?",
@@ -72,7 +72,7 @@ export default function HelpPage() {
     },
     {
       question: "Can I undo a delete or split?",
-      answer: "Yes! After deleting or splitting an item, an 'Undo' button appears at the bottom of the screen. Tapping it restores the item to its exact original position in the list — it won't just get added to the end."
+      answer: "Yes! After deleting or splitting an item, an 'Undo' button appears at the bottom of the screen. Tapping it restores the item to its exact original position in the list, not just tacked on at the end."
     },
     {
       question: "What if multiple people shared the same item?",
@@ -84,7 +84,7 @@ export default function HelpPage() {
     },
     {
       question: "Can I view or edit past receipts?",
-      answer: "Yes! Go to the History tab to see all your saved splits. Tap or swipe on any receipt to view the full breakdown. You can also re-edit a past split — reassign items, update contacts, and resend the SMS summary."
+      answer: "Yes! Go to the History tab to see all your saved splits. Tap or swipe on any receipt to view the full breakdown. You can also re-edit a past split: reassign items, update contacts, and resend the SMS summary."
     },
     {
       question: "Is the receipt scanning accurate?",
@@ -96,7 +96,7 @@ export default function HelpPage() {
     },
     {
       question: "How are tax and tip calculated?",
-      answer: "Divi uses the 'Largest Remainder Method' (Penny Allocation) to distribute tax proportionally based on each person's subtotal, and tip evenly across all participants. This ensures mathematically perfect distribution — no rounding errors or lost pennies!"
+      answer: "Divi uses the 'Largest Remainder Method' (Penny Allocation) to distribute tax proportionally based on each person's subtotal, and tip evenly across all participants. This ensures mathematically perfect distribution, with no rounding errors or lost pennies!"
     },
     {
       question: "Can I edit contact names before sending?",

@@ -6,7 +6,7 @@ import { ScrollView } from 'react-native-gesture-handler';
 import { Button, Surface } from 'react-native-paper';
 import { useSplitStore, ReceiptItem, ItemCategory } from '../stores/splitStore';
 import { TouchableOpacity as GHTouchableOpacity } from 'react-native-gesture-handler';
-import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
+import Swipeable from 'react-native-gesture-handler/Swipeable';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useChange } from '../utils/ChangesContext';
 import 'react-native-get-random-values';
