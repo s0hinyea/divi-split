@@ -52,8 +52,6 @@ export function getUserFacingErrorMessage(error: unknown, fallback: string) {
 const nativeFetch: typeof fetch = (...args) => globalThis.fetch(...args);
 
 export const offlineAwareFetch: typeof fetch = async (...args) => {
-    await assertInternetConnection();
-
     try {
         return await nativeFetch(...args);
     } catch (error) {
