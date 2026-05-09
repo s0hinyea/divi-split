@@ -9,9 +9,9 @@ import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
 import { Alert } from "react-native";
-import Purchases, { LOG_LEVEL } from "react-native-purchases";
+import { PaperProvider } from "react-native-paper";
 
-// TEMPORARY DEBUG — captures the actual fatal JS error before crash
+// TEMPORARY DEBUG — shows actual fatal JS error before crash
 const _origHandler = ErrorUtils.getGlobalHandler();
 ErrorUtils.setGlobalHandler((error, isFatal) => {
   if (isFatal) {
@@ -21,7 +21,6 @@ ErrorUtils.setGlobalHandler((error, isFatal) => {
     _origHandler(error, isFatal);
   }
 });
-import { PaperProvider } from "react-native-paper";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { ChangeProvider } from "@/utils/ChangesContext";
 import { OCRProvider } from "@/utils/OCRContext";
@@ -40,17 +39,6 @@ SplashScreen.preventAutoHideAsync().catch(() => {
   /* Ignore — native splash screen may not be registered yet in Expo Go */
 });
 
-// Initialize RevenueCat once at module load — wrapped in try/catch so a
-// missing native module or bad key never crashes the entire app.
-try {
-  const RC_API_KEY = process.env.EXPO_PUBLIC_REVENUECAT_API_KEY ?? '';
-  if (RC_API_KEY) {
-    Purchases.setLogLevel(LOG_LEVEL.ERROR);
-    Purchases.configure({ apiKey: RC_API_KEY });
-  }
-} catch {
-  // RC unavailable (Expo Go, simulator without native build, etc.) — safe to ignore
-}
 
 export default function RootLayout() {
   const [loaded] = useFonts({

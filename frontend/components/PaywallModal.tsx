@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
-import { PurchasesPackage } from 'react-native-purchases';
+type PurchasesPackage = any;
 import { colors, fonts, fontSizes, spacing, radii, shadows } from '@/styles/theme';
 
 type Props = {
