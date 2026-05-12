@@ -1,0 +1,28 @@
+diff --git a/node_modules/@react-native-async-storage/async-storage/ios/RNCAsyncStorage.mm b/node_modules/@react-native-async-storage/async-storage/ios/RNCAsyncStorage.mm
+index fa3bb04..5498e2c 100644
+--- a/node_modules/@react-native-async-storage/async-storage/ios/RNCAsyncStorage.mm
++++ b/node_modules/@react-native-async-storage/async-storage/ios/RNCAsyncStorage.mm
+@@ -84,9 +84,20 @@ static void RCTAppendError(NSDictionary *error, NSMutableArray<NSDictionary *> *
+     if ([[NSFileManager defaultManager] fileExistsAtPath:filePath]) {
+         NSError *error;
+         NSStringEncoding encoding;
+-        NSString *entryString = [NSString stringWithContentsOfFile:filePath
+-                                                      usedEncoding:&encoding
+-                                                             error:&error];
++        NSString *entryString = nil;
++        // iOS 26: Swift Foundation backs NSString file I/O and may throw ObjC
++        // exceptions instead of returning nil on read failure.
++        @try {
++            entryString = [NSString stringWithContentsOfFile:filePath
++                                                usedEncoding:&encoding
++                                                       error:&error];
++        } @catch (NSException *exception) {
++            if (errorOut) {
++                *errorOut = RCTMakeError(@"Failed to read storage file.", nil,
++                                        @{@"key": RCTNullIfNil(key)});
++            }
++            return nil;
++        }
+         NSDictionary *extraData = @{@"key": RCTNullIfNil(key)};
+ 
+         if (error) {
