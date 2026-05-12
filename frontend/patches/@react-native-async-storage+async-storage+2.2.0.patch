@@ -1,5 +1,5 @@
 diff --git a/node_modules/@react-native-async-storage/async-storage/ios/RNCAsyncStorage.mm b/node_modules/@react-native-async-storage/async-storage/ios/RNCAsyncStorage.mm
-index fa3bb04..5498e2c 100644
+index fa3bb04..fc20101 100644
 --- a/node_modules/@react-native-async-storage/async-storage/ios/RNCAsyncStorage.mm
 +++ b/node_modules/@react-native-async-storage/async-storage/ios/RNCAsyncStorage.mm
 @@ -84,9 +84,20 @@ static void RCTAppendError(NSDictionary *error, NSMutableArray<NSDictionary *> *
@@ -16,7 +16,7 @@ index fa3bb04..5498e2c 100644
 +            entryString = [NSString stringWithContentsOfFile:filePath
 +                                                usedEncoding:&encoding
 +                                                       error:&error];
-+        } @catch (NSException *exception) {
++        } @catch (...) {
 +            if (errorOut) {
 +                *errorOut = RCTMakeError(@"Failed to read storage file.", nil,
 +                                        @{@"key": RCTNullIfNil(key)});
