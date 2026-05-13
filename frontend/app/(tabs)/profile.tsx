@@ -12,6 +12,8 @@ import * as ImagePicker from 'expo-image-picker';
 import { useSession } from '@/utils/SessionContext';
 import { getUserFacingErrorMessage } from '@/utils/network';
 import { privacyPolicyUrl } from '@/constants/appConfig';
+import { usePaywall } from '@/utils/usePaywall';
+import PaywallModal from '@/components/PaywallModal';
 
 const VenmoLogo = require('@/assets/images/venmo.png');
 const CashAppLogo = require('@/assets/images/cashapp.png');
@@ -194,6 +196,7 @@ function createStyles(C: ReturnType<typeof useThemeColors>) {
 export default function Profile() {
     const { session } = useSession();
     const { profile, loading, updateProfile, refreshProfile } = useProfile();
+    const { isSubscribed, paywallVisible, currentPackage, purchaseError, showPaywall, hidePaywall, purchaseSubscription, restorePurchases, scansRemaining } = usePaywall();
     const router = useRouter();
     const C = useThemeColors();
     const styles = useMemo(() => createStyles(C), [C]);
@@ -408,6 +411,24 @@ export default function Profile() {
                     </View>
                 </View>
 
+                {/* Membership */}
+                <Text style={styles.sectionLabel}>Membership</Text>
+                <View style={styles.card}>
+                    <TouchableOpacity style={styles.row} onPress={isSubscribed ? undefined : showPaywall} activeOpacity={isSubscribed ? 1 : 0.7}>
+                        <View style={[styles.settingIconBox, { backgroundColor: isSubscribed ? colors.greenLight : C.gray100 }]}>
+                            <MaterialIcons name="auto-awesome" size={20} color={isSubscribed ? colors.green : C.gray600} />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                            <Text style={styles.settingLabel}>Divi Pro</Text>
+                            <Text style={{ fontFamily: fonts.body, fontSize: fontSizes.xs, color: isSubscribed ? colors.green : C.gray500 }}>
+                                {isSubscribed ? 'Active subscription' : `${scansRemaining} free AI scan${scansRemaining !== 1 ? 's' : ''} remaining`}
+                            </Text>
+                        </View>
+                        {!isSubscribed && <MaterialIcons name="chevron-right" size={22} color={C.gray300} />}
+                        {isSubscribed && <MaterialIcons name="check-circle" size={20} color={colors.green} />}
+                    </TouchableOpacity>
+                </View>
+
                 {/* Settings */}
                 <Text style={styles.sectionLabel}>Settings</Text>
                 <View style={styles.card}>
@@ -439,6 +460,14 @@ export default function Profile() {
                     </TouchableOpacity>
                 </View>
             </ScrollView>
+            <PaywallModal
+                visible={paywallVisible}
+                onClose={hidePaywall}
+                onSubscribe={purchaseSubscription}
+                onRestore={restorePurchases}
+                currentPackage={currentPackage}
+                purchaseError={purchaseError}
+            />
         </SafeAreaView>
     );
 }
