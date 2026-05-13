@@ -1,14 +1,13 @@
 import { Redirect } from 'expo-router';
 import { useSession } from '@/utils/SessionContext';
+import { useProfile } from '@/utils/ProfileContext';
 
 export default function Index() {
   const { session } = useSession();
+  const { profile, loading } = useProfile();
 
-  // If user is already logged in, skip to the main app (tabs)
-  if (session) {
-    return <Redirect href="/(tabs)" />;
-  }
-
-  // Otherwise, show the login/signup page
-  return <Redirect href="/home" />;
+  if (!session) return <Redirect href="/home" />;
+  if (loading) return null;
+  if (!profile?.username) return <Redirect href="/onboarding" />;
+  return <Redirect href="/(tabs)" />;
 }

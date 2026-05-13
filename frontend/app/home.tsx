@@ -1,4 +1,4 @@
-import { View, StyleSheet, TouchableOpacity, Dimensions } from "react-native";
+import { View, StyleSheet, TouchableOpacity, Dimensions, Alert, ActivityIndicator } from "react-native";
 import { useRouter } from "expo-router";
 import { Text } from "react-native-paper";
 import { LinearGradient } from "expo-linear-gradient";
@@ -6,13 +6,21 @@ import { colors, fonts, fontSizes, spacing } from '@/styles/theme';
 import Svg, { Path } from "react-native-svg";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import DiviLogo from "@/components/DiviLogo";
+import { useState } from "react";
+import * as AppleAuthentication from "expo-apple-authentication";
+import { GoogleSignin, statusCodes } from "@react-native-google-signin/google-signin";
+import { supabase } from "@/lib/supabase";
+
+GoogleSignin.configure({
+	iosClientId: "REPLACE_WITH_IOS_CLIENT_ID.apps.googleusercontent.com",
+	scopes: ["profile", "email"],
+});
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const GREEN = colors.green;
 const BLACK = colors.black;
 const ZIGZAG_H = 12;
 const ZIGZAG_W = 18;
-
 
 function ZigzagEdge({ width }: { width: number }) {
 	const numZigzags = Math.floor(width / ZIGZAG_W);
@@ -32,6 +40,9 @@ function ZigzagEdge({ width }: { width: number }) {
 
 export default function Home() {
 	const router = useRouter();
+	const [loadingApple, setLoadingApple] = useState(false);
+	const [loadingGoogle, setLoadingGoogle] = useState(false);
+
 	const logos = [
 		{ top: 8,   left: 12,  size: 64, rotate: "-12deg", opacity: 0.9  },
 		{ top: 12,  left: 190, size: 56, rotate: "14deg",  opacity: 0.88 },
@@ -54,6 +65,59 @@ export default function Home() {
 		{ top: 390, left: 110, size: 50, rotate: "22deg",  opacity: 0.05 },
 		{ top: 395, left: 270, size: 46, rotate: "-16deg", opacity: 0.03 },
 	];
+
+	const handleAppleSignIn = async () => {
+		setLoadingApple(true);
+		try {
+			const credential = await AppleAuthentication.signInAsync({
+				requestedScopes: [
+					AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+					AppleAuthentication.AppleAuthenticationScope.EMAIL,
+				],
+			});
+
+			if (!credential.identityToken) throw new Error("No identity token returned.");
+
+			const { error } = await supabase.auth.signInWithIdToken({
+				provider: "apple",
+				token: credential.identityToken,
+			});
+
+			if (error) throw error;
+			// SessionContext picks up the new session; index.tsx handles routing
+		} catch (e: any) {
+			if (e.code !== "ERR_REQUEST_CANCELED") {
+				Alert.alert("Sign In Failed", e.message ?? "Something went wrong.");
+			}
+		} finally {
+			setLoadingApple(false);
+		}
+	};
+
+	const handleGoogleSignIn = async () => {
+		setLoadingGoogle(true);
+		try {
+			await GoogleSignin.hasPlayServices();
+			await GoogleSignin.signIn();
+			const { idToken } = await GoogleSignin.getTokens();
+
+			if (!idToken) throw new Error("No ID token returned.");
+
+			const { error } = await supabase.auth.signInWithIdToken({
+				provider: "google",
+				token: idToken,
+			});
+
+			if (error) throw error;
+			// SessionContext picks up the new session; index.tsx handles routing
+		} catch (e: any) {
+			if (e.code !== statusCodes.SIGN_IN_CANCELLED) {
+				Alert.alert("Sign In Failed", e.message ?? "Something went wrong.");
+			}
+		} finally {
+			setLoadingGoogle(false);
+		}
+	};
 
 	return (
 		<View style={styles.container}>
@@ -88,15 +152,35 @@ export default function Home() {
 				<View style={styles.receipt}>
 
 					{/* Apple */}
-					<TouchableOpacity style={styles.appleButton} activeOpacity={0.85}>
-						<Ionicons name="logo-apple" size={20} color={colors.white} />
-						<Text style={styles.appleText}>Continue with Apple</Text>
+					<TouchableOpacity
+						style={[styles.appleButton, loadingApple && styles.buttonDisabled]}
+						activeOpacity={0.85}
+						onPress={handleAppleSignIn}
+						disabled={loadingApple || loadingGoogle}
+					>
+						{loadingApple
+							? <ActivityIndicator color={colors.white} />
+							: <>
+								<Ionicons name="logo-apple" size={20} color={colors.white} />
+								<Text style={styles.appleText}>Continue with Apple</Text>
+							</>
+						}
 					</TouchableOpacity>
 
 					{/* Google */}
-					<TouchableOpacity style={styles.googleButton} activeOpacity={0.85}>
-						<Ionicons name="logo-google" size={18} color={BLACK} />
-						<Text style={styles.googleText}>Continue with Google</Text>
+					<TouchableOpacity
+						style={[styles.googleButton, loadingGoogle && styles.buttonDisabled]}
+						activeOpacity={0.85}
+						onPress={handleGoogleSignIn}
+						disabled={loadingApple || loadingGoogle}
+					>
+						{loadingGoogle
+							? <ActivityIndicator color={BLACK} />
+							: <>
+								<Ionicons name="logo-google" size={18} color={BLACK} />
+								<Text style={styles.googleText}>Continue with Google</Text>
+							</>
+						}
 					</TouchableOpacity>
 
 					{/* Divider */}
@@ -182,6 +266,7 @@ const styles = StyleSheet.create({
 		backgroundColor: BLACK,
 		paddingVertical: 15,
 		borderRadius: 12,
+		height: 54,
 	},
 	appleText: {
 		fontFamily: fonts.bodySemiBold,
@@ -198,11 +283,15 @@ const styles = StyleSheet.create({
 		borderRadius: 12,
 		borderWidth: 1,
 		borderColor: colors.gray200,
+		height: 54,
 	},
 	googleText: {
 		fontFamily: fonts.bodySemiBold,
 		fontSize: fontSizes.md,
 		color: BLACK,
+	},
+	buttonDisabled: {
+		opacity: 0.6,
 	},
 
 	// Or divider
