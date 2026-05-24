@@ -6,7 +6,6 @@ import Svg, { Circle, Rect } from 'react-native-svg';
 import { useState, useRef } from 'react';
 import { fonts, spacing, radii, colors, shadows } from '@/styles/theme';
 import { useThemeColors } from '@/utils/ThemeContext';
-import NetworkBanner from '@/components/NetworkBanner';
 import { useSplitStore } from '@/stores/splitStore';
 import { useCustomAlert } from '@/components/CustomAlert';
 
@@ -101,13 +100,10 @@ export default function TabsLayout() {
 
     return (
         <>
-            <NetworkBanner />
             <Tabs
                 screenOptions={{
                     headerShown: false,
                     lazy: false,
-                    freezeOnBlur: true,
-                    animation: 'fade',
                     tabBarStyle: {
                         backgroundColor: C.white,
                         borderTopWidth: 1,

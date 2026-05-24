@@ -12,7 +12,8 @@ import { GoogleSignin, statusCodes } from "@react-native-google-signin/google-si
 import { supabase } from "@/lib/supabase";
 
 GoogleSignin.configure({
-	iosClientId: "REPLACE_WITH_IOS_CLIENT_ID.apps.googleusercontent.com",
+	iosClientId: "944876518323-9jj4llibmjk07dk10qa2l1beuk1bcdtd.apps.googleusercontent.com",
+	iosUrlScheme: "com.googleusercontent.apps.944876518323-9jj4llibmjk07dk10qa2l1beuk1bcdtd",
 	scopes: ["profile", "email"],
 });
 
@@ -84,7 +85,7 @@ export default function Home() {
 			});
 
 			if (error) throw error;
-			// SessionContext picks up the new session; index.tsx handles routing
+			router.replace("/");
 		} catch (e: any) {
 			if (e.code !== "ERR_REQUEST_CANCELED") {
 				Alert.alert("Sign In Failed", e.message ?? "Something went wrong.");
@@ -109,7 +110,7 @@ export default function Home() {
 			});
 
 			if (error) throw error;
-			// SessionContext picks up the new session; index.tsx handles routing
+			router.replace("/");
 		} catch (e: any) {
 			if (e.code !== statusCodes.SIGN_IN_CANCELLED) {
 				Alert.alert("Sign In Failed", e.message ?? "Something went wrong.");
