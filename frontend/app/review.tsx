@@ -189,42 +189,7 @@ export default function ReviewPage() {
     total: receiptData.total ?? 0,
   };
 
-  // Build a personalized payment message for one contact
-  const buildPersonalMessage = (
-    contactName: string,
-    amount: number,
-    mealTotal: number,
-    tax: number,
-    tip: number,
-  ): string => {
-    const name = receiptName.trim() || 'our split';
-    const note = encodeURIComponent(`Divi - ${name}`);
-    const amountStr = amount.toFixed(2);
-
-    const details: string[] = [`meal $${mealTotal.toFixed(2)}`];
-    if (tax > 0) details.push(`tax $${tax.toFixed(2)}`);
-    if (tip > 0) details.push(`tip $${tip.toFixed(2)}`);
-
-    let msg = `Hey ${contactName.split(' ')[0]}! Your share of ${name} is $${amountStr} (${details.join(' + ')}).\n\nPay ${profile?.full_name ?? 'me'} back:`;
-
-    if (profile?.venmo_handle) {
-      const handle = profile.venmo_handle.replace('@', '');
-      msg += `\n💙 Venmo: venmo://paycharge?txn=pay&recipients=${encodeURIComponent(handle)}&amount=${amountStr}&note=${note}`;
-    }
-
-    if (profile?.cashapp_handle) {
-      const handle = profile.cashapp_handle.replace('$', '');
-      msg += `\n💚 Cash App: https://cash.app/$${handle}/${amountStr}`;
-    }
-
-    if (profile?.zelle_number) {
-      msg += `\n💜 Zelle $${amountStr} → ${profile.zelle_number}`;
-    }
-
-    return msg;
-  };
-
-  // Send individual SMS to each contact sequentially
+  // Send one group SMS with each person's breakdown and pre-filled payment links
   const sendGroupSummary = async () => {
     try {
       const isAvailable = await SMS.isAvailableAsync();
@@ -233,25 +198,57 @@ export default function ReviewPage() {
         return;
       }
 
-      const contactsWithPhones = selected.filter(c => !!c.phoneNumber);
+      const phoneNumbers = selected
+        .map(c => c.phoneNumber)
+        .filter((num): num is string => !!num);
 
-      if (contactsWithPhones.length === 0) {
+      if (phoneNumbers.length === 0) {
         showToast('None of the selected contacts have phone numbers.', 'warning');
         return;
       }
 
-      setShowSmsModal(false);
+      const name = receiptName.trim() || 'Split';
+      const note = encodeURIComponent(`Divi - ${name}`);
+      const dateStr = receiptDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
-      for (const contact of contactsWithPhones) {
+      let message = `🧾 Divi — ${name}\n📅 ${dateStr}\n`;
+
+      selected.forEach(contact => {
         const mealTotal = calculateTotal(contact.items as ReceiptItem[]);
         const tax = individualTaxes[contact.id] || 0;
         const tip = individualTips[contact.id] || 0;
         const total = mealTotal + tax + tip;
+        const amountStr = total.toFixed(2);
 
-        const message = buildPersonalMessage(contact.name, total, mealTotal, tax, tip);
-        await SMS.sendSMSAsync([contact.phoneNumber!], message);
-      }
+        const details: string[] = [`meal $${mealTotal.toFixed(2)}`];
+        if (tax > 0) details.push(`tax $${tax.toFixed(2)}`);
+        if (tip > 0) details.push(`tip $${tip.toFixed(2)}`);
 
+        message += `\n${contact.name}: $${amountStr} (${details.join(' + ')})`;
+
+        if (profile?.venmo_handle) {
+          const handle = profile.venmo_handle.replace('@', '');
+          message += `\n💙 venmo://paycharge?txn=pay&recipients=${encodeURIComponent(handle)}&amount=${amountStr}&note=${note}`;
+        }
+        if (profile?.cashapp_handle) {
+          const handle = profile.cashapp_handle.replace('$', '');
+          message += `\n💚 https://cash.app/$${handle}/${amountStr}`;
+        }
+        if (profile?.zelle_number) {
+          message += `\n💜 Zelle $${amountStr} → ${profile.zelle_number}`;
+        }
+      });
+
+      const allMealItems = 'items' in receiptData ? receiptData.items : [];
+      const grandTotal =
+        calculateTotal(allMealItems) +
+        Object.values(individualTaxes).reduce((s, t) => s + t, 0) +
+        Object.values(individualTips).reduce((s, t) => s + t, 0);
+
+      message += `\n\nTotal: $${grandTotal.toFixed(2)}`;
+
+      await SMS.sendSMSAsync(phoneNumbers, message);
+      setShowSmsModal(false);
       triggerCompletion();
     } catch (error) {
       console.error('SMS Error:', error);
