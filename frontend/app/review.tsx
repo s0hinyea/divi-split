@@ -189,7 +189,42 @@ export default function ReviewPage() {
     total: receiptData.total ?? 0,
   };
 
-  // Send group summary via native Messages app
+  // Build a personalized payment message for one contact
+  const buildPersonalMessage = (
+    contactName: string,
+    amount: number,
+    mealTotal: number,
+    tax: number,
+    tip: number,
+  ): string => {
+    const name = receiptName.trim() || 'our split';
+    const note = encodeURIComponent(`Divi - ${name}`);
+    const amountStr = amount.toFixed(2);
+
+    const details: string[] = [`meal $${mealTotal.toFixed(2)}`];
+    if (tax > 0) details.push(`tax $${tax.toFixed(2)}`);
+    if (tip > 0) details.push(`tip $${tip.toFixed(2)}`);
+
+    let msg = `Hey ${contactName.split(' ')[0]}! Your share of ${name} is $${amountStr} (${details.join(' + ')}).\n\nPay ${profile?.full_name ?? 'me'} back:`;
+
+    if (profile?.venmo_handle) {
+      const handle = profile.venmo_handle.replace('@', '');
+      msg += `\n💙 Venmo: venmo://paycharge?txn=pay&recipients=${encodeURIComponent(handle)}&amount=${amountStr}&note=${note}`;
+    }
+
+    if (profile?.cashapp_handle) {
+      const handle = profile.cashapp_handle.replace('$', '');
+      msg += `\n💚 Cash App: https://cash.app/$${handle}/${amountStr}`;
+    }
+
+    if (profile?.zelle_number) {
+      msg += `\n💜 Zelle $${amountStr} → ${profile.zelle_number}`;
+    }
+
+    return msg;
+  };
+
+  // Send individual SMS to each contact sequentially
   const sendGroupSummary = async () => {
     try {
       const isAvailable = await SMS.isAvailableAsync();
@@ -198,83 +233,26 @@ export default function ReviewPage() {
         return;
       }
 
-      // Collect all phone numbers
-      const phoneNumbers = selected
-        .map(c => c.phoneNumber)
-        .filter((num): num is string => !!num);
+      const contactsWithPhones = selected.filter(c => !!c.phoneNumber);
 
-      if (phoneNumbers.length === 0) {
+      if (contactsWithPhones.length === 0) {
         showToast('None of the selected contacts have phone numbers.', 'warning');
         return;
       }
 
-      // Build the formatted message
-      const name = receiptName.trim() || 'Split';
-      const dateStr = receiptDate.toLocaleDateString('en-US', {
-        month: 'short', day: 'numeric', year: 'numeric'
-      });
-
-      let message = `🧾 Divi — ${name}\n📅 ${dateStr}\n\n`;
-
-      selected.forEach(contact => {
-        const contactMealTotal = calculateTotal(contact.items as ReceiptItem[]);
-        const contactTax = individualTaxes[contact.id] || 0;
-        const contactTip = individualTips[contact.id] || 0;
-        const contactTotal = contactMealTotal + contactTax + contactTip;
-
-        message += `• ${contact.name}: $${contactTotal.toFixed(2)}`;
-      
-      
-        const details: string[] = [];
-        details.push(`meal $${contactMealTotal.toFixed(2)}`);
-        if (contactTax > 0) details.push(`tax $${contactTax.toFixed(2)}`);
-        if (contactTip > 0) details.push(`tip $${contactTip.toFixed(2)}`);
-        message += ` (${details.join(' + ')})\n`;
-      });
-
-        const userMealTotal = calculateTotal(receiptData.userItems as ReceiptItem[]);
-        const userTax = individualTaxes["user"] || 0;
-        const userTip = individualTips["user"] || 0;
-        const userTotal = userMealTotal + userTax + userTip;
-
-        message += `• ${profile?.full_name}: $${userTotal.toFixed(2)}`;
-      
-        const details: string[] = [];
-        details.push(`meal $${userMealTotal.toFixed(2)}`);
-        if (userTax > 0) details.push(`tax $${userTax.toFixed(2)}`);
-        if (userTip > 0) details.push(`tip $${userTip.toFixed(2)}`);
-        message += ` (${details.join(' + ')})\n`;
-
-
-      const allMealItems = 'items' in receiptData ? receiptData.items : [];
-      const grandTotal = calculateTotal(allMealItems) +
-        Object.values(individualTaxes).reduce((s, t) => s + t, 0) +
-        Object.values(individualTips).reduce((s, t) => s + t, 0);
-
-      message += `\nTotal: $${grandTotal.toFixed(2)}`;
-
-      if (profile?.venmo_handle) {
-        const handle = profile.venmo_handle.replace('@', '');
-        const note = encodeURIComponent(`Divi - ${name}`);
-        const venmoLink = `https://venmo.com/u/${handle}`;
-        message += `\n\nPay me on Venmo:\n${venmoLink}`;
-      }
-
-      if (profile?.cashapp_handle) {
-        const handle = profile.cashapp_handle.replace('$', '');
-        const cashLink = `https://cash.app/$${handle}`;
-        message += `\n\nPay me on Cash App:\n${cashLink}`;
-      }
-
-      // Append Zelle Info if number exists
-      if (profile?.zelle_number) {
-        message += `\n\nPay me on Zelle:\n${profile.zelle_number}`;
-      }
-
-      await SMS.sendSMSAsync(phoneNumbers, message);
       setShowSmsModal(false);
-      triggerCompletion();
 
+      for (const contact of contactsWithPhones) {
+        const mealTotal = calculateTotal(contact.items as ReceiptItem[]);
+        const tax = individualTaxes[contact.id] || 0;
+        const tip = individualTips[contact.id] || 0;
+        const total = mealTotal + tax + tip;
+
+        const message = buildPersonalMessage(contact.name, total, mealTotal, tax, tip);
+        await SMS.sendSMSAsync([contact.phoneNumber!], message);
+      }
+
+      triggerCompletion();
     } catch (error) {
       console.error('SMS Error:', error);
       showToast('Failed to open Messages.', 'error');
