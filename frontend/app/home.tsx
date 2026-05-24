@@ -8,14 +8,24 @@ import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import DiviLogo from "@/components/DiviLogo";
 import { useState } from "react";
 import * as AppleAuthentication from "expo-apple-authentication";
-import { GoogleSignin, statusCodes } from "@react-native-google-signin/google-signin";
 import { supabase } from "@/lib/supabase";
 
-GoogleSignin.configure({
-	iosClientId: "944876518323-9jj4llibmjk07dk10qa2l1beuk1bcdtd.apps.googleusercontent.com",
-	iosUrlScheme: "com.googleusercontent.apps.944876518323-9jj4llibmjk07dk10qa2l1beuk1bcdtd",
-	scopes: ["profile", "email"],
-});
+// Google Sign-In is a native module that doesn't exist in Expo Go.
+// Lazy-load it so the app doesn't crash in dev mode.
+let GoogleSignin: any = null;
+let statusCodes: any = {};
+try {
+	const gsi = require("@react-native-google-signin/google-signin");
+	GoogleSignin = gsi.GoogleSignin;
+	statusCodes = gsi.statusCodes;
+	GoogleSignin.configure({
+		iosClientId: "944876518323-9jj4llibmjk07dk10qa2l1beuk1bcdtd.apps.googleusercontent.com",
+		iosUrlScheme: "com.googleusercontent.apps.944876518323-9jj4llibmjk07dk10qa2l1beuk1bcdtd",
+		scopes: ["profile", "email"],
+	});
+} catch {
+	// Running in Expo Go — Google Sign-In not available
+}
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const GREEN = colors.green;
@@ -96,6 +106,10 @@ export default function Home() {
 	};
 
 	const handleGoogleSignIn = async () => {
+		if (!GoogleSignin) {
+			Alert.alert("Not Available", "Google Sign-In is not available in Expo Go. Use Apple Sign-In for development.");
+			return;
+		}
 		setLoadingGoogle(true);
 		try {
 			await GoogleSignin.hasPlayServices();
