@@ -152,19 +152,16 @@ export function useAgentChat() {
           content: m.content,
         }));
 
-        // Snapshot current store state to send as context
+        // Snapshot current store state to send as context (strip fields irrelevant to assignment)
         const store = useSplitStore.getState();
         const state = {
-          items: store.receiptData.items,
+          items: store.receiptData.items.map(({ id, name, price }) => ({ id, name, price })),
           contacts: store.selected.map((c) => ({
             id: c.id,
             name: c.name,
-            items: c.items,
+            items: c.items.map(({ id, name, price }) => ({ id, name, price })),
           })),
-          userItems: store.receiptData.userItems ?? [],
-          tax: store.receiptData.tax ?? 0,
-          tip: store.receiptData.tip ?? 0,
-          total: store.receiptData.total ?? 0,
+          userItems: (store.receiptData.userItems ?? []).map(({ id, name, price }) => ({ id, name, price })),
         };
 
         const { data: sessionData } = await supabase.auth.getSession();
