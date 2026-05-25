@@ -148,12 +148,12 @@ export function useResultAgent(addChange: (c: Change) => void) {
           content: m.content,
         }));
 
-        // Snapshot state fresh from store at send time
+        // Snapshot state fresh from store at send time (strip category to reduce payload)
         const store = useSplitStore.getState();
         const state = {
-          items: store.receiptData.items.filter(
-            (i) => i.name.trim().toLowerCase() !== "tax"
-          ),
+          items: store.receiptData.items
+            .filter((i) => i.name.trim().toLowerCase() !== "tax")
+            .map(({ id, name, price }) => ({ id, name, price })),
           tax: store.receiptData.tax ?? 0,
           tip: store.receiptData.tip ?? 0,
         };
@@ -246,13 +246,15 @@ export function useResultAgent(addChange: (c: Change) => void) {
 
     setIsTranscribing(true);
     try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData?.session?.access_token;
-      if (!token) throw new Error("Not authenticated");
-
+      // Parallelize session fetch and audio encoding
       console.time('[result-agent] base64 encode');
       const file = new ExpoFile(uri);
-      const bytes = await file.bytes();
+      const [bytes, { data: sessionData }] = await Promise.all([
+        file.bytes(),
+        supabase.auth.getSession(),
+      ]);
+      const token = sessionData?.session?.access_token;
+      if (!token) throw new Error("Not authenticated");
       let binary = "";
       for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
       const base64 = btoa(binary);

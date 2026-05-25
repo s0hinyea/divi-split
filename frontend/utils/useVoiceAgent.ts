@@ -47,13 +47,15 @@ export function useVoiceAgent() {
 
     setIsTranscribing(true);
     try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData?.session?.access_token;
-      if (!token) throw new Error("Not authenticated");
-
+      // Parallelize session fetch and audio encoding
       console.time('[voice] base64 encode');
       const file = new ExpoFile(uri);
-      const bytes = await file.bytes();
+      const [bytes, { data: sessionData }] = await Promise.all([
+        file.bytes(),
+        supabase.auth.getSession(),
+      ]);
+      const token = sessionData?.session?.access_token;
+      if (!token) throw new Error("Not authenticated");
       let binary = "";
       for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
       const base64 = btoa(binary);
