@@ -69,14 +69,14 @@ export default function OCRResults() {
       setOverlayPhase('revealing');
 
       Animated.sequence([
-        Animated.stagger(500, items.map(item =>
+        Animated.stagger(250, items.map(item =>
           Animated.parallel([
-            Animated.timing(item.opacity, { toValue: 1, duration: 450, useNativeDriver: true }),
-            Animated.timing(item.translateY, { toValue: 0, duration: 450, useNativeDriver: true }),
+            Animated.timing(item.opacity, { toValue: 1, duration: 300, useNativeDriver: true }),
+            Animated.timing(item.translateY, { toValue: 0, duration: 300, useNativeDriver: true }),
           ])
         )),
-        Animated.delay(2000),
-        Animated.timing(overlayOpacity, { toValue: 0, duration: 500, useNativeDriver: true }),
+        Animated.delay(900),
+        Animated.timing(overlayOpacity, { toValue: 0, duration: 300, useNativeDriver: true }),
       ]).start(() => {
         setOverlayVisible(false);
         setRevealItems([]);
@@ -560,9 +560,19 @@ export default function OCRResults() {
         )}
       </View>
 
-      {/* Agent overlay — processing spinner → action reveal → fade out */}
+      {/* Agent overlay — processing spinner → action reveal → fade out (tap to dismiss) */}
       {overlayVisible && (
-        <Animated.View style={[styles.processingOverlay, { opacity: overlayOpacity }]}>
+        <Animated.View
+          style={[styles.processingOverlay, { opacity: overlayOpacity }]}
+          onTouchEnd={() => {
+            if (overlayPhase === 'revealing') {
+              Animated.timing(overlayOpacity, { toValue: 0, duration: 200, useNativeDriver: true }).start(() => {
+                setOverlayVisible(false);
+                setRevealItems([]);
+              });
+            }
+          }}
+        >
           <BlurView intensity={55} style={StyleSheet.absoluteFill} />
           <View style={styles.overlayContent}>
             {overlayPhase === 'processing' && (
