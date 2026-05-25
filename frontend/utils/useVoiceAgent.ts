@@ -51,15 +51,18 @@ export function useVoiceAgent() {
       const token = sessionData?.session?.access_token;
       if (!token) throw new Error("Not authenticated");
 
+      console.time('[voice] base64 encode');
       const file = new ExpoFile(uri);
       const bytes = await file.bytes();
       let binary = "";
       for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
       const base64 = btoa(binary);
+      console.timeEnd('[voice] base64 encode');
+      console.log(`[voice] audio size: ${(base64.length / 1024).toFixed(1)}KB`);
 
       const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
-      console.log("[voice] sending audio to voice-transcribe, uri:", uri);
 
+      console.time('[voice] transcription');
       const response = await fetch(`${supabaseUrl}/functions/v1/voice-transcribe`, {
         method: "POST",
         headers: {
@@ -70,14 +73,15 @@ export function useVoiceAgent() {
       });
 
       const json = await response.json();
-      console.log("[voice] transcribe response:", JSON.stringify(json));
+      console.timeEnd('[voice] transcription');
 
       if (!response.ok) throw new Error(json.error ?? "Transcription failed");
 
       const transcript = (json as { transcript: string }).transcript;
-      console.log("[voice] transcript:", transcript);
+      console.log(`[voice] transcript: "${transcript}"`);
 
       if (transcript?.trim()) {
+        console.time('[voice] agent-chat');
         agentChat.sendMessage(transcript.trim());
       } else {
         console.warn("[voice] transcript was empty");

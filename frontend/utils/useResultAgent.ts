@@ -158,15 +158,14 @@ export function useResultAgent(addChange: (c: Change) => void) {
           tip: store.receiptData.tip ?? 0,
         };
 
-        console.log("[result-agent] sending state:", JSON.stringify(state));
+        console.log(`[result-agent] sending message: "${text.trim()}", items: ${state.items.length}`);
 
         const { data: sessionData } = await supabase.auth.getSession();
         const token = sessionData?.session?.access_token;
         if (!token) throw new Error("Not authenticated");
 
         const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
-        console.log("[result-agent] url:", `${supabaseUrl}/functions/v1/result-agent`);
-
+        console.time('[result-agent] result-agent edge function');
         const response = await fetch(`${supabaseUrl}/functions/v1/result-agent`, {
           method: "POST",
           headers: {
@@ -175,8 +174,8 @@ export function useResultAgent(addChange: (c: Change) => void) {
           },
           body: JSON.stringify({ message: text.trim(), history, state }),
         });
-
-        console.log("[result-agent] response status:", response.status);
+        console.timeEnd('[result-agent] result-agent edge function');
+        console.log(`[result-agent] response status: ${response.status}`);
 
         if (!response.ok) {
           const rawText = await response.text();
@@ -194,9 +193,10 @@ export function useResultAgent(addChange: (c: Change) => void) {
           actions: ResultAction[];
         };
 
-        console.log("[result-agent] reply:", reply, "actions:", actions);
-
+        console.log(`[result-agent] reply: "${reply}", actions: ${actions?.length ?? 0}`);
+        console.time('[result-agent] execute actions');
         const summary = actions?.length > 0 ? executeResultActions(actions, addChange) : [];
+        console.timeEnd('[result-agent] execute actions');
         setLastActionSummary(summary);
 
         const assistantMsg: AgentMessage = {
@@ -250,13 +250,17 @@ export function useResultAgent(addChange: (c: Change) => void) {
       const token = sessionData?.session?.access_token;
       if (!token) throw new Error("Not authenticated");
 
+      console.time('[result-agent] base64 encode');
       const file = new ExpoFile(uri);
       const bytes = await file.bytes();
       let binary = "";
       for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
       const base64 = btoa(binary);
+      console.timeEnd('[result-agent] base64 encode');
+      console.log(`[result-agent] audio size: ${(base64.length / 1024).toFixed(1)}KB`);
 
       const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+      console.time('[result-agent] transcription');
       const response = await fetch(`${supabaseUrl}/functions/v1/voice-transcribe`, {
         method: "POST",
         headers: {
@@ -267,9 +271,11 @@ export function useResultAgent(addChange: (c: Change) => void) {
       });
 
       const json = await response.json();
+      console.timeEnd('[result-agent] transcription');
       if (!response.ok) throw new Error(json.error ?? "Transcription failed");
 
       const transcript = (json as { transcript: string }).transcript;
+      console.log(`[result-agent] transcript: "${transcript}"`);
       if (transcript?.trim()) {
         await sendMessage(transcript.trim());
       }

@@ -172,6 +172,8 @@ export function useAgentChat() {
         if (!token) throw new Error("Not authenticated");
 
         const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+        console.log(`[agent-chat] sending message: "${text.trim()}", items: ${state.items.length}, contacts: ${state.contacts.length}`);
+        console.time('[agent-chat] agent-chat edge function');
         const response = await fetch(`${supabaseUrl}/functions/v1/agent-chat`, {
           method: "POST",
           headers: {
@@ -180,6 +182,7 @@ export function useAgentChat() {
           },
           body: JSON.stringify({ message: text.trim(), history, state }),
         });
+        console.timeEnd('[agent-chat] agent-chat edge function');
 
         if (!response.ok) {
           const errBody = await response.json().catch(() => ({}));
@@ -191,7 +194,10 @@ export function useAgentChat() {
           actions: AgentAction[];
         };
 
+        console.time('[agent-chat] execute actions');
         const summary = actions?.length > 0 ? executeActions(actions) : [];
+        console.timeEnd('[agent-chat] execute actions');
+        console.log(`[agent-chat] actions: ${actions?.length ?? 0}, reply: "${reply}"`);
         setLastActionSummary(summary);
 
         const assistantMsg: AgentMessage = {
