@@ -22,10 +22,13 @@ import { SessionProvider, useSession } from "@/utils/SessionContext";
 import { AppThemeProvider, useIsDark } from "@/utils/ThemeContext";
 import { ToastProvider } from "@/components/ToastProvider";
 import { CustomAlertProvider } from "@/components/CustomAlert";
+import { registerForPushNotifications, configureNotificationHandler } from "@/utils/pushNotifications";
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync().catch(() => {
   /* Ignore - native splash screen may not be registered yet in Expo Go */
 });
+
+configureNotificationHandler();
 
 
 export default function RootLayout() {
@@ -70,11 +73,20 @@ export default function RootLayout() {
  * network is slow or Supabase is unreachable.
  */
 function AppReadyGate({ loaded }: { loaded: boolean }) {
-  const { isLoading: sessionLoading } = useSession();
+  const { isLoading: sessionLoading, session } = useSession();
   const { loading: profileLoading } = useProfile();
   const { loading: historyLoading } = useHistory();
   const [splashComplete, setSplashComplete] = useState(false);
   const [timedOut, setTimedOut] = useState(false);
+
+  // Register for push notifications once user is signed in
+  useEffect(() => {
+    if (session?.user?.id) {
+      registerForPushNotifications(session.user.id).catch(() => {
+        /* Non-fatal: push notifications are optional */
+      });
+    }
+  }, [session?.user?.id]);
 
   // Safety timeout - dismiss splash after 5s no matter what
   useEffect(() => {

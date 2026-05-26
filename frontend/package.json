@@ -49,6 +49,7 @@
     "expo-image-picker": "~55.0.20",
     "expo-linear-gradient": "~55.0.14",
     "expo-linking": "~55.0.15",
+    "expo-notifications": "~55.0.23",
     "expo-router": "~55.0.14",
     "expo-sms": "~55.0.14",
     "expo-speech": "~55.0.14",

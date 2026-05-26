@@ -349,6 +349,40 @@ export default function ReceiptDetail() {
     };
 
     // Sends requests sequentially — iOS only allows one share sheet open at a time.
+    const handleConfirmPayment = async (contact: ContactBreakdown) => {
+        await handleMarkPaid(contact);
+    };
+
+    const handleDisputePayment = async (contact: ContactBreakdown) => {
+        const existing = paymentRequests.get(contact.dbId);
+        if (!existing) return;
+
+        setMarkingPaid((prev) => new Set(prev).add(contact.dbId));
+        try {
+            const { error } = await supabase
+                .from('payment_requests')
+                .update({ status: 'unpaid', pending_at: null })
+                .eq('id', existing.id);
+
+            if (error) throw error;
+
+            setPaymentRequests((prev) => {
+                const next = new Map(prev);
+                next.set(contact.dbId, { ...existing, status: 'unpaid' });
+                return next;
+            });
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        } catch (err) {
+            showToast(getUserFacingErrorMessage(err, 'Could not update payment status.'), 'error');
+        } finally {
+            setMarkingPaid((prev) => {
+                const next = new Set(prev);
+                next.delete(contact.dbId);
+                return next;
+            });
+        }
+    };
+
     const handleRequestAll = async () => {
         const unrequested = contacts.filter((c) => {
             const s = paymentRequests.get(c.dbId)?.status;
@@ -625,6 +659,7 @@ export default function ReceiptDetail() {
                             const cfg = STATUS_CONFIG[status];
                             const isLoading = markingPaid.has(c.dbId);
                             const isSettled = status === 'settled';
+                            const isPending = status === 'pending';
 
                             return (
                                 <View key={c.dbId} style={styles.paymentCard}>
@@ -693,6 +728,23 @@ export default function ReceiptDetail() {
                                             >
                                                 <Text style={styles.undoText}>Undo</Text>
                                             </TouchableOpacity>
+                                        ) : isPending ? (
+                                            <View style={styles.actionButtons}>
+                                                <TouchableOpacity
+                                                    onPress={() => handleDisputePayment(c)}
+                                                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                                >
+                                                    <Text style={styles.disputeText}>Dispute</Text>
+                                                </TouchableOpacity>
+                                                <TouchableOpacity
+                                                    style={styles.confirmBtn}
+                                                    onPress={() => handleConfirmPayment(c)}
+                                                    activeOpacity={0.75}
+                                                >
+                                                    <MaterialIcons name="check" size={13} color={colors.white} />
+                                                    <Text style={styles.confirmBtnText}>Confirm</Text>
+                                                </TouchableOpacity>
+                                            </View>
                                         ) : (
                                             <View style={styles.actionButtons}>
                                                 <TouchableOpacity
@@ -1009,6 +1061,26 @@ const styles = StyleSheet.create({
         fontSize: fontSizes.xs,
         color: colors.gray400,
         paddingVertical: 7,
+    },
+    disputeText: {
+        fontFamily: fonts.bodyMedium,
+        fontSize: fontSizes.xs,
+        color: colors.error,
+        paddingVertical: 7,
+    },
+    confirmBtn: {
+        flexDirection: 'row' as const,
+        alignItems: 'center' as const,
+        gap: 5,
+        backgroundColor: colors.green,
+        paddingHorizontal: spacing.md,
+        paddingVertical: 7,
+        borderRadius: radii.full,
+    },
+    confirmBtnText: {
+        fontFamily: fonts.bodySemiBold,
+        fontSize: fontSizes.xs,
+        color: colors.white,
     },
 
     // Bulk action buttons
