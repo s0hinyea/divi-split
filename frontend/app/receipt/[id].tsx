@@ -7,6 +7,7 @@ import {
     TouchableOpacity,
     StyleSheet,
     ActivityIndicator,
+    Share,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -41,6 +42,14 @@ type PaymentRequest = {
     status: PaymentStatus;
     settled_at: string | null;
     amount: number;
+    token: string;
+};
+
+// Constructs the pay page URL using the same Supabase project as the app.
+// Phase 4 will host the Edge Function at this path.
+const buildPayUrl = (token: string) => {
+    const base = (process.env.EXPO_PUBLIC_SUPABASE_URL ?? '').replace(/\/$/, '');
+    return `${base}/functions/v1/pay?token=${token}`;
 };
 
 const STATUS_CONFIG: Record<PaymentStatus, { dot: string; label: string; labelColor: string }> = {
@@ -94,7 +103,7 @@ export default function ReceiptDetail() {
                     .in('item_id', itemIds),
                 supabase
                     .from('payment_requests')
-                    .select('id, contact_id, status, settled_at, amount')
+                    .select('id, contact_id, status, settled_at, amount, token')
                     .eq('receipt_id', receipt.id),
             ]);
 
@@ -133,6 +142,7 @@ export default function ReceiptDetail() {
                     status: pr.status as PaymentStatus,
                     settled_at: pr.settled_at,
                     amount: pr.amount,
+                    token: pr.token,
                 });
             }
             setPaymentRequests(prMap);
@@ -204,7 +214,7 @@ export default function ReceiptDetail() {
                     },
                     { onConflict: 'receipt_id,contact_id' }
                 )
-                .select('id, status, settled_at, amount')
+                .select('id, status, settled_at, amount, token')
                 .single();
 
             if (error) throw error;
@@ -216,6 +226,7 @@ export default function ReceiptDetail() {
                     status: 'settled',
                     settled_at: data.settled_at,
                     amount: data.amount,
+                    token: data.token,
                 });
                 return next;
             });
@@ -278,6 +289,74 @@ export default function ReceiptDetail() {
                 },
             ],
         });
+    };
+
+    const handleRequestPayment = async (contact: ContactBreakdown) => {
+        if (!receipt || !session?.user) return;
+        const amount = contactTotals.get(contact.dbId) || 0;
+
+        setMarkingPaid((prev) => new Set(prev).add(contact.dbId));
+        try {
+            const { data, error } = await supabase
+                .from('payment_requests')
+                .upsert(
+                    {
+                        receipt_id: receipt.id,
+                        contact_id: contact.dbId,
+                        owner_id: session.user.id,
+                        amount,
+                        items: contact.items.map((i) => ({
+                            name: i.item_name,
+                            price: i.item_price,
+                        })),
+                        status: 'requested',
+                        requested_at: new Date().toISOString(),
+                    },
+                    { onConflict: 'receipt_id,contact_id' }
+                )
+                .select('id, status, settled_at, amount, token')
+                .single();
+
+            if (error) throw error;
+
+            setPaymentRequests((prev) => {
+                const next = new Map(prev);
+                next.set(contact.dbId, {
+                    id: data.id,
+                    status: 'requested',
+                    settled_at: null,
+                    amount: data.amount,
+                    token: data.token,
+                });
+                return next;
+            });
+
+            const url = buildPayUrl(data.token);
+            const receiptName = receipt.receipt_name.trim() || 'the bill';
+            const message = `Hey ${contact.name}, I covered ${receiptName}. You owe $${amount.toFixed(2)}. Pay me back here: ${url}`;
+
+            await Share.share({ message });
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        } catch (err) {
+            showToast(getUserFacingErrorMessage(err, 'Could not generate payment link.'), 'error');
+        } finally {
+            setMarkingPaid((prev) => {
+                const next = new Set(prev);
+                next.delete(contact.dbId);
+                return next;
+            });
+        }
+    };
+
+    // Sends requests sequentially — iOS only allows one share sheet open at a time.
+    const handleRequestAll = async () => {
+        const unrequested = contacts.filter((c) => {
+            const s = paymentRequests.get(c.dbId)?.status;
+            return !s || s === 'unpaid';
+        });
+        for (const c of unrequested) {
+            await handleRequestPayment(c);
+        }
     };
 
     const performEdit = async () => {
@@ -615,33 +694,53 @@ export default function ReceiptDetail() {
                                                 <Text style={styles.undoText}>Undo</Text>
                                             </TouchableOpacity>
                                         ) : (
-                                            <TouchableOpacity
-                                                style={styles.markPaidBtn}
-                                                onPress={() => handleMarkPaid(c)}
-                                                activeOpacity={0.75}
-                                            >
-                                                <MaterialIcons
-                                                    name="check"
-                                                    size={14}
-                                                    color={colors.white}
-                                                />
-                                                <Text style={styles.markPaidText}>Mark Paid</Text>
-                                            </TouchableOpacity>
+                                            <View style={styles.actionButtons}>
+                                                <TouchableOpacity
+                                                    onPress={() => handleMarkPaid(c)}
+                                                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                                >
+                                                    <Text style={styles.markPaidLinkText}>Mark Paid</Text>
+                                                </TouchableOpacity>
+                                                <TouchableOpacity
+                                                    style={styles.requestBtn}
+                                                    onPress={() => handleRequestPayment(c)}
+                                                    activeOpacity={0.75}
+                                                >
+                                                    <MaterialIcons
+                                                        name="send"
+                                                        size={13}
+                                                        color={colors.white}
+                                                    />
+                                                    <Text style={styles.requestBtnText}>
+                                                        {status === 'requested' ? 'Resend' : 'Request'}
+                                                    </Text>
+                                                </TouchableOpacity>
+                                            </View>
                                         )}
                                     </View>
                                 </View>
                             );
                         })}
 
-                        {/* Mark All Paid — only when at least one is unpaid */}
+                        {/* Bulk actions — only when at least one is not settled */}
                         {!allSettled && contacts.length > 1 && (
-                            <TouchableOpacity
-                                style={styles.markAllBtn}
-                                onPress={handleMarkAllPaid}
-                                activeOpacity={0.75}
-                            >
-                                <Text style={styles.markAllText}>Mark Everyone Paid</Text>
-                            </TouchableOpacity>
+                            <View style={styles.bulkActions}>
+                                <TouchableOpacity
+                                    style={styles.requestAllBtn}
+                                    onPress={handleRequestAll}
+                                    activeOpacity={0.75}
+                                >
+                                    <MaterialIcons name="send" size={15} color={colors.white} />
+                                    <Text style={styles.requestAllText}>Request All</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={styles.markAllBtn}
+                                    onPress={handleMarkAllPaid}
+                                    activeOpacity={0.75}
+                                >
+                                    <Text style={styles.markAllText}>Mark All Paid</Text>
+                                </TouchableOpacity>
+                            </View>
                         )}
                     </>
                 )}
@@ -880,7 +979,18 @@ const styles = StyleSheet.create({
     actionLoader: {
         height: 30,
     },
-    markPaidBtn: {
+    actionButtons: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: spacing.sm,
+    },
+    markPaidLinkText: {
+        fontFamily: fonts.bodyMedium,
+        fontSize: fontSizes.xs,
+        color: colors.gray400,
+        paddingVertical: 7,
+    },
+    requestBtn: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 5,
@@ -889,7 +999,7 @@ const styles = StyleSheet.create({
         paddingVertical: 7,
         borderRadius: radii.full,
     },
-    markPaidText: {
+    requestBtnText: {
         fontFamily: fonts.bodySemiBold,
         fontSize: fontSizes.xs,
         color: colors.white,
@@ -901,16 +1011,41 @@ const styles = StyleSheet.create({
         paddingVertical: 7,
     },
 
-    // Mark All Paid button
+    // Bulk action buttons
+    bulkActions: {
+        flexDirection: 'row',
+        gap: spacing.sm,
+        marginTop: spacing.xs,
+        marginBottom: spacing.sm,
+    },
+    requestAllBtn: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 6,
+        backgroundColor: colors.black,
+        borderRadius: radii.xl,
+        height: 48,
+        shadowColor: colors.green,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.15,
+        shadowRadius: 8,
+        elevation: 3,
+    },
+    requestAllText: {
+        fontFamily: fonts.bodySemiBold,
+        fontSize: fontSizes.sm,
+        color: colors.white,
+    },
     markAllBtn: {
+        flex: 1,
         borderWidth: 1.5,
         borderColor: colors.gray300,
         borderRadius: radii.xl,
         height: 48,
         justifyContent: 'center',
         alignItems: 'center',
-        marginTop: spacing.xs,
-        marginBottom: spacing.sm,
     },
     markAllText: {
         fontFamily: fonts.bodySemiBold,
