@@ -1,5 +1,5 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
     View,
     Text,
@@ -556,35 +556,4 @@ const styles = StyleSheet.create({
         color: colors.white,
     },
 
-    agentButton: {
-        width: 36,
-        height: 36,
-        borderRadius: radii.full,
-        backgroundColor: `${colors.green}15`,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    agentModalOverlay: {
-        flex: 1,
-        justifyContent: 'flex-end',
-    },
-    agentModalDismiss: {
-        flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.35)',
-    },
-    agentModalSheet: {
-        height: Dimensions.get('window').height * 0.72,
-        backgroundColor: colors.white,
-        borderTopLeftRadius: radii.xl,
-        borderTopRightRadius: radii.xl,
-        overflow: 'hidden',
-    },
-    agentHandle: {
-        width: 36,
-        height: 4,
-        borderRadius: 2,
-        backgroundColor: colors.gray300,
-        alignSelf: 'center',
-        marginTop: spacing.md,
-    },
 });
