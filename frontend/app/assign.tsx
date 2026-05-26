@@ -30,7 +30,7 @@ export default function AssignAmounts() {
 
   // ── Agent overlay ─────────────────────────────────────────────────────────
   const [overlayVisible, setOverlayVisible] = useState(false);
-  const [overlayPhase, setOverlayPhase] = useState<'processing' | 'revealing'>('processing');
+  const [overlayPhase, setOverlayPhase] = useState<'processing' | 'revealing' | 'message'>('processing');
   const [revealItems, setRevealItems] = useState<{ summary: ActionSummary; opacity: Animated.Value; translateY: Animated.Value }[]>([]);
   const overlayOpacity = useRef(new Animated.Value(0)).current;
   const overlayActiveRef = useRef(false);
@@ -71,6 +71,13 @@ export default function AssignAmounts() {
         setOverlayVisible(false);
         setRevealItems([]);
       });
+    } else if (agent.lastReply) {
+      // 0 actions but agent has a reply — show it briefly
+      setOverlayPhase('message');
+      Animated.sequence([
+        Animated.delay(1800),
+        Animated.timing(overlayOpacity, { toValue: 0, duration: 300, useNativeDriver: true }),
+      ]).start(() => setOverlayVisible(false));
     } else {
       Animated.timing(overlayOpacity, { toValue: 0, duration: 300, useNativeDriver: true }).start(() => {
         setOverlayVisible(false);
@@ -300,6 +307,11 @@ export default function AssignAmounts() {
       </ScrollView>
 
       <View style={styles.footer}>
+        {agent.lastActionSummary && agent.lastActionSummary.length > 0 && (
+          <TouchableOpacity style={styles.undoButton} onPress={agent.undoLastAgentAction}>
+            <MaterialIcons name="undo" size={22} color={colors.black} />
+          </TouchableOpacity>
+        )}
         <TouchableOpacity
           style={styles.continueButton}
           onPress={nextContact}>
@@ -333,6 +345,12 @@ export default function AssignAmounts() {
           <View style={styles.overlayContent}>
             {overlayPhase === 'processing' && (
               <DiviLogoAnimated size={140} />
+            )}
+            {overlayPhase === 'message' && (
+              <View style={styles.messagePhase}>
+                <MaterialIcons name="info-outline" size={28} color={colors.gray500} />
+                <Text style={styles.messagePhaseText}>{agent.lastReply}</Text>
+              </View>
             )}
             {overlayPhase === 'revealing' && (
               <View style={styles.actionList}>
@@ -469,10 +487,24 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     padding: spacing.xl,
-    backgroundColor: 'transparent', // Let content scroll behind? Or white bg?
-    // Let's make it a gradient or just transparent with floating button
+    backgroundColor: 'transparent',
     alignItems: 'center',
     justifyContent: 'center',
+    flexDirection: 'row',
+    gap: spacing.lg,
+  },
+  undoButton: {
+    width: 48,
+    height: 48,
+    borderRadius: radii.full,
+    backgroundColor: colors.white,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: colors.black,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   continueButton: {
     width: 72,
@@ -554,6 +586,18 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bodySemiBold,
     fontSize: fontSizes.xl,
     color: colors.green,
+  },
+  messagePhase: {
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingHorizontal: spacing.xl,
+  },
+  messagePhaseText: {
+    fontFamily: fonts.body,
+    fontSize: fontSizes.lg,
+    color: colors.gray600,
+    textAlign: 'center',
+    lineHeight: 26,
   },
 });
 

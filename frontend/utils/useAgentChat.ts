@@ -1,6 +1,7 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { useSplitStore } from "../stores/splitStore";
+import type { Contact, ReceiptItem } from "../stores/splitStore";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -124,11 +125,15 @@ function executeActions(actions: AgentAction[]): ActionSummary[] {
 
 // ── Hook ──────────────────────────────────────────────────────────────────────
 
+type AssignSnapshot = { selected: Contact[]; userItems: ReceiptItem[] };
+
 export function useAgentChat() {
   const [messages, setMessages] = useState<AgentMessage[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastActionSummary, setLastActionSummary] = useState<ActionSummary[] | null>(null);
+  const [lastReply, setLastReply] = useState<string | null>(null);
+  const snapshotRef = useRef<AssignSnapshot | null>(null);
 
   const sendMessage = useCallback(
     async (text: string) => {
@@ -191,10 +196,18 @@ export function useAgentChat() {
           actions: AgentAction[];
         };
 
+        // Snapshot before mutating so undo can restore
+        const preStore = useSplitStore.getState();
+        snapshotRef.current = {
+          selected: JSON.parse(JSON.stringify(preStore.selected)),
+          userItems: [...(preStore.receiptData.userItems ?? [])],
+        };
+
         console.time('[agent-chat] execute actions');
         const summary = actions?.length > 0 ? executeActions(actions) : [];
         console.timeEnd('[agent-chat] execute actions');
         console.log(`[agent-chat] actions: ${actions?.length ?? 0}, reply: "${reply}"`);
+        setLastReply(reply ?? null);
         setLastActionSummary(summary);
 
         const assistantMsg: AgentMessage = {
@@ -224,7 +237,19 @@ export function useAgentChat() {
   const clearMessages = useCallback(() => {
     setMessages([]);
     setError(null);
+    setLastReply(null);
+    snapshotRef.current = null;
   }, []);
 
-  return { messages, loading, error, lastActionSummary, sendMessage, clearMessages };
+  const undoLastAgentAction = useCallback(() => {
+    const snap = snapshotRef.current;
+    if (!snap) return;
+    useSplitStore.setState({ selected: snap.selected });
+    useSplitStore.getState().setUserItems(snap.userItems);
+    snapshotRef.current = null;
+    setLastActionSummary(null);
+    setLastReply(null);
+  }, []);
+
+  return { messages, loading, error, lastActionSummary, lastReply, sendMessage, clearMessages, undoLastAgentAction };
 }
