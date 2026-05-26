@@ -6,10 +6,24 @@ import Constants from 'expo-constants';
 const RC_API_KEY = process.env.EXPO_PUBLIC_REVENUECAT_API_KEY ?? '';
 const ENTITLEMENT_ID = 'pro';
 const SCAN_COUNT_KEY = '@divi_scan_count';
+const MOCK_SUBSCRIBED_KEY = '@divi_mock_subscribed';
 const FREE_SCAN_LIMIT = 3;
 
 const isExpoGo = Constants.appOwnership === 'expo';
 let rcConfigured = false;
+
+const MOCK_PACKAGE = {
+  identifier: 'monthly_pro',
+  packageType: 'MONTHLY',
+  product: {
+    identifier: 'divi_monthly_pro',
+    description: 'Divi Pro Monthly',
+    title: 'Divi Pro',
+    price: 4.99,
+    priceString: '$4.99',
+    currencyCode: 'USD',
+  },
+} as any;
 
 function configureRC() {
   if (rcConfigured || !RC_API_KEY || isExpoGo) return;
@@ -33,10 +47,15 @@ export function usePaywall() {
 
     const init = async () => {
       try {
-        // In Expo Go, skip native Purchases calls
+        // In Expo Go, skip native Purchases calls and use mocks
         if (isExpoGo) {
-          const stored = await AsyncStorage.getItem(SCAN_COUNT_KEY);
-          setScanCount(stored ? parseInt(stored, 10) : 0);
+          const [storedCount, storedSub] = await Promise.all([
+            AsyncStorage.getItem(SCAN_COUNT_KEY),
+            AsyncStorage.getItem(MOCK_SUBSCRIBED_KEY),
+          ]);
+          setScanCount(storedCount ? parseInt(storedCount, 10) : 0);
+          setIsSubscribed(storedSub === 'true');
+          setCurrentPackage(MOCK_PACKAGE);
           setIsLoading(false);
           return;
         }
@@ -80,16 +99,22 @@ export function usePaywall() {
     setScanCount(newCount);
     await AsyncStorage.setItem(SCAN_COUNT_KEY, String(newCount));
 
-    if (newCount === FREE_SCAN_LIMIT) {
-      // Used last free scan — next attempt shows paywall
-    }
-
     return true;
   }, [isSubscribed, scanCount]);
 
   const purchaseSubscription = useCallback(async () => {
     if (!currentPackage) return;
     setPurchaseError(null);
+
+    if (isExpoGo) {
+      // Simulate network request
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      setIsSubscribed(true);
+      setPaywallVisible(false);
+      await AsyncStorage.setItem(MOCK_SUBSCRIBED_KEY, 'true');
+      return;
+    }
+
     try {
       const { customerInfo } = await Purchases.purchasePackage(currentPackage);
       if (customerInfo.entitlements.active[ENTITLEMENT_ID] !== undefined) {
@@ -105,6 +130,15 @@ export function usePaywall() {
 
   const restorePurchases = useCallback(async (): Promise<boolean> => {
     setPurchaseError(null);
+
+    if (isExpoGo) {
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      setIsSubscribed(true);
+      setPaywallVisible(false);
+      await AsyncStorage.setItem(MOCK_SUBSCRIBED_KEY, 'true');
+      return true;
+    }
+
     try {
       const customerInfo = await Purchases.restorePurchases();
       const restored =
@@ -119,6 +153,16 @@ export function usePaywall() {
     } catch (e: any) {
       setPurchaseError(e.message ?? 'Restore failed. Please try again.');
       return false;
+    }
+  }, []);
+
+  const clearMockSubscription = useCallback(async () => {
+    if (isExpoGo) {
+      setIsSubscribed(false);
+      await AsyncStorage.removeItem(MOCK_SUBSCRIBED_KEY);
+      // Reset scan count for easier testing too
+      setScanCount(0);
+      await AsyncStorage.removeItem(SCAN_COUNT_KEY);
     }
   }, []);
 
@@ -144,5 +188,6 @@ export function usePaywall() {
     showPaywall,
     purchaseSubscription,
     restorePurchases,
+    clearMockSubscription,
   };
 }

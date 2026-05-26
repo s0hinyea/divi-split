@@ -210,7 +210,7 @@ export const useSplitStore = create<SplitState>((set, get) => ({
                 })),
             };
 
-            // Single atomic RPC call — everything saves or nothing does
+            // Single atomic RPC call - everything saves or nothing does
             const { data, error } = await supabase.rpc(
                 "save_receipt_transaction",
                 { payload },

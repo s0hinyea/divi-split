@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { View, Text, ScrollView, TouchableOpacity, Pressable, StyleSheet, ActivityIndicator, Animated } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -28,6 +28,29 @@ export default function AssignAmounts() {
   const paywall = usePaywall();
   const { showAlert } = useCustomAlert();
 
+  const [mode, setMode] = useState<'fork' | 'manual'>('fork');
+  const [agentDidAct, setAgentDidAct] = useState(false);
+
+  // Pulse animation for recording
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const pulseLoopRef = useRef<Animated.CompositeAnimation | null>(null);
+
+  useEffect(() => {
+    if (agent.isRecording) {
+      pulseLoopRef.current = Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, { toValue: 1.25, duration: 700, useNativeDriver: true }),
+          Animated.timing(pulseAnim, { toValue: 1, duration: 700, useNativeDriver: true }),
+        ])
+      );
+      pulseLoopRef.current.start();
+    } else {
+      pulseLoopRef.current?.stop();
+      Animated.timing(pulseAnim, { toValue: 1, duration: 200, useNativeDriver: true }).start();
+    }
+    return () => pulseLoopRef.current?.stop();
+  }, [agent.isRecording]);
+
   // ── Agent overlay ─────────────────────────────────────────────────────────
   const [overlayVisible, setOverlayVisible] = useState(false);
   const [overlayPhase, setOverlayPhase] = useState<'processing' | 'revealing' | 'message'>('processing');
@@ -51,6 +74,7 @@ export default function AssignAmounts() {
 
     const summary = agent.lastActionSummary;
     if (summary && summary.length > 0) {
+      setAgentDidAct(true);
       const items = summary.map(s => ({
         summary: s,
         opacity: new Animated.Value(0),
@@ -72,7 +96,6 @@ export default function AssignAmounts() {
         setRevealItems([]);
       });
     } else if (agent.lastReply) {
-      // 0 actions but agent has a reply — show it briefly
       setOverlayPhase('message');
       Animated.sequence([
         Animated.delay(1800),
@@ -125,50 +148,103 @@ export default function AssignAmounts() {
     if (currentContact) {
       manageItems(item, currentContact);
     }
-  }
+  };
 
   const isSelected = (item: ReceiptItem) => {
     return currentContact?.items?.some(it => it.id === item.id);
   };
 
+  const finishAssign = useCallback(async () => {
+    const store = useSplitStore.getState();
+    const allItems = 'items' in store.receiptData
+      ? store.receiptData.items.filter(item => !/tax/i.test(item.name))
+      : [];
+    const allAssignedItems = store.selected.flatMap(c => c.items);
+    const remainingItems = allItems.filter(item =>
+      !allAssignedItems.some(assigned => assigned.id === item.id)
+    );
+
+    if (remainingItems.length > 0) {
+      const warned = await AsyncStorage.getItem('@divi_unassigned_warned');
+      if (!warned) {
+        await AsyncStorage.setItem('@divi_unassigned_warned', 'true');
+        await new Promise<void>(resolve => {
+          const { Alert } = require('react-native');
+          Alert.alert(
+            `${remainingItems.length} item${remainingItems.length > 1 ? 's' : ''} unassigned`,
+            "These will be added to your portion. Next time, assign everything before continuing, or leave items for yourself on purpose.",
+            [{ text: 'Got it', onPress: resolve }]
+          );
+        });
+      }
+      setUserItems(remainingItems);
+    } else {
+      setUserItems([]);
+    }
+    router.push("/review");
+  }, [setUserItems, router]);
+
+  // Auto-navigate after voice agent acts in fork mode
+  useEffect(() => {
+    if (agentDidAct && mode === 'fork') {
+      finishAssign();
+    }
+  }, [agentDidAct, mode, finishAssign]);
+
   const nextContact = async () => {
     const isLastContact = currentContactIndex + 1 === selected.length;
-
     if (isLastContact) {
-      const allAssignedItems = selected.flatMap(c => c.items);
-      const remainingItems = items.filter(item =>
-        !allAssignedItems.some(assigned => assigned.id === item.id)
-      );
-
-      // First-scan unassigned warning
-      if (remainingItems.length > 0) {
-        const warned = await AsyncStorage.getItem('@divi_unassigned_warned');
-        if (!warned) {
-          await AsyncStorage.setItem('@divi_unassigned_warned', 'true');
-          await new Promise<void>(resolve => {
-            const { Alert } = require('react-native');
-            Alert.alert(
-              `${remainingItems.length} item${remainingItems.length > 1 ? 's' : ''} unassigned`,
-              "These will be added to your portion. Next time, assign everything before continuing — or leave items for yourself on purpose.",
-              [{ text: 'Got it', onPress: resolve }]
-            );
-          });
-        }
-        setUserItems(remainingItems);
-      } else {
-        setUserItems([]);
-      }
-      router.push("/review");
+      await finishAssign();
     } else {
       setCurrentContactIndex(currentContactIndex + 1);
     }
-  }
+  };
 
   const handleBack = () => {
-    if (currentContactIndex > 0) {
-      setCurrentContactIndex(currentContactIndex - 1);
+    if (mode === 'manual') {
+      if (currentContactIndex > 0) {
+        setCurrentContactIndex(currentContactIndex - 1);
+      } else {
+        setMode('fork');
+      }
     } else {
       router.back();
+    }
+  };
+
+  const handleVoicePress = async () => {
+    if (agent.isRecording) {
+      agent.stopAndSend();
+      return;
+    }
+
+    if (paywall.isSubscribed) {
+      agent.startRecording();
+      return;
+    }
+
+    const remaining = paywall.scansRemaining;
+    if (remaining > 0) {
+      const label = remaining === 1 ? '1 free scan left' : `${remaining} free scans left`;
+      showAlert({
+        title: label,
+        message: remaining === 1
+          ? "This is your last free AI scan. After this you'll need Divi Pro."
+          : `You have ${remaining} free AI scans remaining. Use one now?`,
+        buttons: [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Use scan',
+            onPress: async () => {
+              const allowed = await paywall.attemptAgentUse();
+              if (allowed) agent.startRecording();
+            },
+          },
+        ],
+      });
+    } else {
+      const allowed = await paywall.attemptAgentUse();
+      if (allowed) agent.startRecording();
     }
   };
 
@@ -177,9 +253,187 @@ export default function AssignAmounts() {
       <View style={styles.container}>
         <ActivityIndicator size="large" color={colors.green} />
       </View>
-    )
+    );
   }
 
+  // ── Fork mode ──────────────────────────────────────────────────────────────
+  if (mode === 'fork') {
+    return (
+      <SafeAreaView style={styles.forkContainer} edges={['top']}>
+        {/* Header */}
+        <View style={styles.forkHeader}>
+          <TouchableOpacity onPress={handleBack} style={styles.backButton}>
+            <MaterialIcons name="arrow-back" size={26} color={colors.black} />
+          </TouchableOpacity>
+          <Text style={styles.forkHeaderTitle}>Assign Items</Text>
+          <TouchableOpacity onPress={() => router.replace('/(tabs)')} style={styles.homeButton}>
+            <MaterialIcons name="home" size={20} color={colors.gray400} />
+          </TouchableOpacity>
+        </View>
+
+        {/* Voice controls */}
+        <View style={styles.voiceZone}>
+          <MaterialIcons name="auto-awesome" size={22} color={colors.green} style={{ marginBottom: spacing.md }} />
+          <Text style={styles.voiceTitle}>
+            {agent.isRecording ? 'Listening...' : agent.isTranscribing ? 'Transcribing...' : agent.loading ? 'Working...' : 'Assign with your voice'}
+          </Text>
+          <Text style={styles.voiceSubtitle}>
+            {agent.isRecording
+              ? 'Speak clearly, then tap mic to send'
+              : 'Say who gets what. Divi handles the rest.'}
+          </Text>
+
+          {/* Big mic button */}
+          <View style={styles.micWrapper}>
+            <Animated.View style={[styles.pulseRing, { transform: [{ scale: pulseAnim }] }]} />
+            <TouchableOpacity
+              style={[styles.bigMicButton, agent.isRecording && styles.bigMicButtonActive]}
+              onPress={handleVoicePress}
+              disabled={agent.loading || agent.isTranscribing}
+              activeOpacity={0.85}
+            >
+              <MaterialIcons
+                name={agent.isRecording ? 'stop' : 'mic'}
+                size={36}
+                color={colors.white}
+              />
+            </TouchableOpacity>
+          </View>
+
+          {/* Contact chips */}
+          <View style={styles.chipRow}>
+            {selected.map(contact => {
+              const hasItems = contact.items && contact.items.length > 0;
+              return (
+                <View key={contact.id} style={[styles.chip, hasItems && styles.chipActive]}>
+                  {hasItems && (
+                    <MaterialIcons name="check" size={13} color={colors.green} style={{ marginRight: 3 }} />
+                  )}
+                  <Text style={[styles.chipText, hasItems && styles.chipTextActive]}>
+                    {contact.name}
+                  </Text>
+                </View>
+              );
+            })}
+          </View>
+        </View>
+
+        {/* Item reference list */}
+        <ScrollView
+          style={styles.itemRefList}
+          contentContainerStyle={styles.itemRefContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {items.map((item, i) => {
+            const isAssigned = selected.some(c => c.items?.some(ci => ci.id === item.id));
+            return (
+              <View key={item.id} style={[styles.itemRefRow, i < items.length - 1 && styles.itemRefRowBorder]}>
+                <Text style={[styles.itemRefName, isAssigned && styles.itemRefNameAssigned]} numberOfLines={1}>
+                  {item.name}
+                </Text>
+                <Text style={[styles.itemRefPrice, isAssigned && styles.itemRefPriceAssigned]}>
+                  ${item.price.toFixed(2)}
+                </Text>
+                {isAssigned && (
+                  <MaterialIcons name="check" size={13} color={colors.green} style={{ marginLeft: spacing.xs }} />
+                )}
+              </View>
+            );
+          })}
+        </ScrollView>
+
+        {/* Divider */}
+        <View style={styles.dividerRow}>
+          <View style={styles.dividerLine} />
+          <Text style={styles.dividerLabel}>or</Text>
+          <View style={styles.dividerLine} />
+        </View>
+
+        {/* Manual zone */}
+        <View style={styles.manualZone}>
+          {agentDidAct && (
+            <TouchableOpacity style={styles.continueReviewButton} onPress={finishAssign}>
+              <Text style={styles.continueReviewText}>Continue to Review</Text>
+              <MaterialIcons name="arrow-forward" size={18} color={colors.white} />
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity
+            style={styles.manualButton}
+            onPress={() => setMode('manual')}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.manualButtonText}>Assign manually</Text>
+          </TouchableOpacity>
+          <Text style={styles.manualHint}>Go person by person</Text>
+        </View>
+
+        <PaywallModal
+          visible={paywall.paywallVisible}
+          onClose={paywall.hidePaywall}
+          onSubscribe={paywall.purchaseSubscription}
+          onRestore={paywall.restorePurchases}
+          currentPackage={paywall.currentPackage}
+          purchaseError={paywall.purchaseError}
+        />
+
+        {/* Agent overlay */}
+        {overlayVisible && (
+          <Animated.View
+            style={[styles.processingOverlay, { opacity: overlayOpacity }]}
+            onTouchEnd={() => {
+              if (overlayPhase === 'revealing') {
+                Animated.timing(overlayOpacity, { toValue: 0, duration: 200, useNativeDriver: true }).start(() => {
+                  setOverlayVisible(false);
+                  setRevealItems([]);
+                });
+              }
+            }}
+          >
+            <BlurView intensity={55} style={StyleSheet.absoluteFill} />
+            <View style={styles.overlayContent}>
+              {overlayPhase === 'processing' && <DiviLogoAnimated size={140} />}
+              {overlayPhase === 'message' && (
+                <View style={styles.messagePhase}>
+                  <MaterialIcons name="info-outline" size={28} color={colors.gray500} />
+                  <Text style={styles.messagePhaseText}>{agent.lastReply}</Text>
+                </View>
+              )}
+              {overlayPhase === 'revealing' && (
+                <View style={styles.actionList}>
+                  {revealItems.map((item, i) => {
+                    const verbColor =
+                      item.summary.verb === 'Assigned' ? colors.green :
+                      item.summary.verb === 'Unassigned' ? colors.error :
+                      colors.black;
+                    const iconName =
+                      item.summary.verb === 'Assigned' ? 'check-circle-outline' :
+                      item.summary.verb === 'Unassigned' ? 'remove-circle-outline' :
+                      item.summary.verb === 'Split' ? 'call-split' :
+                      'edit';
+                    return (
+                      <Animated.View
+                        key={i}
+                        style={[styles.actionRow, { opacity: item.opacity, transform: [{ translateY: item.translateY }] }]}
+                      >
+                        <MaterialIcons name={iconName as any} size={18} color={verbColor} />
+                        <Text style={[styles.actionVerb, { color: verbColor }]}>{item.summary.verb}</Text>
+                        <Text style={styles.actionName} numberOfLines={1}>{item.summary.name}</Text>
+                        {item.summary.amount !== undefined && (
+                          <Text style={styles.actionAmount}>${item.summary.amount.toFixed(2)}</Text>
+                        )}
+                      </Animated.View>
+                    );
+                  })}
+                </View>
+              )}
+            </View>
+          </Animated.View>
+        )}
+      </SafeAreaView>
+    );
+  }
+
+  // ── Manual mode ────────────────────────────────────────────────────────────
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.headerContainer}>
@@ -189,7 +443,7 @@ export default function AssignAmounts() {
           </TouchableOpacity>
           <View style={{ flex: 1, marginRight: spacing.sm }}>
             <Text style={styles.headerTitle} numberOfLines={1} ellipsizeMode="tail">
-              <Text style={{ color: colors.black }}>Assigning: </Text>
+              <Text style={{ color: colors.black }}>Assign: </Text>
               <Text style={{ color: colors.green }}>{currentContact?.name}</Text>
             </Text>
             {contactTotal > 0 && (
@@ -202,44 +456,7 @@ export default function AssignAmounts() {
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.agentButton, agent.isRecording && styles.agentButtonRecording]}
-              onPress={async () => {
-                if (agent.isRecording) {
-                  agent.stopAndSend();
-                  return;
-                }
-
-                // Subscribed users go straight through
-                if (paywall.isSubscribed) {
-                  agent.startRecording();
-                  return;
-                }
-
-                // Free tier: warn before consuming a scan
-                const remaining = paywall.scansRemaining;
-                if (remaining > 0) {
-                  const label = remaining === 1 ? '1 free scan left' : `${remaining} free scans left`;
-                  showAlert({
-                    title: label,
-                    message: remaining === 1
-                      ? "This is your last free AI scan. After this you'll need Divi Pro."
-                      : `You have ${remaining} free AI scans remaining. Use one now?`,
-                    buttons: [
-                      { text: 'Cancel', style: 'cancel' },
-                      {
-                        text: 'Use scan',
-                        onPress: async () => {
-                          const allowed = await paywall.attemptAgentUse();
-                          if (allowed) agent.startRecording();
-                        },
-                      },
-                    ],
-                  });
-                } else {
-                  // No scans left — go straight to paywall
-                  const allowed = await paywall.attemptAgentUse();
-                  if (allowed) agent.startRecording();
-                }
-              }}
+              onPress={handleVoicePress}
               disabled={agent.loading || agent.isTranscribing}
               activeOpacity={0.8}
             >
@@ -312,9 +529,7 @@ export default function AssignAmounts() {
             <MaterialIcons name="undo" size={22} color={colors.black} />
           </TouchableOpacity>
         )}
-        <TouchableOpacity
-          style={styles.continueButton}
-          onPress={nextContact}>
+        <TouchableOpacity style={styles.continueButton} onPress={nextContact}>
           <MaterialIcons name="check" size={32} color={colors.white} />
         </TouchableOpacity>
       </View>
@@ -328,7 +543,7 @@ export default function AssignAmounts() {
         purchaseError={paywall.purchaseError}
       />
 
-      {/* Agent overlay — processing spinner → action reveal → fade out (tap to dismiss) */}
+      {/* Agent overlay */}
       {overlayVisible && (
         <Animated.View
           style={[styles.processingOverlay, { opacity: overlayOpacity }]}
@@ -343,9 +558,7 @@ export default function AssignAmounts() {
         >
           <BlurView intensity={55} style={StyleSheet.absoluteFill} />
           <View style={styles.overlayContent}>
-            {overlayPhase === 'processing' && (
-              <DiviLogoAnimated size={140} />
-            )}
+            {overlayPhase === 'processing' && <DiviLogoAnimated size={140} />}
             {overlayPhase === 'message' && (
               <View style={styles.messagePhase}>
                 <MaterialIcons name="info-outline" size={28} color={colors.gray500} />
@@ -388,10 +601,223 @@ export default function AssignAmounts() {
 }
 
 const styles = StyleSheet.create({
+  // ── Shared ──────────────────────────────────────────────────────────────────
   container: {
     flex: 1,
     backgroundColor: colors.gray100,
   },
+  backButton: {
+    width: 36,
+    height: 36,
+    borderRadius: radii.full,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  homeButton: {
+    width: 32,
+    height: 32,
+    borderRadius: radii.full,
+    backgroundColor: colors.gray100,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  // ── Fork mode ───────────────────────────────────────────────────────────────
+  forkContainer: {
+    flex: 1,
+    backgroundColor: colors.white,
+  },
+  forkHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.md,
+  },
+  forkHeaderTitle: {
+    fontFamily: fonts.bodyBold,
+    fontSize: fontSizes.xl,
+    color: colors.black,
+  },
+  voiceZone: {
+    alignItems: 'center',
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.md,
+  },
+  voiceTitle: {
+    fontFamily: fonts.bodyBold,
+    fontSize: fontSizes.xl,
+    color: colors.black,
+    textAlign: 'center',
+    marginBottom: spacing.xs,
+  },
+  voiceSubtitle: {
+    fontFamily: fonts.body,
+    fontSize: fontSizes.sm,
+    color: colors.gray500,
+    textAlign: 'center',
+    marginBottom: spacing.xl + spacing.md,
+  },
+  micWrapper: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.xl + spacing.md,
+  },
+  pulseRing: {
+    position: 'absolute',
+    width: 108,
+    height: 108,
+    borderRadius: 54,
+    backgroundColor: `${colors.green}18`,
+  },
+  bigMicButton: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    backgroundColor: colors.black,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: colors.black,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.18,
+    shadowRadius: 14,
+    elevation: 10,
+  },
+  bigMicButtonActive: {
+    backgroundColor: colors.error,
+    shadowColor: colors.error,
+    shadowOpacity: 0.3,
+  },
+  chipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: spacing.sm,
+  },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: radii.full,
+    backgroundColor: colors.gray100,
+    borderWidth: 1.5,
+    borderColor: 'transparent',
+  },
+  chipActive: {
+    backgroundColor: `${colors.green}12`,
+    borderColor: `${colors.green}50`,
+  },
+  chipText: {
+    fontFamily: fonts.bodySemiBold,
+    fontSize: fontSizes.sm,
+    color: colors.gray500,
+  },
+  chipTextActive: {
+    color: colors.green,
+  },
+  dividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: spacing.xl + spacing.md,
+    marginVertical: spacing.sm,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: colors.gray200,
+  },
+  dividerLabel: {
+    fontFamily: fonts.body,
+    fontSize: fontSizes.sm,
+    color: colors.gray400,
+    marginHorizontal: spacing.md,
+  },
+  itemRefList: {
+    flex: 1,
+    marginHorizontal: spacing.lg,
+  },
+  itemRefContent: {
+    paddingVertical: spacing.xs,
+  },
+  itemRefRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 9,
+  },
+  itemRefRowBorder: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.gray200,
+  },
+  itemRefName: {
+    flex: 1,
+    fontFamily: fonts.body,
+    fontSize: fontSizes.sm,
+    color: colors.gray500,
+  },
+  itemRefNameAssigned: {
+    color: colors.gray300,
+    textDecorationLine: 'line-through',
+  },
+  itemRefPrice: {
+    fontFamily: fonts.bodySemiBold,
+    fontSize: fontSizes.sm,
+    color: colors.gray400,
+  },
+  itemRefPriceAssigned: {
+    color: colors.gray300,
+  },
+  manualZone: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.lg,
+    gap: spacing.md,
+  },
+  continueReviewButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.green,
+    paddingVertical: spacing.md + 2,
+    paddingHorizontal: spacing.xl + spacing.md,
+    borderRadius: radii.lg,
+    width: '100%',
+    shadowColor: colors.green,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  continueReviewText: {
+    fontFamily: fonts.bodyBold,
+    fontSize: fontSizes.md,
+    color: colors.white,
+  },
+  manualButton: {
+    width: '100%',
+    paddingVertical: spacing.md + 2,
+    borderRadius: radii.lg,
+    borderWidth: 1.5,
+    borderColor: colors.gray300,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  manualButtonText: {
+    fontFamily: fonts.bodySemiBold,
+    fontSize: fontSizes.md,
+    color: colors.black,
+  },
+  manualHint: {
+    fontFamily: fonts.body,
+    fontSize: fontSizes.xs,
+    color: colors.gray400,
+  },
+
+  // ── Manual mode ─────────────────────────────────────────────────────────────
   headerContainer: {
     padding: spacing.lg,
     paddingBottom: spacing.md,
@@ -411,7 +837,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: spacing.lg,
-    paddingBottom: 100, // Space for footer
+    paddingBottom: 100,
   },
   itemsContainer: {
     gap: spacing.md,
@@ -445,7 +871,7 @@ const styles = StyleSheet.create({
   },
   selectedItemCard: {
     borderColor: colors.green,
-    backgroundColor: colors.white, // Keep white bg but emphasize border
+    backgroundColor: colors.white,
   },
   itemCardPressed: {
     opacity: 0.75,
@@ -464,9 +890,7 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.md,
     color: colors.green,
   },
-  selectedItemText: {
-    // Optional: change text color when selected? keeping it standard for now looks cleaner
-  },
+  selectedItemText: {},
   checkbox: {
     width: 24,
     height: 24,
@@ -530,14 +954,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.sm,
   },
-  homeButton: {
-    width: 32,
-    height: 32,
-    borderRadius: radii.full,
-    backgroundColor: colors.gray100,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   agentButton: {
     width: 36,
     height: 36,
@@ -549,6 +965,8 @@ const styles = StyleSheet.create({
   agentButtonRecording: {
     backgroundColor: colors.error,
   },
+
+  // ── Overlay ─────────────────────────────────────────────────────────────────
   processingOverlay: {
     ...StyleSheet.absoluteFillObject,
     justifyContent: 'center',
@@ -600,6 +1018,3 @@ const styles = StyleSheet.create({
     lineHeight: 26,
   },
 });
-
-
-

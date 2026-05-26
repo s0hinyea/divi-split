@@ -348,7 +348,7 @@ export default function Auth({ initialMode }: AuthProps) {
 
 				if (profileError) {
 					console.warn('Profile upsert after signup failed:', profileError);
-					// Non-blocking — the account was still created successfully
+					// Non-blocking - the account was still created successfully
 				}
 
 				Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);

@@ -1,5 +1,5 @@
 /**
- * Divi Design System — Single source of truth for all design tokens.
+ * Divi Design System - Single source of truth for all design tokens.
  * Import from '@/styles/theme' in every screen and component.
  *
  * Usage:
@@ -10,7 +10,7 @@
 export const colors = {
     // Brand
     green: '#00C37F',           // vibrant mint-emerald (modern fintech)
-    greenLight: '#E6FAF2',      // soft mint tint — backgrounds, highlights
+    greenLight: '#E6FAF2',      // soft mint tint - backgrounds, highlights
     greenDark: '#00A36A',       // pressed/active state
 
     // Core
@@ -18,7 +18,7 @@ export const colors = {
     white: '#FFFFFF',
 
     // Surfaces
-    background: '#F6F5F2',      // warm off-white — screen backgrounds
+    background: '#F6F5F2',      // warm off-white - screen backgrounds
 
     // Grays (warm-tinted)
     gray100: '#F6F5F2',

@@ -577,7 +577,7 @@ export default function OCRResults() {
         )}
       </View>
 
-      {/* Agent overlay — processing spinner → action reveal → fade out (tap to dismiss) */}
+      {/* Agent overlay - processing spinner → action reveal → fade out (tap to dismiss) */}
       {overlayVisible && (
         <Animated.View
           style={[styles.processingOverlay, { opacity: overlayOpacity }]}

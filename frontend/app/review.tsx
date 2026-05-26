@@ -60,7 +60,7 @@ export default function ReviewPage() {
     };
   }, [overlayVisible, overlayPhase]);
 
-  // Refs for the review agent — always current, no stale closure issues
+  // Refs for the review agent - always current, no stale closure issues
   const reviewStateRef = useRef<ReviewState>({
     receiptName: '',
     receiptDate: new Date().toISOString(),
@@ -86,7 +86,7 @@ export default function ReviewPage() {
 
   useEffect(() => { setCurrentStep('review'); }, []);
 
-  // Receipt name and date states — pre-populated when editing an existing receipt
+  // Receipt name and date states - pre-populated when editing an existing receipt
   const [receiptName, setReceiptName] = useState(editingReceiptName || '');
   const [receiptDate, setReceiptDate] = useState(
     editingReceiptCreatedAt ? new Date(editingReceiptCreatedAt) : new Date()
@@ -229,7 +229,7 @@ export default function ReviewPage() {
       const note = encodeURIComponent(`Divi - ${name}`);
       const dateStr = receiptDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
-      let message = `🧾 Divi — ${name}\n📅 ${dateStr}\n`;
+      let message = `🧾 Divi: ${name}\n📅 ${dateStr}\n`;
 
       selected.forEach(contact => {
         const mealTotal = calculateTotal(contact.items as ReceiptItem[]);
@@ -296,7 +296,7 @@ export default function ReviewPage() {
       setReceiptDate(selectedDate);
     }
   };
-  // Handle finish — save (new) or update (edit) receipt, then prompt for SMS
+  // Handle finish - save (new) or update (edit) receipt, then prompt for SMS
   const handleFinish = async () => {
     const name = receiptName.trim() || `Split - ${receiptDate.toLocaleDateString()}`;
     setIsSaving(true);
@@ -558,7 +558,7 @@ export default function ReviewPage() {
         </TouchableOpacity>
       </View>
 
-      {/* Agent overlay — processing spinner → action reveal → fade out */}
+      {/* Agent overlay - processing spinner → action reveal → fade out */}
       {overlayVisible && (
         <Animated.View style={[styles.processingOverlay, { opacity: overlayOpacity }]}>
           <BlurView intensity={55} style={StyleSheet.absoluteFill} />

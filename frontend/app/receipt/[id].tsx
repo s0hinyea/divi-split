@@ -218,7 +218,7 @@ export default function ReceiptDetail() {
                 month: 'short', day: 'numeric', year: 'numeric',
             });
 
-            let message = `🧾 Divi — ${name}\n📅 ${dateStr}\n\n`;
+            let message = `🧾 Divi: ${name}\n📅 ${dateStr}\n\n`;
 
             contacts.forEach((c) => {
                 const mealTotal = c.items.reduce((s, i) => s + i.item_price, 0);

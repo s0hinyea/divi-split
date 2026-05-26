@@ -14,6 +14,9 @@ import { getUserFacingErrorMessage } from '@/utils/network';
 import { privacyPolicyUrl } from '@/constants/appConfig';
 import { usePaywall } from '@/utils/usePaywall';
 import PaywallModal from '@/components/PaywallModal';
+import Constants from 'expo-constants';
+
+const isExpoGo = Constants.appOwnership === 'expo';
 
 const VenmoLogo = require('@/assets/images/venmo.png');
 const CashAppLogo = require('@/assets/images/cashapp.png');
@@ -196,7 +199,7 @@ function createStyles(C: ReturnType<typeof useThemeColors>) {
 export default function Profile() {
     const { session } = useSession();
     const { profile, loading, updateProfile, refreshProfile } = useProfile();
-    const { isSubscribed, paywallVisible, currentPackage, purchaseError, showPaywall, hidePaywall, purchaseSubscription, restorePurchases, scansRemaining } = usePaywall();
+    const { isSubscribed, paywallVisible, currentPackage, purchaseError, showPaywall, hidePaywall, purchaseSubscription, restorePurchases, scansRemaining, clearMockSubscription } = usePaywall();
     const router = useRouter();
     const C = useThemeColors();
     const styles = useMemo(() => createStyles(C), [C]);
@@ -229,11 +232,31 @@ export default function Profile() {
 
     const handleSignOut = async () => {
         try {
+            if (isExpoGo) {
+                await clearMockSubscription();
+            }
             const { error } = await supabase.auth.signOut();
             if (error) throw error;
             router.replace('/home');
         } catch (error) {
             Alert.alert('Error signing out', getUserFacingErrorMessage(error, 'Unable to sign out right now.'));
+        }
+    };
+
+    const handleMembershipPress = () => {
+        if (isSubscribed) {
+            if (isExpoGo) {
+                Alert.alert(
+                    'Developer Mode',
+                    'Would you like to clear your mock subscription to test the paywall again?',
+                    [
+                        { text: 'Cancel', style: 'cancel' },
+                        { text: 'Unsubscribe (Reset)', style: 'destructive', onPress: clearMockSubscription }
+                    ]
+                );
+            }
+        } else {
+            showPaywall();
         }
     };
 
@@ -414,7 +437,7 @@ export default function Profile() {
                 {/* Membership */}
                 <Text style={styles.sectionLabel}>Membership</Text>
                 <View style={styles.card}>
-                    <TouchableOpacity style={styles.row} onPress={isSubscribed ? undefined : showPaywall} activeOpacity={isSubscribed ? 1 : 0.7}>
+                    <TouchableOpacity style={styles.row} onPress={handleMembershipPress} activeOpacity={0.7}>
                         <View style={[styles.settingIconBox, { backgroundColor: isSubscribed ? colors.greenLight : C.gray100 }]}>
                             <MaterialIcons name="auto-awesome" size={20} color={isSubscribed ? colors.green : C.gray600} />
                         </View>

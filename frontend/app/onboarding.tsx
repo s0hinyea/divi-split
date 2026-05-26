@@ -146,7 +146,7 @@ export default function Onboarding() {
 							<Text style={styles.greeting}>Hey {firstName}! 👋</Text>
 							<Text style={styles.title}>Pick your handle</Text>
 							<Text style={styles.subtitle}>
-								Your @id for bill splitting — 3–20 characters, letters, numbers,
+								Your @id for bill splitting. 3-20 characters, letters, numbers,
 								dots, underscores.
 							</Text>
 

@@ -159,7 +159,7 @@ export default function TabsLayout() {
                 />
             </Tabs>
 
-            {/* Floating scan button — only on home tab */}
+            {/* Floating scan button - only on home tab */}
             {usePathname() === '/' && (
                 <Pressable
                     style={({ pressed }) => [styles.floatingAddButton, { backgroundColor: C.green }, pressed && { opacity: 0.85 }]}

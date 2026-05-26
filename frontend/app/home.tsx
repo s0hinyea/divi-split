@@ -24,7 +24,7 @@ try {
 		scopes: ["profile", "email"],
 	});
 } catch {
-	// Running in Expo Go — Google Sign-In not available
+	// Running in Expo Go - Google Sign-In not available
 }
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
@@ -150,7 +150,7 @@ export default function Home() {
 				/>
 			</View>
 
-			{/* Title — above the receipt */}
+			{/* Title - above the receipt */}
 			<View style={styles.titleSection}>
 				<Text style={styles.title}>
 					<Text style={{ color: BLACK }}>D</Text>
@@ -161,7 +161,7 @@ export default function Home() {
 				<Text style={styles.tagline}>for who owes what.</Text>
 			</View>
 
-			{/* Receipt card — sign in options */}
+			{/* Receipt card - sign in options */}
 			<View style={styles.receiptOuter}>
 				<ZigzagEdge width={SCREEN_WIDTH} />
 				<View style={styles.receipt}>

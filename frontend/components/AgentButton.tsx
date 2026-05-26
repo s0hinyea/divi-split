@@ -39,7 +39,7 @@ export default function AgentButton({ isRecording, isDisabled, onPress }: Props)
 
   return (
     <View style={styles.wrapper}>
-      {/* Pulsing glow ring — behind the button */}
+      {/* Pulsing glow ring - behind the button */}
       <Animated.View
         style={[
           styles.glowRing,

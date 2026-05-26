@@ -24,7 +24,7 @@ import { ToastProvider } from "@/components/ToastProvider";
 import { CustomAlertProvider } from "@/components/CustomAlert";
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync().catch(() => {
-  /* Ignore — native splash screen may not be registered yet in Expo Go */
+  /* Ignore - native splash screen may not be registered yet in Expo Go */
 });
 
 
@@ -76,7 +76,7 @@ function AppReadyGate({ loaded }: { loaded: boolean }) {
   const [splashComplete, setSplashComplete] = useState(false);
   const [timedOut, setTimedOut] = useState(false);
 
-  // Safety timeout — dismiss splash after 5s no matter what
+  // Safety timeout - dismiss splash after 5s no matter what
   useEffect(() => {
     const timer = setTimeout(() => setTimedOut(true), 5000);
     return () => clearTimeout(timer);
@@ -88,7 +88,7 @@ function AppReadyGate({ loaded }: { loaded: boolean }) {
   useEffect(() => {
     if (appReady) {
       SplashScreen.hideAsync().catch(() => {
-        /* Ignore — native splash screen may not be registered yet in Expo Go */
+        /* Ignore - native splash screen may not be registered yet in Expo Go */
       });
     }
   }, [appReady]);

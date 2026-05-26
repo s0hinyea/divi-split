@@ -144,7 +144,7 @@ export default function PaywallModal({
             <ActivityIndicator color={colors.white} />
           ) : (
             <Text style={styles.subscribeText}>
-              {currentPackage ? `Subscribe — ${currentPackage.product.priceString}` : 'Subscribe'}
+              {currentPackage ? `Subscribe: ${currentPackage.product.priceString}` : 'Subscribe'}
             </Text>
           )}
         </TouchableOpacity>

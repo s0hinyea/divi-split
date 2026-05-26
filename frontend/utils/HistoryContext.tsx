@@ -36,7 +36,7 @@ export function HistoryProvider({ children }: { children: ReactNode }) {
     const [monthlyTotal, setMonthlyTotal] = useState(0);
     const [totalCount, setTotalCount] = useState(0);
 
-    // Lightweight query for Dashboard stats — independent of pagination
+    // Lightweight query for Dashboard stats - independent of pagination
     const fetchStats = async () => {
         if (!session?.user) return;
         try {
@@ -70,7 +70,7 @@ export function HistoryProvider({ children }: { children: ReactNode }) {
 
             const offset = loadMore ? receipts.length : 0;
 
-            // Query directly via Supabase JS client — RLS ensures user only sees their own data
+            // Query directly via Supabase JS client - RLS ensures user only sees their own data
             const { data, error, count } = await supabase
                 .from('receipts')
                 .select(`
@@ -133,7 +133,7 @@ export function HistoryProvider({ children }: { children: ReactNode }) {
                 .delete()
                 .eq('receipt_id', id);
 
-            // Delete the receipt — RLS ensures user can only delete their own
+            // Delete the receipt - RLS ensures user can only delete their own
             const { error } = await supabase
                 .from('receipts')
                 .delete()
