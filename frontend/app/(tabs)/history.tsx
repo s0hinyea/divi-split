@@ -7,17 +7,18 @@ import {
 } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useRouter } from 'expo-router';
 import { ScrollView } from 'react-native-gesture-handler';
 import Swipeable from 'react-native-gesture-handler/Swipeable';
 import { MaterialIcons } from '@expo/vector-icons';
-import { fonts, fontSizes, spacing, radii, shadows } from '@/styles/theme';
+import { fonts, fontSizes, spacing, radii, shadows, colors } from '@/styles/theme';
 import { useThemeColors } from '@/utils/ThemeContext';
 import { useHistory, Receipt } from '@/utils/HistoryContext';
 import { getUserFacingErrorMessage } from '@/utils/network';
 import { HistorySkeleton } from '@/components/SkeletonLoader';
 import { useToast } from '@/components/ToastProvider';
+import { supabase } from '@/lib/supabase';
 
 function createStyles(C: ReturnType<typeof useThemeColors>) {
     return StyleSheet.create({
@@ -102,6 +103,21 @@ function createStyles(C: ReturnType<typeof useThemeColors>) {
             fontSize: fontSizes.md,
             color: C.black,
         },
+        settlementPill: {
+            flexDirection: 'row' as const,
+            alignItems: 'center' as const,
+            gap: 4,
+            marginTop: 3,
+        },
+        settlementDot: {
+            width: 6,
+            height: 6,
+            borderRadius: 3,
+        },
+        settlementText: {
+            fontFamily: fonts.bodyMedium,
+            fontSize: 11,
+        },
 
         deleteAction: {
             backgroundColor: C.error,
@@ -159,6 +175,28 @@ export default function History() {
     const { showToast } = useToast();
     const [loadingMore, setLoadingMore] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
+    // Maps receipt_id -> { settled: number; total: number }
+    const [settlementMap, setSettlementMap] = useState<Map<string, { settled: number; total: number }>>(new Map());
+
+    useEffect(() => {
+        if (receipts.length === 0) return;
+        const ids = receipts.map((r) => r.id);
+        supabase
+            .from('payment_requests')
+            .select('receipt_id, status')
+            .in('receipt_id', ids)
+            .then(({ data }) => {
+                if (!data) return;
+                const map = new Map<string, { settled: number; total: number }>();
+                for (const pr of data) {
+                    if (!map.has(pr.receipt_id)) map.set(pr.receipt_id, { settled: 0, total: 0 });
+                    const entry = map.get(pr.receipt_id)!;
+                    entry.total++;
+                    if (pr.status === 'settled') entry.settled++;
+                }
+                setSettlementMap(map);
+            });
+    }, [receipts]);
 
     const onRefresh = useCallback(async () => {
         setRefreshing(true);
@@ -252,6 +290,26 @@ export default function History() {
                                                         year: 'numeric',
                                                     })}
                                                 </Text>
+                                                {(() => {
+                                                    const s = settlementMap.get(receipt.id);
+                                                    if (!s || s.total === 0) return null;
+                                                    const allPaid = s.settled === s.total;
+                                                    const hasPending = s.settled > 0 && !allPaid;
+                                                    return (
+                                                        <View style={styles.settlementPill}>
+                                                            <View style={[
+                                                                styles.settlementDot,
+                                                                { backgroundColor: allPaid ? C.green : hasPending ? colors.warning : C.gray300 },
+                                                            ]} />
+                                                            <Text style={[
+                                                                styles.settlementText,
+                                                                { color: allPaid ? C.green : C.gray400 },
+                                                            ]}>
+                                                                {allPaid ? 'All paid' : `${s.settled}/${s.total} paid`}
+                                                            </Text>
+                                                        </View>
+                                                    );
+                                                })()}
                                             </View>
                                             <Text style={styles.receiptAmount}>
                                                 ${(receipt.total_amount || 0).toFixed(2)}

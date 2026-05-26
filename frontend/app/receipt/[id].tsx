@@ -1,5 +1,5 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
     View,
     Text,
@@ -11,10 +11,12 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import * as SMS from 'expo-sms';
+import * as Haptics from 'expo-haptics';
 
 import { supabase } from '@/lib/supabase';
 import { useHistory } from '@/utils/HistoryContext';
 import { useProfile } from '@/utils/ProfileContext';
+import { useSession } from '@/utils/SessionContext';
 import { useSplitStore, ReceiptItem, Contact } from '@/stores/splitStore';
 import { allocateAmount } from '@/utils/mathUtil';
 import { getUserFacingErrorMessage } from '@/utils/network';
@@ -25,11 +27,27 @@ import { useCustomAlert } from '@/components/CustomAlert';
 type DbItem = { id: string; item_name: string; item_price: number };
 
 type ContactBreakdown = {
-    id: string;       // original phone/frontend ID (used for store hydration + matching)
-    dbId: string;     // DB UUID (used for allocation key)
+    id: string;
+    dbId: string;
     name: string;
     phoneNumber: string;
     items: DbItem[];
+};
+
+type PaymentStatus = 'unpaid' | 'requested' | 'pending' | 'settled';
+
+type PaymentRequest = {
+    id: string;
+    status: PaymentStatus;
+    settled_at: string | null;
+    amount: number;
+};
+
+const STATUS_CONFIG: Record<PaymentStatus, { dot: string; label: string; labelColor: string }> = {
+    unpaid:    { dot: colors.gray300,   label: 'Unpaid',   labelColor: colors.gray400   },
+    requested: { dot: colors.gray400,   label: 'Requested', labelColor: colors.gray500  },
+    pending:   { dot: colors.warning,   label: 'Pending',  labelColor: colors.warning   },
+    settled:   { dot: colors.green,     label: 'Paid',     labelColor: colors.green     },
 };
 
 export default function ReceiptDetail() {
@@ -37,6 +55,7 @@ export default function ReceiptDetail() {
     const router = useRouter();
     const { receipts } = useHistory();
     const { profile } = useProfile();
+    const { session } = useSession();
     const { showToast } = useToast();
     const { showAlert } = useCustomAlert();
     const resetStore = useSplitStore((s) => s.resetStore);
@@ -49,6 +68,9 @@ export default function ReceiptDetail() {
     const [loadingAssignments, setLoadingAssignments] = useState(true);
     const [editLoading, setEditLoading] = useState(false);
     const [resending, setResending] = useState(false);
+    const [paymentRequests, setPaymentRequests] = useState<Map<string, PaymentRequest>>(new Map());
+    const [markingPaid, setMarkingPaid] = useState<Set<string>>(new Set());
+
     const fetchAssignments = useCallback(async () => {
         if (!receipt) return;
         const itemIds = receipt.receipt_items.map((i) => i.id);
@@ -57,25 +79,31 @@ export default function ReceiptDetail() {
             return;
         }
         try {
-            const { data, error } = await supabase
-                .from('assignments')
-                .select(`
-                    item_id,
-                    contacts (
-                        id,
-                        contact_name,
-                        phone_number,
-                        contact_id
-                    )
-                `)
-                .in('item_id', itemIds);
+            const [assignmentRes, paymentRes] = await Promise.all([
+                supabase
+                    .from('assignments')
+                    .select(`
+                        item_id,
+                        contacts (
+                            id,
+                            contact_name,
+                            phone_number,
+                            contact_id
+                        )
+                    `)
+                    .in('item_id', itemIds),
+                supabase
+                    .from('payment_requests')
+                    .select('id, contact_id, status, settled_at, amount')
+                    .eq('receipt_id', receipt.id),
+            ]);
 
-            if (error) throw error;
+            if (assignmentRes.error) throw assignmentRes.error;
 
             const contactMap = new Map<string, ContactBreakdown>();
             const assignedIds = new Set<string>();
 
-            for (const row of (data as any[]) || []) {
+            for (const row of (assignmentRes.data as any[]) || []) {
                 const c = Array.isArray(row.contacts) ? row.contacts[0] : row.contacts;
                 if (!c) continue;
 
@@ -97,6 +125,17 @@ export default function ReceiptDetail() {
 
             setContacts(Array.from(contactMap.values()));
             setUnassignedItems(receipt.receipt_items.filter((i) => !assignedIds.has(i.id)));
+
+            const prMap = new Map<string, PaymentRequest>();
+            for (const pr of (paymentRes.data || [])) {
+                prMap.set(pr.contact_id, {
+                    id: pr.id,
+                    status: pr.status as PaymentStatus,
+                    settled_at: pr.settled_at,
+                    amount: pr.amount,
+                });
+            }
+            setPaymentRequests(prMap);
         } catch (err) {
             console.error('Failed to fetch assignments:', err);
         } finally {
@@ -107,6 +146,139 @@ export default function ReceiptDetail() {
     useEffect(() => {
         fetchAssignments();
     }, [fetchAssignments]);
+
+    // Per-contact totals with tax + tip allocated proportionally
+    const contactTotals = useMemo(() => {
+        if (!receipt || contacts.length === 0) return new Map<string, number>();
+
+        const shares = contacts.map((c) => ({
+            id: c.dbId,
+            share: c.items.reduce((s, i) => s + i.item_price, 0),
+        }));
+        if (unassignedItems.length > 0) {
+            shares.push({
+                id: 'user',
+                share: unassignedItems.reduce((s, i) => s + i.item_price, 0),
+            });
+        }
+
+        const individualTaxes = allocateAmount(receipt.tax_amount || 0, shares);
+        const individualTips =
+            (receipt.tip_amount || 0) > 0
+                ? allocateAmount(receipt.tip_amount, shares.map((s) => ({ ...s, share: 1 })))
+                : ({} as Record<string, number>);
+
+        const totals = new Map<string, number>();
+        for (const c of contacts) {
+            const meal = c.items.reduce((s, i) => s + i.item_price, 0);
+            totals.set(c.dbId, meal + (individualTaxes[c.dbId] || 0) + (individualTips[c.dbId] || 0));
+        }
+        return totals;
+    }, [contacts, unassignedItems, receipt]);
+
+    const settledCount = contacts.filter(
+        (c) => paymentRequests.get(c.dbId)?.status === 'settled'
+    ).length;
+    const allSettled = contacts.length > 0 && settledCount === contacts.length;
+
+    const handleMarkPaid = async (contact: ContactBreakdown) => {
+        if (!receipt || !session?.user) return;
+        const amount = contactTotals.get(contact.dbId) || 0;
+
+        setMarkingPaid((prev) => new Set(prev).add(contact.dbId));
+        try {
+            const { data, error } = await supabase
+                .from('payment_requests')
+                .upsert(
+                    {
+                        receipt_id: receipt.id,
+                        contact_id: contact.dbId,
+                        owner_id: session.user.id,
+                        amount,
+                        items: contact.items.map((i) => ({
+                            name: i.item_name,
+                            price: i.item_price,
+                        })),
+                        status: 'settled',
+                        settled_at: new Date().toISOString(),
+                    },
+                    { onConflict: 'receipt_id,contact_id' }
+                )
+                .select('id, status, settled_at, amount')
+                .single();
+
+            if (error) throw error;
+
+            setPaymentRequests((prev) => {
+                const next = new Map(prev);
+                next.set(contact.dbId, {
+                    id: data.id,
+                    status: 'settled',
+                    settled_at: data.settled_at,
+                    amount: data.amount,
+                });
+                return next;
+            });
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        } catch (err) {
+            showToast(getUserFacingErrorMessage(err, 'Could not update payment status.'), 'error');
+        } finally {
+            setMarkingPaid((prev) => {
+                const next = new Set(prev);
+                next.delete(contact.dbId);
+                return next;
+            });
+        }
+    };
+
+    const handleMarkUnpaid = async (contact: ContactBreakdown) => {
+        const existing = paymentRequests.get(contact.dbId);
+        if (!existing) return;
+
+        setMarkingPaid((prev) => new Set(prev).add(contact.dbId));
+        try {
+            const { error } = await supabase
+                .from('payment_requests')
+                .update({ status: 'unpaid', settled_at: null })
+                .eq('id', existing.id);
+
+            if (error) throw error;
+
+            setPaymentRequests((prev) => {
+                const next = new Map(prev);
+                next.set(contact.dbId, { ...existing, status: 'unpaid', settled_at: null });
+                return next;
+            });
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        } catch (err) {
+            showToast(getUserFacingErrorMessage(err, 'Could not update payment status.'), 'error');
+        } finally {
+            setMarkingPaid((prev) => {
+                const next = new Set(prev);
+                next.delete(contact.dbId);
+                return next;
+            });
+        }
+    };
+
+    const handleMarkAllPaid = () => {
+        showAlert({
+            title: 'Mark everyone as paid?',
+            message: 'This will mark all people on this receipt as settled.',
+            buttons: [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Mark All Paid',
+                    onPress: () => {
+                        const unpaid = contacts.filter(
+                            (c) => paymentRequests.get(c.dbId)?.status !== 'settled'
+                        );
+                        unpaid.forEach((c) => handleMarkPaid(c));
+                    },
+                },
+            ],
+        });
+    };
 
     const performEdit = async () => {
         if (!receipt) return;
@@ -205,17 +377,23 @@ export default function ReceiptDetail() {
                 share: c.items.reduce((s, i) => s + i.item_price, 0),
             }));
             if (unassignedItems.length > 0) {
-                shares.push({ id: 'user', share: unassignedItems.reduce((s, i) => s + i.item_price, 0) });
+                shares.push({
+                    id: 'user',
+                    share: unassignedItems.reduce((s, i) => s + i.item_price, 0),
+                });
             }
 
             const individualTaxes = allocateAmount(receipt.tax_amount || 0, shares);
-            const individualTips = (receipt.tip_amount || 0) > 0
-                ? allocateAmount(receipt.tip_amount, shares.map((s) => ({ ...s, share: 1 })))
-                : {} as Record<string, number>;
+            const individualTips =
+                (receipt.tip_amount || 0) > 0
+                    ? allocateAmount(receipt.tip_amount, shares.map((s) => ({ ...s, share: 1 })))
+                    : ({} as Record<string, number>);
 
             const name = receipt.receipt_name.trim() || 'Split';
             const dateStr = new Date(receipt.created_at).toLocaleDateString('en-US', {
-                month: 'short', day: 'numeric', year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric',
             });
 
             let message = `🧾 Divi: ${name}\n📅 ${dateStr}\n\n`;
@@ -225,7 +403,6 @@ export default function ReceiptDetail() {
                 const tax = individualTaxes[c.dbId] || 0;
                 const tip = individualTips[c.dbId] || 0;
                 const total = mealTotal + tax + tip;
-
                 message += `• ${c.name}: $${total.toFixed(2)}`;
                 const details: string[] = [`meal $${mealTotal.toFixed(2)}`];
                 if (tax > 0) details.push(`tax $${tax.toFixed(2)}`);
@@ -238,7 +415,6 @@ export default function ReceiptDetail() {
                 const userTax = individualTaxes['user'] || 0;
                 const userTip = individualTips['user'] || 0;
                 const userTotal = userMealTotal + userTax + userTip;
-
                 message += `• ${profile?.full_name || 'You'}: $${userTotal.toFixed(2)}`;
                 const details: string[] = [`meal $${userMealTotal.toFixed(2)}`];
                 if (userTax > 0) details.push(`tax $${userTax.toFixed(2)}`);
@@ -290,7 +466,10 @@ export default function ReceiptDetail() {
                     </Text>
                     <Text style={styles.headerDate}>
                         {new Date(receipt.created_at).toLocaleDateString('en-US', {
-                            weekday: 'short', month: 'short', day: 'numeric', year: 'numeric',
+                            weekday: 'short',
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric',
                         })}
                     </Text>
                 </View>
@@ -329,14 +508,29 @@ export default function ReceiptDetail() {
                 <View style={styles.card}>
                     {receipt.receipt_items.map((item) => (
                         <View key={item.id} style={styles.row}>
-                            <Text style={styles.rowLabel} numberOfLines={1}>{item.item_name}</Text>
+                            <Text style={styles.rowLabel} numberOfLines={1}>
+                                {item.item_name}
+                            </Text>
                             <Text style={styles.rowValue}>${item.item_price.toFixed(2)}</Text>
                         </View>
                     ))}
                 </View>
 
-                {/* Split Breakdown */}
-                <Text style={styles.sectionTitle}>Split Breakdown</Text>
+                {/* Who Owes You */}
+                <View style={styles.sectionHeader}>
+                    <Text style={styles.sectionTitle}>Who Owes You</Text>
+                    {contacts.length > 0 && !loadingAssignments && (
+                        <Text
+                            style={[
+                                styles.settlementCount,
+                                { color: allSettled ? colors.green : colors.gray400 },
+                            ]}
+                        >
+                            {allSettled ? 'All paid' : `${settledCount}/${contacts.length} paid`}
+                        </Text>
+                    )}
+                </View>
+
                 {loadingAssignments ? (
                     <ActivityIndicator color={colors.green} style={{ marginVertical: spacing.lg }} />
                 ) : contacts.length === 0 ? (
@@ -344,25 +538,112 @@ export default function ReceiptDetail() {
                         <Text style={styles.emptyText}>No assignments saved for this receipt.</Text>
                     </View>
                 ) : (
-                    contacts.map((c) => {
-                        const mealTotal = c.items.reduce((s, i) => s + i.item_price, 0);
-                        return (
-                            <View key={c.dbId} style={styles.card}>
-                                <Text style={styles.contactName}>{c.name}</Text>
-                                <View style={styles.divider} />
-                                {c.items.map((item) => (
-                                    <View key={item.id} style={styles.row}>
-                                        <Text style={styles.rowLabel} numberOfLines={1}>{item.item_name}</Text>
-                                        <Text style={styles.rowValue}>${item.item_price.toFixed(2)}</Text>
+                    <>
+                        {contacts.map((c) => {
+                            const total = contactTotals.get(c.dbId) ?? 0;
+                            const pr = paymentRequests.get(c.dbId);
+                            const status: PaymentStatus = pr?.status ?? 'unpaid';
+                            const cfg = STATUS_CONFIG[status];
+                            const isLoading = markingPaid.has(c.dbId);
+                            const isSettled = status === 'settled';
+
+                            return (
+                                <View key={c.dbId} style={styles.paymentCard}>
+                                    {/* Contact header row */}
+                                    <View style={styles.paymentCardHeader}>
+                                        <View style={styles.paymentNameRow}>
+                                            <View
+                                                style={[
+                                                    styles.statusDot,
+                                                    { backgroundColor: cfg.dot },
+                                                ]}
+                                            />
+                                            <View>
+                                                <Text style={styles.paymentContactName}>{c.name}</Text>
+                                                <Text style={styles.paymentItemCount}>
+                                                    {c.items.length} item
+                                                    {c.items.length !== 1 ? 's' : ''}
+                                                </Text>
+                                            </View>
+                                        </View>
+                                        <View style={styles.paymentAmountCol}>
+                                            <Text style={styles.paymentAmount}>
+                                                ${total.toFixed(2)}
+                                            </Text>
+                                            <Text
+                                                style={[
+                                                    styles.statusLabel,
+                                                    { color: cfg.labelColor },
+                                                ]}
+                                            >
+                                                {cfg.label}
+                                                {isSettled ? ' ✓' : ''}
+                                            </Text>
+                                        </View>
                                     </View>
-                                ))}
-                                <View style={[styles.row, { marginTop: spacing.xs }]}>
-                                    <Text style={styles.totalLabel}>Subtotal</Text>
-                                    <Text style={styles.totalValue}>${mealTotal.toFixed(2)}</Text>
+
+                                    {/* Item breakdown */}
+                                    <View style={styles.divider} />
+                                    {c.items.map((item) => (
+                                        <View key={item.id} style={styles.paymentItemRow}>
+                                            <Text
+                                                style={styles.paymentItemName}
+                                                numberOfLines={1}
+                                            >
+                                                {item.item_name}
+                                            </Text>
+                                            <Text style={styles.paymentItemPrice}>
+                                                ${item.item_price.toFixed(2)}
+                                            </Text>
+                                        </View>
+                                    ))}
+
+                                    {/* Action row */}
+                                    <View style={styles.divider} />
+                                    <View style={styles.paymentActionRow}>
+                                        {isLoading ? (
+                                            <ActivityIndicator
+                                                size="small"
+                                                color={colors.green}
+                                                style={styles.actionLoader}
+                                            />
+                                        ) : isSettled ? (
+                                            <TouchableOpacity
+                                                onPress={() => handleMarkUnpaid(c)}
+                                                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                            >
+                                                <Text style={styles.undoText}>Undo</Text>
+                                            </TouchableOpacity>
+                                        ) : (
+                                            <TouchableOpacity
+                                                style={styles.markPaidBtn}
+                                                onPress={() => handleMarkPaid(c)}
+                                                activeOpacity={0.75}
+                                            >
+                                                <MaterialIcons
+                                                    name="check"
+                                                    size={14}
+                                                    color={colors.white}
+                                                />
+                                                <Text style={styles.markPaidText}>Mark Paid</Text>
+                                            </TouchableOpacity>
+                                        )}
+                                    </View>
                                 </View>
-                            </View>
-                        );
-                    })
+                            );
+                        })}
+
+                        {/* Mark All Paid — only when at least one is unpaid */}
+                        {!allSettled && contacts.length > 1 && (
+                            <TouchableOpacity
+                                style={styles.markAllBtn}
+                                onPress={handleMarkAllPaid}
+                                activeOpacity={0.75}
+                            >
+                                <Text style={styles.markAllText}>Mark Everyone Paid</Text>
+                            </TouchableOpacity>
+                        )}
+                    </>
                 )}
             </ScrollView>
 
@@ -434,15 +715,26 @@ const styles = StyleSheet.create({
         paddingBottom: 120,
     },
 
+    sectionHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginTop: spacing.lg,
+        marginBottom: spacing.xs,
+    },
     sectionTitle: {
         fontFamily: fonts.bodySemiBold,
         fontSize: fontSizes.xs,
         color: colors.gray500,
         letterSpacing: 0.8,
         textTransform: 'uppercase',
-        marginTop: spacing.lg,
-        marginBottom: spacing.xs,
     },
+    settlementCount: {
+        fontFamily: fonts.bodySemiBold,
+        fontSize: fontSizes.xs,
+        letterSpacing: 0.4,
+    },
+
     card: {
         backgroundColor: colors.white,
         borderRadius: radii.md,
@@ -497,19 +789,133 @@ const styles = StyleSheet.create({
         fontSize: fontSizes.lg,
         color: colors.green,
     },
-    contactName: {
-        fontFamily: fonts.bodySemiBold,
-        fontSize: fontSizes.sm,
-        color: colors.black,
-        marginBottom: 2,
-        marginTop: spacing.xs,
-    },
     emptyText: {
         fontFamily: fonts.body,
         fontSize: fontSizes.sm,
         color: colors.gray400,
         textAlign: 'center',
         paddingVertical: spacing.md,
+    },
+
+    // Payment tracking card
+    paymentCard: {
+        backgroundColor: colors.white,
+        borderRadius: radii.md,
+        paddingHorizontal: spacing.md,
+        paddingTop: spacing.md,
+        paddingBottom: spacing.sm,
+        marginBottom: spacing.sm,
+        shadowColor: colors.black,
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 2,
+        elevation: 2,
+    },
+    paymentCardHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'flex-start',
+        marginBottom: spacing.xs,
+    },
+    paymentNameRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: spacing.sm,
+        flex: 1,
+    },
+    statusDot: {
+        width: 10,
+        height: 10,
+        borderRadius: 5,
+        marginTop: 2,
+    },
+    paymentContactName: {
+        fontFamily: fonts.bodySemiBold,
+        fontSize: fontSizes.md,
+        color: colors.black,
+    },
+    paymentItemCount: {
+        fontFamily: fonts.body,
+        fontSize: fontSizes.xs,
+        color: colors.gray400,
+        marginTop: 1,
+    },
+    paymentAmountCol: {
+        alignItems: 'flex-end',
+    },
+    paymentAmount: {
+        fontFamily: fonts.bodyBold,
+        fontSize: fontSizes.md,
+        color: colors.green,
+    },
+    statusLabel: {
+        fontFamily: fonts.bodyMedium,
+        fontSize: fontSizes.xs,
+        marginTop: 2,
+    },
+    paymentItemRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingVertical: 4,
+    },
+    paymentItemName: {
+        fontFamily: fonts.body,
+        fontSize: fontSizes.sm,
+        color: colors.gray600,
+        flex: 1,
+        marginRight: spacing.sm,
+    },
+    paymentItemPrice: {
+        fontFamily: fonts.bodyMedium,
+        fontSize: fontSizes.sm,
+        color: colors.gray500,
+    },
+    paymentActionRow: {
+        flexDirection: 'row',
+        justifyContent: 'flex-end',
+        alignItems: 'center',
+        paddingTop: spacing.xs,
+    },
+    actionLoader: {
+        height: 30,
+    },
+    markPaidBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 5,
+        backgroundColor: colors.black,
+        paddingHorizontal: spacing.md,
+        paddingVertical: 7,
+        borderRadius: radii.full,
+    },
+    markPaidText: {
+        fontFamily: fonts.bodySemiBold,
+        fontSize: fontSizes.xs,
+        color: colors.white,
+    },
+    undoText: {
+        fontFamily: fonts.bodyMedium,
+        fontSize: fontSizes.xs,
+        color: colors.gray400,
+        paddingVertical: 7,
+    },
+
+    // Mark All Paid button
+    markAllBtn: {
+        borderWidth: 1.5,
+        borderColor: colors.gray300,
+        borderRadius: radii.xl,
+        height: 48,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginTop: spacing.xs,
+        marginBottom: spacing.sm,
+    },
+    markAllText: {
+        fontFamily: fonts.bodySemiBold,
+        fontSize: fontSizes.sm,
+        color: colors.gray600,
     },
 
     footer: {
@@ -555,5 +961,4 @@ const styles = StyleSheet.create({
         fontSize: fontSizes.md,
         color: colors.white,
     },
-
 });
