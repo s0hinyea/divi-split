@@ -1,6 +1,6 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState, useEffect, useRef } from 'react';
-import { View, TextInput, StyleSheet, TouchableOpacity, Pressable, Image, Modal, Text, Keyboard, Animated } from 'react-native';
+import { View, TextInput, StyleSheet, TouchableOpacity, Pressable, Image, Modal, Text, Keyboard, Animated, Alert } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { ScrollView } from 'react-native-gesture-handler';
 import { Button, Surface } from 'react-native-paper';
@@ -105,6 +105,13 @@ export default function OCRResults() {
   // Get items from context instead of params
   const items = 'items' in receiptData ? receiptData.items : [];
   const displayItems = items.filter(item => item.name.trim().toLowerCase() !== 'tax');
+
+  // Total mismatch warning
+  const calculatedTotal = displayItems.reduce((sum, item) => sum + item.price, 0)
+    + (receiptData.tax ?? 0)
+    + (receiptData.tip ?? 0);
+  const ocrTotal = receiptData.total ?? 0;
+  const totalMismatch = ocrTotal > 0 && Math.abs(calculatedTotal - ocrTotal) > ocrTotal * 0.05;
 
   const CATEGORY_ORDER: ItemCategory[] = ['entree', 'appetizer', 'side', 'drink', 'dessert', 'other'];
   const CATEGORY_LABELS: Record<ItemCategory, string> = {
@@ -510,12 +517,22 @@ export default function OCRResults() {
           </View>
         ) : (
           <>
+            {/* Total mismatch warning */}
+            {totalMismatch && (
+              <View style={styles.mismatchBanner}>
+                <MaterialIcons name="warning-amber" size={16} color={colors.warning} />
+                <Text style={styles.mismatchText}>
+                  Receipt total was ${ocrTotal.toFixed(2)} — double check items
+                </Text>
+              </View>
+            )}
+
             {/* Show total */}
             {items.length > 0 && (
               <View style={styles.totalContainer}>
                 <Text style={styles.totalLabel}>Total</Text>
-                <Text style={styles.totalAmount}>
-                  ${(items.reduce((sum, item) => sum + item.price, 0) + (('tax' in receiptData && receiptData.tax) ? receiptData.tax : 0) + (('tip' in receiptData && receiptData.tip) ? receiptData.tip : 0)).toFixed(2)}
+                <Text style={[styles.totalAmount, totalMismatch && { color: colors.warning }]}>
+                  ${calculatedTotal.toFixed(2)}
                 </Text>
               </View>
             )}
@@ -538,9 +555,12 @@ export default function OCRResults() {
             onPress={() => {
               Keyboard.dismiss();
               if (changing) finishChange();
+              if (displayItems.length === 0) {
+                Alert.alert('No Items', 'Add at least one item before continuing.');
+                return;
+              }
               router.push("/assign");
             }}
-            disabled={displayItems.length === 0}
             activeOpacity={0.8}
           >
             <MaterialIcons name="check" size={28} color={colors.white} />
@@ -904,6 +924,24 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bodySemiBold,
     fontSize: fontSizes.md,
     color: colors.white,
+  },
+  mismatchBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    backgroundColor: `${colors.warning}18`,
+    borderRadius: radii.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    marginBottom: spacing.sm,
+    borderWidth: 1,
+    borderColor: `${colors.warning}40`,
+  },
+  mismatchText: {
+    fontFamily: fonts.body,
+    fontSize: fontSizes.sm,
+    color: colors.warning,
+    flex: 1,
   },
   splitProgressContainer: {
     justifyContent: 'center',
