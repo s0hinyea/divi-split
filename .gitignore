@@ -54,7 +54,7 @@ backend/node_modules/
 .expo/
 eas.json
 
-# Personal
-resume.md
+# Markdown files
+*.md
 # ios/android are committed so EAS skips prebuild and uses the correct native target name
 app.json
