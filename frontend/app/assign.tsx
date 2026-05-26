@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { View, Text, ScrollView, TouchableOpacity, Pressable, StyleSheet, ActivityIndicator, Animated } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSplitStore, ReceiptItem, ItemCategory } from '../stores/splitStore';
@@ -111,6 +112,8 @@ export default function AssignAmounts() {
     .filter(g => g.items.length > 0);
   const hasCategoryData = available.some(it => it.category != null);
 
+  const contactTotal = currentContact?.items?.reduce((sum, item) => sum + item.price, 0) ?? 0;
+
   const toggleItem = (item: ReceiptItem) => {
     if (currentContact) {
       manageItems(item, currentContact);
@@ -122,14 +125,28 @@ export default function AssignAmounts() {
   };
 
   const nextContact = async () => {
-    if (currentContactIndex + 1 === selected.length) {
-      const allAssignedItems = selected.flatMap(c => c.items);
+    const isLastContact = currentContactIndex + 1 === selected.length;
 
+    if (isLastContact) {
+      const allAssignedItems = selected.flatMap(c => c.items);
       const remainingItems = items.filter(item =>
         !allAssignedItems.some(assigned => assigned.id === item.id)
       );
 
+      // First-scan unassigned warning
       if (remainingItems.length > 0) {
+        const warned = await AsyncStorage.getItem('@divi_unassigned_warned');
+        if (!warned) {
+          await AsyncStorage.setItem('@divi_unassigned_warned', 'true');
+          await new Promise<void>(resolve => {
+            const { Alert } = require('react-native');
+            Alert.alert(
+              `${remainingItems.length} item${remainingItems.length > 1 ? 's' : ''} unassigned`,
+              "These will be added to your portion. Next time, assign everything before continuing — or leave items for yourself on purpose.",
+              [{ text: 'Got it', onPress: resolve }]
+            );
+          });
+        }
         setUserItems(remainingItems);
       } else {
         setUserItems([]);
@@ -163,10 +180,15 @@ export default function AssignAmounts() {
           <TouchableOpacity onPress={handleBack} style={{ marginRight: spacing.sm }}>
             <MaterialIcons name="arrow-back" size={28} color={colors.black} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle} numberOfLines={1} ellipsizeMode="tail">
-            <Text style={{ color: colors.black }}>Assigning: </Text>
-            <Text style={{ color: colors.green }}>{currentContact?.name}</Text>
-          </Text>
+          <View style={{ flex: 1, marginRight: spacing.sm }}>
+            <Text style={styles.headerTitle} numberOfLines={1} ellipsizeMode="tail">
+              <Text style={{ color: colors.black }}>Assigning: </Text>
+              <Text style={{ color: colors.green }}>{currentContact?.name}</Text>
+            </Text>
+            {contactTotal > 0 && (
+              <Text style={styles.contactTotal}>${contactTotal.toFixed(2)}</Text>
+            )}
+          </View>
           <View style={styles.headerRight}>
             <TouchableOpacity onPress={() => router.replace('/(tabs)')} style={styles.homeButton}>
               <MaterialIcons name="home" size={20} color={colors.gray400} />
@@ -359,8 +381,12 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontFamily: fonts.bodyBold,
     fontSize: 28,
-    flex: 1,
-    marginRight: spacing.sm,
+  },
+  contactTotal: {
+    fontFamily: fonts.bodySemiBold,
+    fontSize: fontSizes.sm,
+    color: colors.green,
+    marginTop: 2,
   },
   scrollView: {
     flex: 1,
