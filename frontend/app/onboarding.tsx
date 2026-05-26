@@ -12,6 +12,7 @@ import {
 	Platform,
 	ScrollView,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { supabase } from "@/lib/supabase";
 import { useProfile } from "@/utils/ProfileContext";
@@ -19,6 +20,14 @@ import { useSession } from "@/utils/SessionContext";
 import { colors, fonts, fontSizes, spacing } from "@/styles/theme";
 import { MaterialIcons, Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+
+function FadeInView({ children, style }: { children: React.ReactNode; style?: object }) {
+	const opacity = useRef(new Animated.Value(0)).current;
+	useEffect(() => {
+		Animated.timing(opacity, { toValue: 1, duration: 200, useNativeDriver: true }).start();
+	}, []);
+	return <Animated.View style={[style, { opacity }]}>{children}</Animated.View>;
+}
 
 export default function Onboarding() {
 	const router = useRouter();
@@ -116,165 +125,167 @@ export default function Onboarding() {
 	const firstName = displayName.split(" ")[0];
 
 	return (
-		<KeyboardAvoidingView
-			style={styles.container}
-			behavior={Platform.OS === "ios" ? "padding" : "height"}
-		>
-			<ScrollView
-				contentContainerStyle={styles.scroll}
-				keyboardShouldPersistTaps="handled"
+		<SafeAreaView style={styles.container} edges={["top", "bottom"]}>
+			<KeyboardAvoidingView
+				style={{ flex: 1 }}
+				behavior={Platform.OS === "ios" ? "padding" : "height"}
 			>
-				{/* Progress */}
-				<View style={styles.progressTrack}>
-					<Animated.View
-						style={[
-							styles.progressBar,
-							{
-								width: progressAnim.interpolate({
-									inputRange: [0, 1],
-									outputRange: ["0%", "100%"],
-								}),
-								backgroundColor: isUsernameTaken ? colors.error : colors.green,
-							},
-						]}
-					/>
-				</View>
+				<ScrollView
+					contentContainerStyle={styles.scroll}
+					keyboardShouldPersistTaps="handled"
+				>
+					{/* Progress */}
+					<View style={styles.progressTrack}>
+						<Animated.View
+							style={[
+								styles.progressBar,
+								{
+									width: progressAnim.interpolate({
+										inputRange: [0, 1],
+										outputRange: ["0%", "100%"],
+									}),
+									backgroundColor: isUsernameTaken ? colors.error : colors.green,
+								},
+							]}
+						/>
+					</View>
 
-				<View style={styles.content}>
-					{step === 1 ? (
-						<>
-							<Text style={styles.greeting}>Hey {firstName}! 👋</Text>
-							<Text style={styles.title}>Pick your handle</Text>
-							<Text style={styles.subtitle}>
-								Your @id for bill splitting. 3-20 characters, letters, numbers,
-								dots, underscores.
-							</Text>
-
-							<View style={styles.inputGroup}>
-								<Text style={styles.prefix}>@</Text>
-								<TextInput
-									style={styles.input}
-									placeholder="username"
-									value={username}
-									onChangeText={(t) =>
-										setUsername(t.toLowerCase().replace(/[^a-z0-9_.]/g, ""))
-									}
-									autoFocus
-									autoCapitalize="none"
-									maxLength={20}
-									onSubmitEditing={handleContinue}
-								/>
-								{checkingUsername && (
-									<ActivityIndicator
-										style={styles.inputIcon}
-										size="small"
-										color={colors.gray400}
-									/>
-								)}
-								{!checkingUsername && username.length >= 3 && (
-									<MaterialIcons
-										name={isUsernameTaken ? "close" : "check-circle"}
-										size={20}
-										color={isUsernameTaken ? colors.error : colors.green}
-										style={styles.inputIcon}
-									/>
-								)}
-							</View>
-
-							{username.length > 0 && username.length < 3 && (
-								<Text style={styles.errorText}>
-									Username must be at least 3 characters.
+					<FadeInView key={step} style={styles.content}>
+						{step === 1 ? (
+							<>
+								<Text style={styles.greeting}>Hey {firstName}! 👋</Text>
+								<Text style={styles.title}>Pick your handle</Text>
+								<Text style={styles.subtitle}>
+									Your @id for bill splitting. 3-20 characters, letters, numbers,
+									dots, underscores.
 								</Text>
-							)}
-							{username.length >= 3 && !checkingUsername && (
-								<Text
+
+								<View style={styles.inputGroup}>
+									<Text style={styles.prefix}>@</Text>
+									<TextInput
+										style={styles.input}
+										placeholder="username"
+										value={username}
+										onChangeText={(t) =>
+											setUsername(t.toLowerCase().replace(/[^a-z0-9_.]/g, ""))
+										}
+										autoFocus
+										autoCapitalize="none"
+										maxLength={20}
+										onSubmitEditing={handleContinue}
+									/>
+									{checkingUsername && (
+										<ActivityIndicator
+											style={styles.inputIcon}
+											size="small"
+											color={colors.gray400}
+										/>
+									)}
+									{!checkingUsername && username.length >= 3 && (
+										<MaterialIcons
+											name={isUsernameTaken ? "close" : "check-circle"}
+											size={20}
+											color={isUsernameTaken ? colors.error : colors.green}
+											style={styles.inputIcon}
+										/>
+									)}
+								</View>
+
+								{username.length > 0 && username.length < 3 && (
+									<Text style={styles.errorText}>
+										Username must be at least 3 characters.
+									</Text>
+								)}
+								{username.length >= 3 && !checkingUsername && (
+									<Text
+										style={[
+											styles.statusText,
+											{ color: isUsernameTaken ? colors.error : colors.green },
+										]}
+									>
+										{isUsernameTaken ? "This handle is taken." : "Handle available!"}
+									</Text>
+								)}
+
+								<TouchableOpacity
 									style={[
-										styles.statusText,
-										{ color: isUsernameTaken ? colors.error : colors.green },
+										styles.btn,
+										(!isUsernameValid || checkingUsername) && styles.btnDisabled,
 									]}
+									onPress={handleContinue}
+									disabled={!isUsernameValid || checkingUsername}
 								>
-									{isUsernameTaken ? "This handle is taken." : "Handle available!"}
+									<Text style={styles.btnText}>Continue</Text>
+								</TouchableOpacity>
+							</>
+						) : (
+							<>
+								<Text style={styles.title}>Connect handles</Text>
+								<Text style={styles.subtitle}>
+									Speed up bill settlement. You can skip this and add them later in
+									Settings.
 								</Text>
-							)}
 
-							<TouchableOpacity
-								style={[
-									styles.btn,
-									(!isUsernameValid || checkingUsername) && styles.btnDisabled,
-								]}
-								onPress={handleContinue}
-								disabled={!isUsernameValid || checkingUsername}
-							>
-								<Text style={styles.btnText}>Continue</Text>
-							</TouchableOpacity>
-						</>
-					) : (
-						<>
-							<Text style={styles.title}>Connect handles</Text>
-							<Text style={styles.subtitle}>
-								Speed up bill settlement. You can skip this and add them later in
-								Settings.
-							</Text>
+								<View style={styles.inputGroup}>
+									<MaterialIcons
+										name="payment"
+										size={20}
+										color={colors.gray400}
+										style={{ marginLeft: 15 }}
+									/>
+									<TextInput
+										style={[styles.input, { flex: 1, backgroundColor: "transparent" }]}
+										placeholder="Venmo @id"
+										value={venmo}
+										onChangeText={setVenmo}
+										autoCapitalize="none"
+										maxLength={30}
+										autoFocus
+									/>
+								</View>
 
-							<View style={styles.inputGroup}>
-								<MaterialIcons
-									name="payment"
-									size={20}
-									color={colors.gray400}
-									style={{ marginLeft: 15 }}
-								/>
-								<TextInput
-									style={[styles.input, { flex: 1, backgroundColor: "transparent" }]}
-									placeholder="Venmo @id"
-									value={venmo}
-									onChangeText={setVenmo}
-									autoCapitalize="none"
-									maxLength={30}
-									autoFocus
-								/>
-							</View>
+								<View style={[styles.inputGroup, { marginTop: 16 }]}>
+									<Feather
+										name="dollar-sign"
+										size={20}
+										color={colors.gray400}
+										style={{ marginLeft: 15 }}
+									/>
+									<TextInput
+										style={[styles.input, { flex: 1, backgroundColor: "transparent" }]}
+										placeholder="CashApp $id"
+										value={cashapp}
+										onChangeText={setCashapp}
+										autoCapitalize="none"
+										maxLength={30}
+									/>
+								</View>
 
-							<View style={[styles.inputGroup, { marginTop: 16 }]}>
-								<Feather
-									name="dollar-sign"
-									size={20}
-									color={colors.gray400}
-									style={{ marginLeft: 15 }}
-								/>
-								<TextInput
-									style={[styles.input, { flex: 1, backgroundColor: "transparent" }]}
-									placeholder="CashApp $id"
-									value={cashapp}
-									onChangeText={setCashapp}
-									autoCapitalize="none"
-									maxLength={30}
-								/>
-							</View>
+								<TouchableOpacity
+									style={[styles.btn, loading && styles.btnDisabled]}
+									onPress={handleFinish}
+									disabled={loading}
+								>
+									{loading ? (
+										<ActivityIndicator color="#FFF" />
+									) : (
+										<Text style={styles.btnText}>Finish Setup</Text>
+									)}
+								</TouchableOpacity>
 
-							<TouchableOpacity
-								style={[styles.btn, loading && styles.btnDisabled]}
-								onPress={handleFinish}
-								disabled={loading}
-							>
-								{loading ? (
-									<ActivityIndicator color="#FFF" />
-								) : (
-									<Text style={styles.btnText}>Finish Setup</Text>
-								)}
-							</TouchableOpacity>
-
-							<TouchableOpacity
-								style={styles.skipBtn}
-								onPress={handleFinish}
-								disabled={loading}
-							>
-								<Text style={styles.skipText}>Skip for now</Text>
-							</TouchableOpacity>
-						</>
-					)}
-				</View>
-			</ScrollView>
-		</KeyboardAvoidingView>
+								<TouchableOpacity
+									style={styles.skipBtn}
+									onPress={handleFinish}
+									disabled={loading}
+								>
+									<Text style={styles.skipText}>Skip for now</Text>
+								</TouchableOpacity>
+							</>
+						)}
+					</FadeInView>
+				</ScrollView>
+			</KeyboardAvoidingView>
+		</SafeAreaView>
 	);
 }
 
@@ -285,7 +296,7 @@ const styles = StyleSheet.create({
 	},
 	scroll: {
 		flexGrow: 1,
-		paddingTop: 60,
+		paddingTop: spacing.xl,
 		paddingHorizontal: spacing.xl,
 		paddingBottom: 40,
 	},
