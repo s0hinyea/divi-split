@@ -339,6 +339,7 @@ export default function Auth({ initialMode }: AuthProps) {
 					.from('profiles')
 					.upsert({
 						id: user.id,
+						email: email.trim().toLowerCase(),
 						full_name: fullName.trim(),
 						username: username.toLowerCase().trim(),
 						venmo_handle: sanitizeHandle(venmo, '@'),
@@ -384,15 +385,38 @@ export default function Auth({ initialMode }: AuthProps) {
 	};
 
 	const performLogin = async () => {
-		// Login validation
-		if (!email.trim()) { setLoginError("Please enter your email."); return; }
-		if (!isValidEmail(email)) { setLoginError("Please enter a valid email address."); return; }
+		const identifier = email.trim();
+		if (!identifier) { setLoginError("Please enter your email or username."); return; }
 		if (!password) { setLoginError("Please enter your password."); return; }
 
 		setLoginError("");
 		setLoading(true);
 		try {
-			const { error } = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password });
+			let loginEmail = identifier.toLowerCase();
+
+			// If the input doesn't look like an email, treat it as a username
+			if (!isValidEmail(identifier)) {
+				const cleanUsername = identifier.replace(/^@/, '').toLowerCase();
+				if (cleanUsername.length < 3) {
+					setLoginError("Username must be at least 3 characters.");
+					setLoading(false);
+					return;
+				}
+				const { data, error: lookupError } = await supabase
+					.from('profiles')
+					.select('email')
+					.eq('username', cleanUsername)
+					.maybeSingle();
+
+				if (lookupError || !data?.email) {
+					setLoginError("No account found with that username.");
+					setLoading(false);
+					return;
+				}
+				loginEmail = data.email;
+			}
+
+			const { error } = await supabase.auth.signInWithPassword({ email: loginEmail, password });
 
 			if (error) {
 				if (error.message.includes("Email not confirmed")) {
@@ -641,7 +665,7 @@ export default function Auth({ initialMode }: AuthProps) {
 					<FadeInView style={styles.stepContainer}>
 						<Text style={styles.title}>Log In</Text>
 						<Text style={styles.subtitle}>Enter your credentials to continue.</Text>
-						<TextInput style={styles.input} placeholder="Email" value={email} onChangeText={(t) => { setEmail(t); setLoginError(""); }} autoCapitalize="none" keyboardType="email-address" textContentType="emailAddress" />
+						<TextInput style={styles.input} placeholder="Email or @username" value={email} onChangeText={(t) => { setEmail(t); setLoginError(""); }} autoCapitalize="none" textContentType="emailAddress" />
 						<TextInput style={[styles.input, { marginTop: 16 }, !!loginError && styles.inputError]} placeholder="Password" value={password} onChangeText={(t) => { setPassword(t); setLoginError(""); }} secureTextEntry textContentType="password" />
 						{!!loginError && <Text style={styles.loginErrorText}>{loginError}</Text>}
 						<TouchableOpacity style={styles.forgotBtn} onPress={() => router.replace({ pathname: "/auth", params: { mode: "forgot-password" } })}>
