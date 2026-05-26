@@ -95,8 +95,9 @@ export function useVoiceAgent() {
     }
   }, [isRecording, recorder, agentChat]);
 
+  const { sendMessage: _sendMessage, ...agentChatPublic } = agentChat;
   return {
-    ...agentChat,
+    ...agentChatPublic,
     isRecording,
     isTranscribing,
     startRecording,

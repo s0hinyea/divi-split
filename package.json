@@ -19,6 +19,7 @@
     "typescript": "~5.9.2"
   },
   "dependencies": {
+    "@sentry/react-native": "~7.2.0",
     "expo": "latest",
     "react": "^19.1.0",
     "react-native": "^0.80.0"

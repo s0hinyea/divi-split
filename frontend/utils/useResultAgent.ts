@@ -10,7 +10,7 @@ import * as uuid from "uuid";
 import "react-native-get-random-values";
 import { supabase } from "../lib/supabase";
 import { useSplitStore } from "../stores/splitStore";
-import type { AgentMessage } from "./useReviewAgent";
+type AgentMessage = { id: string; role: "user" | "assistant"; content: string };
 import type { Change } from "./ChangesContext";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -288,18 +288,10 @@ export function useResultAgent(addChange: (c: Change) => void) {
     }
   }, [isRecording, recorder, sendMessage]);
 
-  const clearMessages = useCallback(() => {
-    setMessages([]);
-    setError(null);
-  }, []);
-
   return {
-    messages,
     loading,
     error,
     lastActionSummary,
-    sendMessage,
-    clearMessages,
     isRecording,
     isTranscribing,
     startRecording,

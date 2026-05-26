@@ -5,6 +5,7 @@ import { useSplitStore, ReceiptItem } from '../stores/splitStore';
 import { useHistory } from '../utils/HistoryContext';
 import { useProfile } from '../utils/ProfileContext';
 import * as SMS from 'expo-sms';
+import * as Haptics from 'expo-haptics';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, fonts, fontSizes, spacing, radii } from '@/styles/theme';
@@ -14,6 +15,7 @@ import { allocateAmount } from '../utils/mathUtil';
 import { useReviewAgent, executeMoveItem, ReviewState, ReviewCallbacks, ActionSummary } from '../utils/useReviewAgent';
 import DiviLogoAnimated from '../components/DiviLogoAnimated';
 import { useToast } from '../components/ToastProvider';
+import AgentButton from '../components/AgentButton';
 
 export default function ReviewPage() {
   const router = useRouter();
@@ -41,6 +43,22 @@ export default function ReviewPage() {
   const overlayOpacity = useRef(new Animated.Value(0)).current;
   const overlayActiveRef = useRef(false);
   const pendingDispatchRef = useRef(false);
+
+  // Haptic pulse effect during processing
+  useEffect(() => {
+    let interval: any;
+    if (overlayVisible && overlayPhase === 'processing') {
+      // Immediate pulse
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      
+      interval = setInterval(() => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      }, 800);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [overlayVisible, overlayPhase]);
 
   // Refs for the review agent — always current, no stale closure issues
   const reviewStateRef = useRef<ReviewState>({
@@ -228,14 +246,14 @@ export default function ReviewPage() {
 
         if (profile?.venmo_handle) {
           const handle = profile.venmo_handle.replace('@', '');
-          message += `\n💙 venmo://paycharge?txn=pay&recipients=${encodeURIComponent(handle)}&amount=${amountStr}&note=${note}`;
+          message += `\n venmo://paycharge?txn=pay&recipients=${encodeURIComponent(handle)}&amount=${amountStr}&note=${note}`;
         }
         if (profile?.cashapp_handle) {
           const handle = profile.cashapp_handle.replace('$', '');
-          message += `\n💚 https://cash.app/$${handle}/${amountStr}`;
+          message += `\n https://cash.app/$${handle}/${amountStr}`;
         }
         if (profile?.zelle_number) {
-          message += `\n💜 Zelle $${amountStr} → ${profile.zelle_number}`;
+          message += `\n Zelle $${amountStr} → ${profile.zelle_number}`;
         }
       });
 
@@ -331,18 +349,11 @@ export default function ReviewPage() {
             <TouchableOpacity onPress={() => router.replace('/(tabs)')} style={styles.homeButton}>
               <MaterialIcons name="home" size={20} color={colors.gray400} />
             </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.agentButton, agent.isRecording && styles.agentButtonRecording]}
+            <AgentButton
+              isRecording={agent.isRecording}
+              isDisabled={agent.loading || agent.isTranscribing}
               onPress={agent.isRecording ? agent.stopAndSend : agent.startRecording}
-              disabled={agent.loading || agent.isTranscribing}
-              activeOpacity={0.8}
-            >
-              <MaterialIcons
-                name={agent.isRecording ? 'stop' : 'auto-awesome'}
-                size={18}
-                color={agent.isRecording ? colors.white : colors.green}
-              />
-            </TouchableOpacity>
+            />
           </View>
         </View>
       </View>

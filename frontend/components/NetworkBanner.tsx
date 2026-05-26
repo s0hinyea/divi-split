@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Text, StyleSheet } from 'react-native';
-import NetInfo from '@react-native-community/netinfo';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, fonts, fontSizes } from '@/styles/theme';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -40,27 +39,36 @@ export default function NetworkBanner() {
 
     useEffect(() => {
         let isFirstEmission = true;
+        let unsubscribe: (() => void) | null = null;
 
-        const unsubscribe = NetInfo.addEventListener((state) => {
-            if (isFirstEmission) {
-                isFirstEmission = false;
+        // Lazy-load NetInfo to avoid triggering getifaddrs during module init
+        import('@react-native-community/netinfo').then((mod) => {
+            const NetInfo = mod.default;
+            unsubscribe = NetInfo.addEventListener((state) => {
+                if (isFirstEmission) {
+                    isFirstEmission = false;
+                    if (!state.isConnected) {
+                        setBannerState('offline');
+                        slideIn();
+                    }
+                    return;
+                }
+
                 if (!state.isConnected) {
                     setBannerState('offline');
                     slideIn();
+                } else if (bannerState === 'offline' || bannerState === 'back-online') {
+                    setBannerState('back-online');
+                    slideOutAfterDelay();
                 }
-                return;
-            }
-
-            if (!state.isConnected) {
-                setBannerState('offline');
-                slideIn();
-            } else if (bannerState === 'offline' || bannerState === 'back-online') {
-                setBannerState('back-online');
-                slideOutAfterDelay();
-            }
+            });
+        }).catch(() => {
+            // If NetInfo fails to load, just don't show the banner
         });
 
-        return () => unsubscribe();
+        return () => {
+            if (unsubscribe) unsubscribe();
+        };
     }, [bannerState]);
 
     if (bannerState === 'hidden') return null;

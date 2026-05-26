@@ -7,3 +7,5 @@
 expo-env.d.ts
 # @end expo-cliios/ 
 android/
+
+.env.local

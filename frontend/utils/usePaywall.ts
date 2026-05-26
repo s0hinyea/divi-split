@@ -1,16 +1,18 @@
 import { useEffect, useState, useCallback } from 'react';
 import Purchases, { LOG_LEVEL, PurchasesPackage } from 'react-native-purchases';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
 
 const RC_API_KEY = process.env.EXPO_PUBLIC_REVENUECAT_API_KEY ?? '';
 const ENTITLEMENT_ID = 'pro';
 const SCAN_COUNT_KEY = '@divi_scan_count';
 const FREE_SCAN_LIMIT = 3;
 
+const isExpoGo = Constants.appOwnership === 'expo';
 let rcConfigured = false;
 
 function configureRC() {
-  if (rcConfigured || !RC_API_KEY) return;
+  if (rcConfigured || !RC_API_KEY || isExpoGo) return;
   Purchases.setLogLevel(LOG_LEVEL.ERROR);
   Purchases.configure({ apiKey: RC_API_KEY });
   rcConfigured = true;
@@ -31,6 +33,14 @@ export function usePaywall() {
 
     const init = async () => {
       try {
+        // In Expo Go, skip native Purchases calls
+        if (isExpoGo) {
+          const stored = await AsyncStorage.getItem(SCAN_COUNT_KEY);
+          setScanCount(stored ? parseInt(stored, 10) : 0);
+          setIsLoading(false);
+          return;
+        }
+
         const [customerInfo, stored, offerings] = await Promise.all([
           Purchases.getCustomerInfo(),
           AsyncStorage.getItem(SCAN_COUNT_KEY),

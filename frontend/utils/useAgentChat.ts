@@ -5,7 +5,7 @@ import type { Contact, ReceiptItem } from "../stores/splitStore";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-export type AgentMessage = {
+type AgentMessage = {
   id: string;
   role: "user" | "assistant";
   content: string;
@@ -234,13 +234,6 @@ export function useAgentChat() {
     [messages, loading],
   );
 
-  const clearMessages = useCallback(() => {
-    setMessages([]);
-    setError(null);
-    setLastReply(null);
-    snapshotRef.current = null;
-  }, []);
-
   const undoLastAgentAction = useCallback(() => {
     const snap = snapshotRef.current;
     if (!snap) return;
@@ -251,5 +244,5 @@ export function useAgentChat() {
     setLastReply(null);
   }, []);
 
-  return { messages, loading, error, lastActionSummary, lastReply, sendMessage, clearMessages, undoLastAgentAction };
+  return { loading, error, lastActionSummary, lastReply, sendMessage, undoLastAgentAction };
 }

@@ -1,5 +1,5 @@
 diff --git a/node_modules/react-native/third-party-podspecs/fmt.podspec b/node_modules/react-native/third-party-podspecs/fmt.podspec
-index 2f38990..858a97f 100644
+index a40c575..aeb8f9d 100644
 --- a/node_modules/react-native/third-party-podspecs/fmt.podspec
 +++ b/node_modules/react-native/third-party-podspecs/fmt.podspec
 @@ -19,7 +19,8 @@ Pod::Spec.new do |spec|

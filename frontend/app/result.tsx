@@ -16,6 +16,7 @@ import { colors, fonts, fontSizes, spacing, radii, shadows } from '@/styles/them
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useResultAgent, ActionSummary } from '../utils/useResultAgent';
 import DiviLogoAnimated from '../components/DiviLogoAnimated';
+import AgentButton from '../components/AgentButton';
 
 export default function OCRResults() {
   const params = useLocalSearchParams();
@@ -40,6 +41,22 @@ export default function OCRResults() {
   const [revealItems, setRevealItems] = useState<{ summary: ActionSummary; opacity: Animated.Value; translateY: Animated.Value }[]>([]);
   const overlayOpacity = useRef(new Animated.Value(0)).current;
   const overlayActiveRef = useRef(false);
+
+  // Haptic pulse effect during processing
+  useEffect(() => {
+    let interval: any;
+    if (overlayVisible && overlayPhase === 'processing') {
+      // Immediate pulse
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      
+      interval = setInterval(() => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      }, 800);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [overlayVisible, overlayPhase]);
 
   useEffect(() => {
     const isProcessing = agent.loading || agent.isTranscribing;
@@ -315,18 +332,11 @@ export default function OCRResults() {
               <TouchableOpacity onPress={() => router.replace('/(tabs)')} style={styles.homeButton}>
                 <MaterialIcons name="home" size={20} color={colors.gray400} />
               </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.agentButton, agent.isRecording && styles.agentButtonRecording]}
+              <AgentButton
+                isRecording={agent.isRecording}
+                isDisabled={agent.loading || agent.isTranscribing}
                 onPress={agent.isRecording ? agent.stopAndSend : agent.startRecording}
-                disabled={agent.loading || agent.isTranscribing}
-                activeOpacity={0.8}
-              >
-                <MaterialIcons
-                  name={agent.isRecording ? 'stop' : 'auto-awesome'}
-                  size={18}
-                  color={agent.isRecording ? colors.white : colors.green}
-                />
-              </TouchableOpacity>
+              />
             </View>
           </View>
           <Text style={styles.headerSubtitle}>Tap to edit, swipe left to delete, hold to split</Text>
