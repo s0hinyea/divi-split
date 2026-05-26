@@ -278,11 +278,25 @@ export default function Profile() {
     };
 
     const handleSave = async () => {
-        const cleanUsername = formData.username ? formData.username.replace('@', '').trim() : '';
+        const cleanUsername = formData.username ? formData.username.replace('@', '').trim().toLowerCase() : '';
         if (cleanUsername && cleanUsername.length < 3) {
             Alert.alert('Invalid Username', 'Username must be at least 3 characters.');
             return;
         }
+
+        // Check uniqueness only if the username actually changed
+        if (cleanUsername && cleanUsername !== profile?.username) {
+            const { data: existingUser } = await supabase
+                .from('profiles')
+                .select('id')
+                .eq('username', cleanUsername)
+                .maybeSingle();
+            if (existingUser) {
+                Alert.alert('Username taken', 'That username is already in use. Please choose a different one.');
+                return;
+            }
+        }
+
         const dataToSave = { ...formData, username: cleanUsername || null };
         if (isEditing) {
             setFormData(prev => ({ ...prev, username: cleanUsername }));

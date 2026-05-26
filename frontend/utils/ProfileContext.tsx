@@ -4,6 +4,7 @@ import { useSession } from './SessionContext';
 
 export interface Profile {
     id: string;
+    email: string | null;
     username: string | null;
     full_name: string | null;
     avatar_url: string | null;
@@ -49,15 +50,16 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
                 // Auto-sync from Auth Metadata if profile is missing it (happens on first login if Supabase triggers didn't copy it)
                 if (!data.username && session.user.user_metadata?.username) {
                     const syncData = {
+                        email: data.email || session.user.email || null,
                         username: session.user.user_metadata.username,
                         venmo_handle: data.venmo_handle || session.user.user_metadata.venmo_handle || null,
                         cashapp_handle: data.cashapp_handle || session.user.user_metadata.cashapp_handle || null,
                         full_name: data.full_name || session.user.user_metadata.full_name || null
                     };
                     setProfile({ ...data, ...syncData });
-                    
-                    supabase.from('profiles').upsert({ 
-                        id: session.user.id, 
+
+                    supabase.from('profiles').upsert({
+                        id: session.user.id,
                         ...syncData,
                         updated_at: new Date().toISOString()
                     }).then(({ error: updateError }) => {
@@ -77,7 +79,16 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     const updateProfile = async (updates: Partial<Profile>): Promise<string | null> => {
         if (!session?.user) return 'Not signed in.';
 
-        // Optimistic update
+        // Omit username from the payload if it has not changed.
+        // Sending an unchanged username in an upsert can trigger a false
+        // unique-constraint violation (error 23505) on some Supabase/PostgREST
+        // configurations even though the row is being updated in-place.
+        const payload: Partial<Profile> = { ...updates };
+        if ('username' in payload && payload.username === profile?.username) {
+            delete payload.username;
+        }
+
+        // Optimistic update (apply the full updates object to local state)
         setProfile((prev) => prev ? { ...prev, ...updates } : null);
 
         try {
@@ -85,7 +96,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
                 .from('profiles')
                 .upsert({
                     id: session.user.id,
-                    ...updates,
+                    ...payload,
                     updated_at: new Date().toISOString(),
                 });
 
