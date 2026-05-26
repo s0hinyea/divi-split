@@ -167,6 +167,9 @@ export function useAgentChat() {
             items: c.items.map(({ id, name, price }) => ({ id, name, price })),
           })),
           userItems: (store.receiptData.userItems ?? []).map(({ id, name, price }) => ({ id, name, price })),
+          tax: store.receiptData.tax ?? 0,
+          tip: store.receiptData.tip ?? 0,
+          total: store.receiptData.total ?? 0,
         };
 
         const { data: sessionData } = await supabase.auth.getSession();
@@ -185,10 +188,14 @@ export function useAgentChat() {
           body: JSON.stringify({ message: text.trim(), history, state }),
         });
         console.timeEnd('[agent-chat] agent-chat edge function');
+        console.log(`[agent-chat] response status: ${response.status}`);
 
         if (!response.ok) {
-          const errBody = await response.json().catch(() => ({}));
-          throw new Error((errBody as { error?: string }).error ?? "Agent request failed");
+          const rawText = await response.text();
+          console.error('[agent-chat] error body:', rawText);
+          let errMsg = 'Agent request failed';
+          try { errMsg = (JSON.parse(rawText) as { error?: string }).error ?? errMsg; } catch {}
+          throw new Error(`${response.status}: ${errMsg}`);
         }
 
         const { reply, actions } = (await response.json()) as {
@@ -218,6 +225,7 @@ export function useAgentChat() {
         setMessages((prev) => [...prev, assistantMsg]);
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : "Something went wrong";
+        console.error('[agent-chat] caught error:', msg);
         setError(msg);
         setMessages((prev) => [
           ...prev,

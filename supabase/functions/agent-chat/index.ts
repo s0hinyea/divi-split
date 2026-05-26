@@ -120,7 +120,7 @@ function buildSystemPrompt(state: ReceiptState): string {
 
   const fmtItems = (items: ReceiptItem[]) =>
     items.length > 0
-      ? items.map((i) => `    • ${i.name} $${i.price.toFixed(2)} [id:${i.id}]`).join("\n")
+      ? items.map((i) => `    • ${i.name} $${(i.price ?? 0).toFixed(2)} [id:${i.id}]`).join("\n")
       : "    (none)";
 
   const contactBlock = state.contacts
@@ -129,7 +129,7 @@ function buildSystemPrompt(state: ReceiptState): string {
 
   return `You are Divi's receipt-splitting assistant. Help the user assign receipt items to the correct people using the available tools.
 
-RECEIPT TOTALS: $${state.total.toFixed(2)} total | tax $${state.tax.toFixed(2)} | tip $${state.tip.toFixed(2)}
+RECEIPT TOTALS: $${(state.total ?? 0).toFixed(2)} total | tax $${(state.tax ?? 0).toFixed(2)} | tip $${(state.tip ?? 0).toFixed(2)}
 
 UNASSIGNED ITEMS (these need to be assigned):
 ${fmtItems(unassigned)}

@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { View, Text, ScrollView, TouchableOpacity, Pressable, StyleSheet, ActivityIndicator, Animated } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSplitStore, ReceiptItem, ItemCategory } from '../stores/splitStore';
@@ -50,6 +49,26 @@ export default function AssignAmounts() {
     }
     return () => pulseLoopRef.current?.stop();
   }, [agent.isRecording]);
+
+  // Spin animation for processing
+  const spinAnim = useRef(new Animated.Value(0)).current;
+  const spinLoopRef = useRef<Animated.CompositeAnimation | null>(null);
+  const isProcessing = agent.loading || agent.isTranscribing;
+
+  useEffect(() => {
+    if (isProcessing) {
+      spinLoopRef.current = Animated.loop(
+        Animated.timing(spinAnim, { toValue: 1, duration: 900, useNativeDriver: true, easing: (t) => t })
+      );
+      spinLoopRef.current.start();
+    } else {
+      spinLoopRef.current?.stop();
+      spinAnim.setValue(0);
+    }
+    return () => spinLoopRef.current?.stop();
+  }, [isProcessing]);
+
+  const spinDeg = spinAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
 
   // ── Agent overlay ─────────────────────────────────────────────────────────
   const [overlayVisible, setOverlayVisible] = useState(false);
@@ -163,24 +182,7 @@ export default function AssignAmounts() {
     const remainingItems = allItems.filter(item =>
       !allAssignedItems.some(assigned => assigned.id === item.id)
     );
-
-    if (remainingItems.length > 0) {
-      const warned = await AsyncStorage.getItem('@divi_unassigned_warned');
-      if (!warned) {
-        await AsyncStorage.setItem('@divi_unassigned_warned', 'true');
-        await new Promise<void>(resolve => {
-          const { Alert } = require('react-native');
-          Alert.alert(
-            `${remainingItems.length} item${remainingItems.length > 1 ? 's' : ''} unassigned`,
-            "These will be added to your portion. Next time, assign everything before continuing, or leave items for yourself on purpose.",
-            [{ text: 'Got it', onPress: resolve }]
-          );
-        });
-      }
-      setUserItems(remainingItems);
-    } else {
-      setUserItems([]);
-    }
+    setUserItems(remainingItems.length > 0 ? remainingItems : []);
     router.push("/review");
   }, [setUserItems, router]);
 
@@ -275,21 +277,24 @@ export default function AssignAmounts() {
         <View style={styles.voiceZone}>
           <MaterialIcons name="auto-awesome" size={22} color={colors.green} style={{ marginBottom: spacing.md }} />
           <Text style={styles.voiceTitle}>
-            {agent.isRecording ? 'Listening...' : agent.isTranscribing ? 'Transcribing...' : agent.loading ? 'Working...' : 'Assign with your voice'}
+            {agent.isRecording ? 'Listening...' : agent.isTranscribing ? 'Transcribing...' : agent.loading ? 'Working...' : 'Say who gets what.'}
           </Text>
           <Text style={styles.voiceSubtitle}>
             {agent.isRecording
               ? 'Speak clearly, then tap mic to send'
-              : 'Say who gets what. Divi handles the rest.'}
+              : 'Anything not assigned goes to you.'}
           </Text>
 
           {/* Big mic button */}
           <View style={styles.micWrapper}>
             <Animated.View style={[styles.pulseRing, { transform: [{ scale: pulseAnim }] }]} />
+            {isProcessing && (
+              <Animated.View style={[styles.spinRing, { transform: [{ rotate: spinDeg }] }]} />
+            )}
             <TouchableOpacity
-              style={[styles.bigMicButton, agent.isRecording && styles.bigMicButtonActive]}
+              style={[styles.bigMicButton, agent.isRecording && styles.bigMicButtonActive, isProcessing && styles.bigMicButtonProcessing]}
               onPress={handleVoicePress}
-              disabled={agent.loading || agent.isTranscribing}
+              disabled={isProcessing}
               activeOpacity={0.85}
             >
               <MaterialIcons
@@ -375,60 +380,6 @@ export default function AssignAmounts() {
           currentPackage={paywall.currentPackage}
           purchaseError={paywall.purchaseError}
         />
-
-        {/* Agent overlay */}
-        {overlayVisible && (
-          <Animated.View
-            style={[styles.processingOverlay, { opacity: overlayOpacity }]}
-            onTouchEnd={() => {
-              if (overlayPhase === 'revealing') {
-                Animated.timing(overlayOpacity, { toValue: 0, duration: 200, useNativeDriver: true }).start(() => {
-                  setOverlayVisible(false);
-                  setRevealItems([]);
-                });
-              }
-            }}
-          >
-            <BlurView intensity={55} style={StyleSheet.absoluteFill} />
-            <View style={styles.overlayContent}>
-              {overlayPhase === 'processing' && <DiviLogoAnimated size={140} />}
-              {overlayPhase === 'message' && (
-                <View style={styles.messagePhase}>
-                  <MaterialIcons name="info-outline" size={28} color={colors.gray500} />
-                  <Text style={styles.messagePhaseText}>{agent.lastReply}</Text>
-                </View>
-              )}
-              {overlayPhase === 'revealing' && (
-                <View style={styles.actionList}>
-                  {revealItems.map((item, i) => {
-                    const verbColor =
-                      item.summary.verb === 'Assigned' ? colors.green :
-                      item.summary.verb === 'Unassigned' ? colors.error :
-                      colors.black;
-                    const iconName =
-                      item.summary.verb === 'Assigned' ? 'check-circle-outline' :
-                      item.summary.verb === 'Unassigned' ? 'remove-circle-outline' :
-                      item.summary.verb === 'Split' ? 'call-split' :
-                      'edit';
-                    return (
-                      <Animated.View
-                        key={i}
-                        style={[styles.actionRow, { opacity: item.opacity, transform: [{ translateY: item.translateY }] }]}
-                      >
-                        <MaterialIcons name={iconName as any} size={18} color={verbColor} />
-                        <Text style={[styles.actionVerb, { color: verbColor }]}>{item.summary.verb}</Text>
-                        <Text style={styles.actionName} numberOfLines={1}>{item.summary.name}</Text>
-                        {item.summary.amount !== undefined && (
-                          <Text style={styles.actionAmount}>${item.summary.amount.toFixed(2)}</Text>
-                        )}
-                      </Animated.View>
-                    );
-                  })}
-                </View>
-              )}
-            </View>
-          </Animated.View>
-        )}
       </SafeAreaView>
     );
   }
@@ -690,6 +641,18 @@ const styles = StyleSheet.create({
     shadowColor: colors.error,
     shadowOpacity: 0.3,
   },
+  bigMicButtonProcessing: {
+    opacity: 0.6,
+  },
+  spinRing: {
+    position: 'absolute',
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    borderWidth: 2.5,
+    borderColor: 'transparent',
+    borderTopColor: colors.green,
+  },
   chipRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -815,6 +778,13 @@ const styles = StyleSheet.create({
     fontFamily: fonts.body,
     fontSize: fontSizes.xs,
     color: colors.gray400,
+  },
+  unassignedNote: {
+    fontFamily: fonts.body,
+    fontSize: fontSizes.xs,
+    color: colors.gray400,
+    textAlign: 'center',
+    marginTop: spacing.xs,
   },
 
   // ── Manual mode ─────────────────────────────────────────────────────────────
