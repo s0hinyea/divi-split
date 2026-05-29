@@ -94,11 +94,14 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
         try {
             const { error } = await supabase
                 .from('profiles')
-                .upsert({
-                    id: session.user.id,
-                    ...payload,
-                    updated_at: new Date().toISOString(),
-                });
+                .upsert(
+                    {
+                        id: session.user.id,
+                        ...payload,
+                        updated_at: new Date().toISOString(),
+                    },
+                    { onConflict: 'id' }
+                );
 
             if (error) {
                 // Postgres unique-constraint violation (username already taken)

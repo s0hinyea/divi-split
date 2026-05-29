@@ -6,6 +6,14 @@ ALTER TABLE profiles
 
 -- Allow anonymous reads on payment_requests by token only
 -- (the Edge Function uses service role, but the web pay page needs no auth)
-CREATE POLICY IF NOT EXISTS "anon_read_by_token" ON payment_requests
-    FOR SELECT TO anon
-    USING (true);
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies
+        WHERE tablename = 'payment_requests' AND policyname = 'anon_read_by_token'
+    ) THEN
+        CREATE POLICY "anon_read_by_token" ON payment_requests
+            FOR SELECT TO anon
+            USING (true);
+    END IF;
+END $$;

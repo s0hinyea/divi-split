@@ -335,7 +335,15 @@ export default function ReceiptDetail() {
             const receiptName = receipt.receipt_name.trim() || 'the bill';
             const message = `Hey ${contact.name}, I covered ${receiptName}. You owe $${amount.toFixed(2)}. Pay me back here: ${url}`;
 
-            await Share.share({ message });
+            const phone = contact.phoneNumber && contact.phoneNumber !== 'no-phone'
+                ? contact.phoneNumber
+                : null;
+
+            if (phone) {
+                await SMS.sendSMSAsync([phone], message);
+            } else {
+                await Share.share({ message });
+            }
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         } catch (err) {
             showToast(getUserFacingErrorMessage(err, 'Could not generate payment link.'), 'error');
@@ -462,7 +470,7 @@ export default function ReceiptDetail() {
     };
 
     const handleResendSMS = async () => {
-        if (!receipt) return;
+        if (!receipt || !session?.user) return;
         setResending(true);
         try {
             const isAvailable = await SMS.isAvailableAsync();
@@ -485,69 +493,70 @@ export default function ReceiptDetail() {
                 return;
             }
 
-            const shares = contacts.map((c) => ({
-                id: c.dbId,
-                share: c.items.reduce((s, i) => s + i.item_price, 0),
-            }));
-            if (unassignedItems.length > 0) {
-                shares.push({
-                    id: 'user',
-                    share: unassignedItems.reduce((s, i) => s + i.item_price, 0),
+            // Upsert a payment_request for every contact to ensure tokens exist,
+            // then build one group SMS with a unique pay link per person.
+            const upsertResults = await Promise.all(
+                contacts.map((c) => {
+                    const amount = contactTotals.get(c.dbId) || 0;
+                    return supabase
+                        .from('payment_requests')
+                        .upsert(
+                            {
+                                receipt_id: receipt.id,
+                                contact_id: c.dbId,
+                                owner_id: session.user.id,
+                                amount,
+                                items: c.items.map((i) => ({
+                                    name: i.item_name,
+                                    price: i.item_price,
+                                })),
+                                status: 'requested',
+                                requested_at: new Date().toISOString(),
+                            },
+                            { onConflict: 'receipt_id,contact_id' }
+                        )
+                        .select('id, contact_id, status, settled_at, amount, token')
+                        .single();
+                })
+            );
+
+            // Update local payment request state
+            setPaymentRequests((prev) => {
+                const next = new Map(prev);
+                upsertResults.forEach(({ data }) => {
+                    if (!data) return;
+                    next.set(data.contact_id, {
+                        id: data.id,
+                        status: 'requested',
+                        settled_at: null,
+                        amount: data.amount,
+                        token: data.token,
+                    });
                 });
-            }
+                return next;
+            });
 
-            const individualTaxes = allocateAmount(receipt.tax_amount || 0, shares);
-            const individualTips =
-                (receipt.tip_amount || 0) > 0
-                    ? allocateAmount(receipt.tip_amount, shares.map((s) => ({ ...s, share: 1 })))
-                    : ({} as Record<string, number>);
-
-            const name = receipt.receipt_name.trim() || 'Split';
+            const receiptName = receipt.receipt_name.trim() || 'the bill';
             const dateStr = new Date(receipt.created_at).toLocaleDateString('en-US', {
                 month: 'short',
                 day: 'numeric',
                 year: 'numeric',
             });
 
-            let message = `🧾 Divi: ${name}\n📅 ${dateStr}\n\n`;
+            let message = `🧾 ${receiptName} — ${dateStr}\n`;
 
-            contacts.forEach((c) => {
-                const mealTotal = c.items.reduce((s, i) => s + i.item_price, 0);
-                const tax = individualTaxes[c.dbId] || 0;
-                const tip = individualTips[c.dbId] || 0;
-                const total = mealTotal + tax + tip;
-                message += `• ${c.name}: $${total.toFixed(2)}`;
-                const details: string[] = [`meal $${mealTotal.toFixed(2)}`];
-                if (tax > 0) details.push(`tax $${tax.toFixed(2)}`);
-                if (tip > 0) details.push(`tip $${tip.toFixed(2)}`);
-                message += ` (${details.join(' + ')})\n`;
+            upsertResults.forEach(({ data }, i) => {
+                if (!data) return;
+                const c = contacts[i];
+                const amount = contactTotals.get(c.dbId) || 0;
+                const url = buildPayUrl(data.token);
+                message += `\n${c.name} — $${amount.toFixed(2)}\n${url}\n`;
             });
-
-            if (unassignedItems.length > 0) {
-                const userMealTotal = unassignedItems.reduce((s, i) => s + i.item_price, 0);
-                const userTax = individualTaxes['user'] || 0;
-                const userTip = individualTips['user'] || 0;
-                const userTotal = userMealTotal + userTax + userTip;
-                message += `• ${profile?.full_name || 'You'}: $${userTotal.toFixed(2)}`;
-                const details: string[] = [`meal $${userMealTotal.toFixed(2)}`];
-                if (userTax > 0) details.push(`tax $${userTax.toFixed(2)}`);
-                if (userTip > 0) details.push(`tip $${userTip.toFixed(2)}`);
-                message += ` (${details.join(' + ')})\n`;
-            }
 
             message += `\nTotal: $${(receipt.total_amount || 0).toFixed(2)}`;
 
-            if (profile?.venmo_handle) {
-                message += `\n\nPay me on Venmo:\nhttps://venmo.com/u/${profile.venmo_handle.replace('@', '')}`;
-            }
-            if (profile?.cashapp_handle) {
-                message += `\n\nPay me on Cash App:\nhttps://cash.app/$${profile.cashapp_handle.replace('$', '')}`;
-            }
-            if (profile?.zelle_number) {
-                message += `\n\nPay me on Zelle:\n${profile.zelle_number}`;
-            }
-
             await SMS.sendSMSAsync(phoneNumbers, message);
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         } catch (err) {
             showToast(getUserFacingErrorMessage(err, 'Failed to send SMS.'), 'error');
         } finally {
@@ -810,7 +819,7 @@ export default function ReceiptDetail() {
                     ) : (
                         <>
                             <MaterialIcons name="sms" size={18} color={colors.black} />
-                            <Text style={styles.secondaryButtonText}>Resend SMS</Text>
+                            <Text style={styles.secondaryButtonText} numberOfLines={1}>Resend SMS</Text>
                         </>
                     )}
                 </TouchableOpacity>
@@ -1142,14 +1151,16 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         gap: spacing.xs,
         backgroundColor: colors.gray200,
+        overflow: 'hidden',
     },
     secondaryButtonText: {
         fontFamily: fonts.bodySemiBold,
         fontSize: fontSizes.md,
         color: colors.black,
+        flexShrink: 1,
     },
     primaryButton: {
-        flex: 2,
+        flex: 1,
         flexDirection: 'row',
         height: 52,
         borderRadius: radii.xl,

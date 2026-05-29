@@ -143,6 +143,14 @@ Deno.serve(async (req: Request) => {
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
     <title>Divi: Pay ${escHtml(ownerName)}</title>
+    <meta name="description" content="${escHtml(contactName)}, you owe $${amount.toFixed(2)} to ${escHtml(ownerName)}." />
+    <meta property="og:site_name" content="Divi" />
+    <meta property="og:title" content="${escHtml(contactName)} owes $${amount.toFixed(2)}" />
+    <meta property="og:description" content="${escHtml(ownerName)} covered the bill. Tap to pay back." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="${escHtml(contactName)} owes $${amount.toFixed(2)}" />
+    <meta name="twitter:description" content="${escHtml(ownerName)} covered the bill. Tap to pay back." />
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
