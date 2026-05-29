@@ -48,8 +48,8 @@ type PaymentRequest = {
 // Constructs the pay page URL using the same Supabase project as the app.
 // Phase 4 will host the Edge Function at this path.
 const buildPayUrl = (token: string) => {
-    const base = (process.env.EXPO_PUBLIC_SUPABASE_URL ?? '').replace(/\/$/, '');
-    return `${base}/functions/v1/pay?token=${token}`;
+    const base = (process.env.EXPO_PUBLIC_PAY_BASE_URL ?? '').replace(/\/$/, '');
+    return `${base}/pay?token=${token}`;
 };
 
 const STATUS_CONFIG: Record<PaymentStatus, { dot: string; label: string; labelColor: string }> = {
