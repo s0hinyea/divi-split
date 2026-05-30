@@ -1,12 +1,15 @@
 {
   "cli": {
     "version": ">= 12.5.0",
-    "appVersionSource": "remote"
+    "appVersionSource": "local"
   },
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "ios": {
+        "image": "macos-sonoma-14.6-xcode-16.1"
+      }
     },
     "preview": {
       "distribution": "internal",
@@ -15,10 +18,19 @@
       }
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "ios": {
+        "image": "latest"
+      }
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "ios": {
+        "appleId": "itzkrisp9000@gmail.com",
+        "ascAppId": "6762031093",
+        "appleTeamId": "7KK4AZ4AUY"
+      }
+    }
   }
 }

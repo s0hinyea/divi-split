@@ -1,13 +1,20 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { useSplitStore } from "../stores/splitStore";
+import type { Contact, ReceiptItem } from "../stores/splitStore";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-export type AgentMessage = {
+type AgentMessage = {
   id: string;
   role: "user" | "assistant";
   content: string;
+};
+
+export type ActionSummary = {
+  verb: string;
+  name: string;
+  amount?: number;
 };
 
 type AgentAction =
@@ -20,13 +27,11 @@ type AgentAction =
 type HistoryEntry = { role: "user" | "assistant"; content: string };
 
 // ── Action executor ───────────────────────────────────────────────────────────
-// Runs each action returned by the agent against the real splitStore.
-// Must be called sequentially because split_item_between depends on the real
-// IDs produced by splitItem(), which only exist after that call.
 
-function executeActions(actions: AgentAction[]): void {
+function executeActions(actions: AgentAction[]): ActionSummary[] {
+  const summary: ActionSummary[] = [];
+
   for (const action of actions) {
-    // Always grab a fresh snapshot — previous actions may have mutated the store
     const store = useSplitStore.getState();
 
     switch (action.type) {
@@ -34,9 +39,11 @@ function executeActions(actions: AgentAction[]): void {
         const item = store.receiptData.items.find((i) => i.id === action.item_id);
         const contact = store.selected.find((c) => c.id === action.contact_id);
         if (item && contact) {
-          // manageItems toggles; only assign if not already assigned
           const alreadyAssigned = contact.items.some((i) => i.id === action.item_id);
-          if (!alreadyAssigned) store.manageItems(item, contact);
+          if (!alreadyAssigned) {
+            store.manageItems(item, contact);
+            summary.push({ verb: "Assigned", name: item.name, amount: item.price });
+          }
         }
         break;
       }
@@ -47,6 +54,7 @@ function executeActions(actions: AgentAction[]): void {
           const current = store.receiptData.userItems ?? [];
           if (!current.some((i) => i.id === action.item_id)) {
             store.setUserItems([...current, item]);
+            summary.push({ verb: "Assigned", name: item.name, amount: item.price });
           }
         }
         break;
@@ -55,27 +63,33 @@ function executeActions(actions: AgentAction[]): void {
       case "unassign_from_contact": {
         if (action.contact_id === "user") {
           const current = store.receiptData.userItems ?? [];
-          store.setUserItems(current.filter((i) => i.id !== action.item_id));
+          const item = current.find((i) => i.id === action.item_id);
+          if (item) {
+            store.setUserItems(current.filter((i) => i.id !== action.item_id));
+            summary.push({ verb: "Unassigned", name: item.name });
+          }
         } else {
           const item = store.receiptData.items.find((i) => i.id === action.item_id);
           const contact = store.selected.find((c) => c.id === action.contact_id);
           if (item && contact) {
             const alreadyAssigned = contact.items.some((i) => i.id === action.item_id);
-            if (alreadyAssigned) store.manageItems(item, contact);
+            if (alreadyAssigned) {
+              store.manageItems(item, contact);
+              summary.push({ verb: "Unassigned", name: item.name });
+            }
           }
         }
         break;
       }
 
       case "split_item_between": {
-        // splitItem mutates the store and returns the two new real IDs
+        const item = store.receiptData.items.find((i) => i.id === action.item_id);
         const newIds = store.splitItem(action.item_id);
         if (newIds.length !== 2) break;
 
         const [id0, id1] = newIds;
         const [assignee0, assignee1] = action.assignees;
 
-        // Grab another fresh snapshot after the split
         const afterSplit = useSplitStore.getState();
         const half0 = afterSplit.receiptData.items.find((i) => i.id === id0);
         const half1 = afterSplit.receiptData.items.find((i) => i.id === id1);
@@ -99,23 +113,33 @@ function executeActions(actions: AgentAction[]): void {
             if (contact) useSplitStore.getState().manageItems(half1, contact);
           }
         }
+
+        if (item) summary.push({ verb: "Split", name: item.name });
         break;
       }
     }
   }
+
+  return summary;
 }
 
 // ── Hook ──────────────────────────────────────────────────────────────────────
+
+type AssignSnapshot = { selected: Contact[]; userItems: ReceiptItem[] };
 
 export function useAgentChat() {
   const [messages, setMessages] = useState<AgentMessage[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [lastActionSummary, setLastActionSummary] = useState<ActionSummary[] | null>(null);
+  const [lastReply, setLastReply] = useState<string | null>(null);
+  const snapshotRef = useRef<AssignSnapshot | null>(null);
 
   const sendMessage = useCallback(
     async (text: string) => {
       if (!text.trim() || loading) return;
 
+      setLastActionSummary(null);
       setError(null);
       setLoading(true);
 
@@ -133,16 +157,16 @@ export function useAgentChat() {
           content: m.content,
         }));
 
-        // Snapshot current store state to send as context
+        // Snapshot current store state to send as context (strip fields irrelevant to assignment)
         const store = useSplitStore.getState();
         const state = {
-          items: store.receiptData.items,
+          items: store.receiptData.items.map(({ id, name, price }) => ({ id, name, price })),
           contacts: store.selected.map((c) => ({
             id: c.id,
             name: c.name,
-            items: c.items,
+            items: c.items.map(({ id, name, price }) => ({ id, name, price })),
           })),
-          userItems: store.receiptData.userItems ?? [],
+          userItems: (store.receiptData.userItems ?? []).map(({ id, name, price }) => ({ id, name, price })),
           tax: store.receiptData.tax ?? 0,
           tip: store.receiptData.tip ?? 0,
           total: store.receiptData.total ?? 0,
@@ -153,6 +177,8 @@ export function useAgentChat() {
         if (!token) throw new Error("Not authenticated");
 
         const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+        console.log(`[agent-chat] sending message: "${text.trim()}", items: ${state.items.length}, contacts: ${state.contacts.length}`);
+        console.time('[agent-chat] agent-chat edge function');
         const response = await fetch(`${supabaseUrl}/functions/v1/agent-chat`, {
           method: "POST",
           headers: {
@@ -161,10 +187,15 @@ export function useAgentChat() {
           },
           body: JSON.stringify({ message: text.trim(), history, state }),
         });
+        console.timeEnd('[agent-chat] agent-chat edge function');
+        console.log(`[agent-chat] response status: ${response.status}`);
 
         if (!response.ok) {
-          const errBody = await response.json().catch(() => ({}));
-          throw new Error((errBody as { error?: string }).error ?? "Agent request failed");
+          const rawText = await response.text();
+          console.error('[agent-chat] error body:', rawText);
+          let errMsg = 'Agent request failed';
+          try { errMsg = (JSON.parse(rawText) as { error?: string }).error ?? errMsg; } catch {}
+          throw new Error(`${response.status}: ${errMsg}`);
         }
 
         const { reply, actions } = (await response.json()) as {
@@ -172,10 +203,19 @@ export function useAgentChat() {
           actions: AgentAction[];
         };
 
-        // Execute the agent's decided actions against the real store
-        if (actions?.length > 0) {
-          executeActions(actions);
-        }
+        // Snapshot before mutating so undo can restore
+        const preStore = useSplitStore.getState();
+        snapshotRef.current = {
+          selected: JSON.parse(JSON.stringify(preStore.selected)),
+          userItems: [...(preStore.receiptData.userItems ?? [])],
+        };
+
+        console.time('[agent-chat] execute actions');
+        const summary = actions?.length > 0 ? executeActions(actions) : [];
+        console.timeEnd('[agent-chat] execute actions');
+        console.log(`[agent-chat] actions: ${actions?.length ?? 0}, reply: "${reply}"`);
+        setLastReply(reply ?? null);
+        setLastActionSummary(summary);
 
         const assistantMsg: AgentMessage = {
           id: `${Date.now()}-a`,
@@ -185,6 +225,7 @@ export function useAgentChat() {
         setMessages((prev) => [...prev, assistantMsg]);
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : "Something went wrong";
+        console.error('[agent-chat] caught error:', msg);
         setError(msg);
         setMessages((prev) => [
           ...prev,
@@ -201,10 +242,15 @@ export function useAgentChat() {
     [messages, loading],
   );
 
-  const clearMessages = useCallback(() => {
-    setMessages([]);
-    setError(null);
+  const undoLastAgentAction = useCallback(() => {
+    const snap = snapshotRef.current;
+    if (!snap) return;
+    useSplitStore.setState({ selected: snap.selected });
+    useSplitStore.getState().setUserItems(snap.userItems);
+    snapshotRef.current = null;
+    setLastActionSummary(null);
+    setLastReply(null);
   }, []);
 
-  return { messages, loading, error, sendMessage, clearMessages };
+  return { loading, error, lastActionSummary, lastReply, sendMessage, undoLastAgentAction };
 }

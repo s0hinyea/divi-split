@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import {
   useAudioRecorder,
   RecordingPresets,
@@ -6,7 +6,6 @@ import {
   setAudioModeAsync,
 } from "expo-audio";
 import { File as ExpoFile } from "expo-file-system";
-import * as Speech from "expo-speech";
 import { supabase } from "../lib/supabase";
 import { useAgentChat } from "./useAgentChat";
 
@@ -15,17 +14,18 @@ export function useVoiceAgent() {
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
+  const isRecordingRef = useRef(false);
 
-  // Speak every new assistant message aloud
   useEffect(() => {
-    const last = agentChat.messages[agentChat.messages.length - 1];
-    if (last?.role === "assistant") {
-      Speech.stop();
-      Speech.speak(last.content, { language: "en-US" });
-    }
-  }, [agentChat.messages]);
+    return () => {
+      if (isRecordingRef.current) {
+        recorder.stop().catch(() => {});
+      }
+    };
+  }, []);
 
   const startRecording = useCallback(async () => {
+    if (agentChat.loading || isTranscribing) return;
     const { granted } = await requestRecordingPermissionsAsync();
     if (!granted) return;
 
@@ -33,11 +33,13 @@ export function useVoiceAgent() {
     await recorder.prepareToRecordAsync();
     recorder.record();
     setIsRecording(true);
-  }, [recorder]);
+    isRecordingRef.current = true;
+  }, [recorder, agentChat.loading, isTranscribing]);
 
   const stopAndSend = useCallback(async () => {
     if (!isRecording) return;
     setIsRecording(false);
+    isRecordingRef.current = false;
 
     await recorder.stop();
     const uri = recorder.uri;
@@ -45,19 +47,24 @@ export function useVoiceAgent() {
 
     setIsTranscribing(true);
     try {
-      const { data: sessionData } = await supabase.auth.getSession();
+      // Parallelize session fetch and audio encoding
+      console.time('[voice] base64 encode');
+      const file = new ExpoFile(uri);
+      const [bytes, { data: sessionData }] = await Promise.all([
+        file.bytes(),
+        supabase.auth.getSession(),
+      ]);
       const token = sessionData?.session?.access_token;
       if (!token) throw new Error("Not authenticated");
-
-      const file = new ExpoFile(uri);
-      const bytes = await file.bytes();
       let binary = "";
       for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
       const base64 = btoa(binary);
+      console.timeEnd('[voice] base64 encode');
+      console.log(`[voice] audio size: ${(base64.length / 1024).toFixed(1)}KB`);
 
       const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
-      console.log("[voice] sending audio to voice-transcribe, uri:", uri);
 
+      console.time('[voice] transcription');
       const response = await fetch(`${supabaseUrl}/functions/v1/voice-transcribe`, {
         method: "POST",
         headers: {
@@ -68,14 +75,15 @@ export function useVoiceAgent() {
       });
 
       const json = await response.json();
-      console.log("[voice] transcribe response:", JSON.stringify(json));
+      console.timeEnd('[voice] transcription');
 
       if (!response.ok) throw new Error(json.error ?? "Transcription failed");
 
       const transcript = (json as { transcript: string }).transcript;
-      console.log("[voice] transcript:", transcript);
+      console.log(`[voice] transcript: "${transcript}"`);
 
       if (transcript?.trim()) {
+        console.time('[voice] agent-chat');
         agentChat.sendMessage(transcript.trim());
       } else {
         console.warn("[voice] transcript was empty");
@@ -87,8 +95,9 @@ export function useVoiceAgent() {
     }
   }, [isRecording, recorder, agentChat]);
 
+  const { sendMessage: _sendMessage, ...agentChatPublic } = agentChat;
   return {
-    ...agentChat,
+    ...agentChatPublic,
     isRecording,
     isTranscribing,
     startRecording,

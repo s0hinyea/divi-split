@@ -8,23 +8,28 @@ import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
-import "react-native-reanimated";
 import { PaperProvider } from "react-native-paper";
+
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { ChangeProvider } from "@/utils/ChangesContext";
 import { OCRProvider } from "@/utils/OCRContext";
-import { ProfileProvider } from "@/utils/ProfileContext";
-import { HistoryProvider } from "@/utils/HistoryContext";
+import { ProfileProvider, useProfile } from "@/utils/ProfileContext";
+import { HistoryProvider, useHistory } from "@/utils/HistoryContext";
 import AnimatedSplash from "@/components/AnimatedSplash";
 import CompletionOverlay from "@/components/CompletionOverlay";
 import NetworkBanner from "@/components/NetworkBanner";
 import { SessionProvider, useSession } from "@/utils/SessionContext";
 import { AppThemeProvider, useIsDark } from "@/utils/ThemeContext";
-
+import { ToastProvider } from "@/components/ToastProvider";
+import { CustomAlertProvider } from "@/components/CustomAlert";
+import { registerForPushNotifications, configureNotificationHandler } from "@/utils/pushNotifications";
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync().catch(() => {
-  /* Ignore — native splash screen may not be registered yet in Expo Go */
+  /* Ignore - native splash screen may not be registered yet in Expo Go */
 });
+
+configureNotificationHandler();
+
 
 export default function RootLayout() {
   const [loaded] = useFonts({
@@ -52,90 +57,129 @@ export default function RootLayout() {
   return (
     <AppThemeProvider>
       <SessionProvider>
-        <RootShell loaded={loaded} />
+        <HistoryProvider>
+          <ProfileProvider>
+            <AppReadyGate loaded={loaded} />
+          </ProfileProvider>
+        </HistoryProvider>
       </SessionProvider>
     </AppThemeProvider>
   );
 }
 
-function RootShell({ loaded }: { loaded: boolean }) {
-  const { isLoading } = useSession();
-  const isDark = useIsDark();
+/**
+ * Gates the splash screen until fonts, auth, profile, AND history data are all
+ * loaded. A 5-second safety timeout ensures the app never gets stuck if the
+ * network is slow or Supabase is unreachable.
+ */
+function AppReadyGate({ loaded }: { loaded: boolean }) {
+  const { isLoading: sessionLoading, session } = useSession();
+  const { loading: profileLoading } = useProfile();
+  const { loading: historyLoading } = useHistory();
   const [splashComplete, setSplashComplete] = useState(false);
+  const [timedOut, setTimedOut] = useState(false);
 
+  // Register for push notifications once user is signed in
   useEffect(() => {
-    if (loaded && !isLoading) {
-      SplashScreen.hideAsync().catch(() => {
-        /* Ignore — native splash screen may not be registered yet in Expo Go */
+    if (session?.user?.id) {
+      registerForPushNotifications(session.user.id).catch(() => {
+        /* Non-fatal: push notifications are optional */
       });
     }
-  }, [loaded, isLoading]);
+  }, [session?.user?.id]);
+
+  // Safety timeout - dismiss splash after 5s no matter what
+  useEffect(() => {
+    const timer = setTimeout(() => setTimedOut(true), 5000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // App is "ready" when everything loads OR when the timeout fires
+  const appReady = timedOut || (loaded && !sessionLoading && !profileLoading && !historyLoading);
+
+  useEffect(() => {
+    if (appReady) {
+      SplashScreen.hideAsync().catch(() => {
+        /* Ignore - native splash screen may not be registered yet in Expo Go */
+      });
+    }
+  }, [appReady]);
 
   if (!splashComplete) {
     return (
       <AnimatedSplash
-        appReady={loaded && !isLoading}
+        appReady={appReady}
         onComplete={() => setSplashComplete(true)}
       />
     );
   }
 
-  if (isLoading) {
+  if (sessionLoading && !timedOut) {
     return null;
   }
+
+  return <RootShell />;
+}
+
+function RootShell() {
+  const isDark = useIsDark();
 
   return (
     <ChangeProvider>
       <OCRProvider>
-        <HistoryProvider>
-          <ProfileProvider>
-            <GestureHandlerRootView style={{ flex: 1 }}>
-              <PaperProvider>
-                <ThemeProvider
-                  value={isDark ? DarkTheme : DefaultTheme}
-                >
-                  <Stack
-                    screenOptions={{
-                      headerShown: false,
-                      animation: "fade",
-                      animationDuration: 150,
-                    }}
-                  >
-                    <Stack.Screen name="index" />
-                    <Stack.Screen name="home" />
-                    <Stack.Screen
-                      name="(tabs)"
-                      options={{
-                        gestureEnabled: false,
-                      }}
-                    />
-                    <Stack.Screen name="auth" />
-                    <Stack.Screen name="scan" />
-                    <Stack.Screen name="library" />
-                    <Stack.Screen
-                      name="result"
-                      options={{ gestureEnabled: false }}
-                    />
-                    <Stack.Screen
-                      name="assign"
-                      options={{ gestureEnabled: false }}
-                    />
-                    <Stack.Screen name="contacts" />
-                    <Stack.Screen
-                      name="review"
-                      options={{ gestureEnabled: false }}
-                    />
-                    <Stack.Screen name="receipt/[id]" />
-                    <Stack.Screen name="+not-found" />
-                  </Stack>
-                  <StatusBar style={isDark ? "light" : "dark"} />
-                  <NetworkBanner />
-                  <CompletionOverlay />
-                </ThemeProvider>
-              </PaperProvider>
-            </GestureHandlerRootView>
-          </ProfileProvider>
-        </HistoryProvider>
+        <ToastProvider>
+          <CustomAlertProvider>
+        <GestureHandlerRootView style={{ flex: 1 }}>
+          <PaperProvider>
+            <ThemeProvider
+              value={isDark ? DarkTheme : DefaultTheme}
+            >
+              <Stack
+                screenOptions={{
+                  headerShown: false,
+                  animation: "fade",
+                  animationDuration: 150,
+                }}
+              >
+                <Stack.Screen name="index" />
+                <Stack.Screen name="home" />
+                <Stack.Screen
+                  name="(tabs)"
+                  options={{
+                    gestureEnabled: false,
+                  }}
+                />
+                <Stack.Screen name="auth" />
+                <Stack.Screen name="scan" />
+                <Stack.Screen name="library" />
+                <Stack.Screen
+                  name="result"
+                  options={{ gestureEnabled: false }}
+                />
+                <Stack.Screen
+                  name="assign"
+                  options={{ gestureEnabled: false }}
+                />
+                <Stack.Screen name="contacts" />
+                <Stack.Screen
+                  name="review"
+                  options={{ gestureEnabled: false }}
+                />
+                <Stack.Screen name="receipt/[id]" />
+                <Stack.Screen
+                  name="onboarding"
+                  options={{ gestureEnabled: false }}
+                />
+                <Stack.Screen name="+not-found" />
+              </Stack>
+              <StatusBar style={isDark ? "light" : "dark"} />
+              <NetworkBanner />
+              <CompletionOverlay />
+            </ThemeProvider>
+          </PaperProvider>
+        </GestureHandlerRootView>
+          </CustomAlertProvider>
+        </ToastProvider>
       </OCRProvider>
     </ChangeProvider>
   );

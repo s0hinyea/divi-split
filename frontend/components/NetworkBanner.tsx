@@ -1,66 +1,75 @@
-import React, { useEffect, useState } from 'react';
-import { Text, StyleSheet } from 'react-native';
-import NetInfo from '@react-native-community/netinfo';
-import Animated, {
-    useSharedValue,
-    useAnimatedStyle,
-    withTiming,
-    withDelay,
-    runOnJS,
-} from 'react-native-reanimated';
+import React, { useEffect, useRef, useState } from 'react';
+import { Animated, Text, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, fonts, fontSizes } from '@/styles/theme';
 import { MaterialIcons } from '@expo/vector-icons';
 
 type BannerState = 'hidden' | 'offline' | 'back-online';
 
-/**
- * Slim banner that slides down from the top when network is lost.
- * Shows "Back online" briefly when reconnected, then auto-dismisses.
- * Rendered in the tabs _layout so it covers all 3 main tabs.
- */
 export default function NetworkBanner() {
     const insets = useSafeAreaInsets();
     const [bannerState, setBannerState] = useState<BannerState>('hidden');
-    const translateY = useSharedValue(-60);
+    const translateY = useRef(new Animated.Value(-60)).current;
+    const animationRef = useRef<Animated.CompositeAnimation | null>(null);
+
+    const slideIn = () => {
+        if (animationRef.current) animationRef.current.stop();
+        animationRef.current = Animated.timing(translateY, {
+            toValue: 0,
+            duration: 150,
+            useNativeDriver: true,
+        });
+        animationRef.current.start();
+    };
+
+    const slideOutAfterDelay = () => {
+        if (animationRef.current) animationRef.current.stop();
+        animationRef.current = Animated.sequence([
+            Animated.delay(2000),
+            Animated.timing(translateY, {
+                toValue: -60,
+                duration: 150,
+                useNativeDriver: true,
+            }),
+        ]);
+        animationRef.current.start(({ finished }) => {
+            if (finished) setBannerState('hidden');
+        });
+    };
 
     useEffect(() => {
-        // Skip the first emission (initial state) to avoid a false "offline" flash
         let isFirstEmission = true;
+        let unsubscribe: (() => void) | null = null;
 
-        const unsubscribe = NetInfo.addEventListener((state) => {
-            if (isFirstEmission) {
-                isFirstEmission = false;
-                // If we boot up offline, show the banner
+        // Lazy-load NetInfo to avoid triggering getifaddrs during module init
+        import('@react-native-community/netinfo').then((mod) => {
+            const NetInfo = mod.default;
+            unsubscribe = NetInfo.addEventListener((state) => {
+                if (isFirstEmission) {
+                    isFirstEmission = false;
+                    if (!state.isConnected) {
+                        setBannerState('offline');
+                        slideIn();
+                    }
+                    return;
+                }
+
                 if (!state.isConnected) {
                     setBannerState('offline');
-                    translateY.value = withTiming(0, { duration: 150 });
+                    slideIn();
+                } else if (bannerState === 'offline' || bannerState === 'back-online') {
+                    setBannerState('back-online');
+                    slideOutAfterDelay();
                 }
-                return;
-            }
-
-            if (!state.isConnected) {
-                // Lost connection
-                setBannerState('offline');
-                translateY.value = withTiming(0, { duration: 150 });
-            } else if (bannerState === 'offline' || bannerState === 'back-online') {
-                // Regained connection
-                setBannerState('back-online');
-                translateY.value = withDelay(
-                    2000,  // show "Back online" for 2s
-                    withTiming(-60, { duration: 150 }, () => {
-                        runOnJS(setBannerState)('hidden');
-                    })
-                );
-            }
+            });
+        }).catch(() => {
+            // If NetInfo fails to load, just don't show the banner
         });
 
-        return () => unsubscribe();
+        return () => {
+            if (unsubscribe) unsubscribe();
+        };
     }, [bannerState]);
-
-    const animatedStyle = useAnimatedStyle(() => ({
-        transform: [{ translateY: translateY.value }],
-    }));
 
     if (bannerState === 'hidden') return null;
 
@@ -73,7 +82,7 @@ export default function NetworkBanner() {
                 styles.banner,
                 { paddingTop: insets.top + 4 },
                 isOffline ? styles.offlineBg : styles.onlineBg,
-                animatedStyle,
+                { transform: [{ translateY }] },
             ]}
         >
             <MaterialIcons

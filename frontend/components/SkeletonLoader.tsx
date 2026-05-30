@@ -1,12 +1,5 @@
-import { useEffect } from 'react';
-import { View } from 'react-native';
-import Animated, {
-    useSharedValue,
-    useAnimatedStyle,
-    withRepeat,
-    withSequence,
-    withTiming,
-} from 'react-native-reanimated';
+import { useEffect, useRef } from 'react';
+import { View, Animated } from 'react-native';
 import { useThemeColors } from '@/utils/ThemeContext';
 import { spacing, radii } from '@/styles/theme';
 
@@ -20,19 +13,16 @@ function SkeletonRect({
     style?: object;
 }) {
     const C = useThemeColors();
-    const opacity = useSharedValue(0.4);
+    const opacity = useRef(new Animated.Value(0.4)).current;
 
     useEffect(() => {
-        opacity.value = withRepeat(
-            withSequence(
-                withTiming(0.85, { duration: 800 }),
-                withTiming(0.4, { duration: 800 }),
-            ),
-            -1,
-        );
+        Animated.loop(
+            Animated.sequence([
+                Animated.timing(opacity, { toValue: 0.85, duration: 800, useNativeDriver: true }),
+                Animated.timing(opacity, { toValue: 0.4, duration: 800, useNativeDriver: true }),
+            ])
+        ).start();
     }, []);
-
-    const animStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
 
     return (
         <Animated.View
@@ -43,7 +33,7 @@ function SkeletonRect({
                     borderRadius: radii.sm,
                     backgroundColor: C.gray200,
                 },
-                animStyle,
+                { opacity },
                 style,
             ]}
         />

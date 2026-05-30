@@ -19,12 +19,15 @@ export const handleOCR = async (
 		router.push("/contacts");
 
 		setStatus("Compressing image...");
+		console.time('[ocr] image compression');
 		const manipulatedImage = await ImageManipulator.manipulateAsync(
 			imageUri,
 			[{ resize: { width: 1024 } }],
 			{ compress: 0.7, format: ImageManipulator.SaveFormat.JPEG, base64: true }
 		);
 		const base64DataUrl = `data:image/jpeg;base64,${manipulatedImage.base64}`;
+		console.timeEnd('[ocr] image compression');
+		console.log(`[ocr] base64 size: ${(base64DataUrl.length / 1024).toFixed(1)}KB`);
 
 		const { data: { session }, error: refreshError } = await supabase.auth.refreshSession();
 		if (refreshError || !session) {
@@ -32,12 +35,14 @@ export const handleOCR = async (
 		}
 
 		setStatus("Analyzing receipt...");
+		console.time('[ocr] ocr-vision edge function');
 		const { data: extractedData, error } = await supabase.functions.invoke('ocr-vision', {
 			body: { image: base64DataUrl },
 			headers: {
 				Authorization: `Bearer ${session.access_token}`,
 			},
 		});
+		console.timeEnd('[ocr] ocr-vision edge function');
 
 		// 1. Handle network-level or 500-level errors
 		if (error) {
@@ -73,17 +78,12 @@ export const handleOCR = async (
 		}
 
 		setStatus("Extracting items...");
+		console.log(`[ocr] items extracted: ${extractedData?.items?.length ?? 0}, confidence: ${extractedData?.confidence ?? 'unknown'}`);
 
 		if (extractedData && "items" in extractedData && extractedData.items.length > 0) {
 			updateReceiptData(extractedData);
 
-			// Warn if server detected a math mismatch
-			if (extractedData.confidence === "low") {
-				Alert.alert(
-					"Double-Check Numbers ⚠️",
-					"The item prices don't perfectly add up to the receipt total. Please review the amounts before splitting."
-				);
-			}
+			// confidence field is stored in receiptData; review screen shows inline Level 4 warning
 		} else if (extractedData && "items" in extractedData && extractedData.items.length === 0) {
 			throw new Error('NO_ITEMS');
 		} else if (extractedData && "error" in extractedData) {

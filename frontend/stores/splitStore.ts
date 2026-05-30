@@ -1,10 +1,13 @@
 import { create } from "zustand";
 import { supabase } from "../lib/supabase";
 
+export type ItemCategory = 'drink' | 'appetizer' | 'entree' | 'dessert' | 'side' | 'other';
+
 export type ReceiptItem = {
     name: string;
     price: number;
     id: string;
+    category?: ItemCategory;
 };
 
 export type OCRResponse = {
@@ -14,6 +17,7 @@ export type OCRResponse = {
     tax?: number;
     tip?: number;
     userItems?: ReceiptItem[];
+    confidence?: 'high' | 'low';
 };
 
 export type Contact = {
@@ -33,7 +37,7 @@ interface SplitState {
     removeItem: (id: string) => void;
     splitItem: (id: string) => string[];
     setUserItems: (items: ReceiptItem[]) => void;
-    saveReceipt: (receiptName: string, receiptDate?: Date) => Promise<boolean>;
+    saveReceipt: (receiptName: string, receiptDate?: Date) => Promise<string | null>;
     calculateTotal: (items: any[]) => number;
 
     selected: Contact[];
@@ -55,6 +59,12 @@ interface SplitState {
         createdAt: string,
     ) => void;
     updateReceipt: (receiptId: string, receiptName: string, receiptDate?: Date) => Promise<boolean>;
+
+    // Resume-split tracking
+    currentStep: 'contacts' | 'result' | 'assign' | 'review' | null;
+    resumeContactIndex: number;
+    setCurrentStep: (step: 'contacts' | 'result' | 'assign' | 'review' | null) => void;
+    setResumeContactIndex: (index: number) => void;
 
     resetStore: () => void;
     // Completion overlay
@@ -79,6 +89,11 @@ export const useSplitStore = create<SplitState>((set, get) => ({
     editingReceiptId: null,
     editingReceiptName: '',
     editingReceiptCreatedAt: '',
+    currentStep: null,
+    resumeContactIndex: 0,
+
+    setCurrentStep: (step) => set({ currentStep: step }),
+    setResumeContactIndex: (index) => set({ resumeContactIndex: index }),
 
     updateReceiptData: (data) =>
         set((state) => ({
@@ -116,10 +131,16 @@ export const useSplitStore = create<SplitState>((set, get) => ({
 
     removeItem: (id) =>
         set((state) => {
-            const newItems = state.receiptData.items.filter((it) =>
-                it.id !== id
-            );
-            return { receiptData: { ...state.receiptData, items: newItems } };
+            const newItems = state.receiptData.items.filter((it) => it.id !== id);
+            const newUserItems = (state.receiptData.userItems ?? []).filter((it) => it.id !== id);
+            const newSelected = state.selected.map((contact) => ({
+                ...contact,
+                items: contact.items.filter((it) => it.id !== id),
+            }));
+            return {
+                receiptData: { ...state.receiptData, items: newItems, userItems: newUserItems },
+                selected: newSelected,
+            };
         }),
 
     splitItem: (id) => {
@@ -189,7 +210,7 @@ export const useSplitStore = create<SplitState>((set, get) => ({
                 })),
             };
 
-            // Single atomic RPC call — everything saves or nothing does
+            // Single atomic RPC call - everything saves or nothing does
             const { data, error } = await supabase.rpc(
                 "save_receipt_transaction",
                 { payload },
@@ -198,10 +219,10 @@ export const useSplitStore = create<SplitState>((set, get) => ({
             if (error) throw error;
 
             console.log("Receipt saved atomically:", data);
-            return true;
+            return (data as any)?.receipt_id ?? null;
         } catch (error) {
             console.error("Save receipt error:", error);
-            return false;
+            return null;
         }
     },
 
@@ -311,6 +332,8 @@ export const useSplitStore = create<SplitState>((set, get) => ({
         editingReceiptId: null,
         editingReceiptName: '',
         editingReceiptCreatedAt: '',
+        currentStep: null,
+        resumeContactIndex: 0,
     }),
 
     // Completion overlay actions

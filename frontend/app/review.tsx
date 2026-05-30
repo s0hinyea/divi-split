@@ -1,16 +1,23 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Modal, Alert, ActivityIndicator, TextInput, Platform, StyleSheet } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, Modal, ActivityIndicator, TextInput, Platform, StyleSheet, Animated, Keyboard } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSplitStore, ReceiptItem } from '../stores/splitStore';
 import { useHistory } from '../utils/HistoryContext';
 import { useProfile } from '../utils/ProfileContext';
 import * as SMS from 'expo-sms';
+import { supabase } from '@/lib/supabase';
+import { useSession } from '@/utils/SessionContext';
+import * as Haptics from 'expo-haptics';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { colors, fonts, fontSizes, spacing, radii, shadows } from '@/styles/theme';
+import { colors, fonts, fontSizes, spacing, radii } from '@/styles/theme';
 import { MaterialIcons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { allocateAmount } from '../utils/mathUtil';
+import { useReviewAgent, executeMoveItem, ReviewState, ReviewCallbacks, ActionSummary } from '../utils/useReviewAgent';
+import DiviLogoAnimated from '../components/DiviLogoAnimated';
+import { useToast } from '../components/ToastProvider';
+import AgentButton from '../components/AgentButton';
 
 export default function ReviewPage() {
   const router = useRouter();
@@ -27,10 +34,63 @@ export default function ReviewPage() {
   const editingReceiptCreatedAt = useSplitStore((state) => state.editingReceiptCreatedAt);
   const { refreshReceipts } = useHistory();
   const { profile } = useProfile();
+  const { session } = useSession();
   // Modal state
   const [showSmsModal, setShowSmsModal] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [savedReceiptId, setSavedReceiptId] = useState<string | null>(null);
 
-  // Receipt name and date states — pre-populated when editing an existing receipt
+  // ── Agent overlay ───────────────────────────────────────────────────────────
+  const [overlayVisible, setOverlayVisible] = useState(false);
+  const [overlayPhase, setOverlayPhase] = useState<'processing' | 'revealing'>('processing');
+  const [revealItems, setRevealItems] = useState<{ summary: ActionSummary; opacity: Animated.Value; translateY: Animated.Value }[]>([]);
+  const overlayOpacity = useRef(new Animated.Value(0)).current;
+  const overlayActiveRef = useRef(false);
+  const pendingDispatchRef = useRef(false);
+
+  // Haptic pulse effect during processing
+  useEffect(() => {
+    let interval: any;
+    if (overlayVisible && overlayPhase === 'processing') {
+      // Immediate pulse
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      
+      interval = setInterval(() => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      }, 800);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [overlayVisible, overlayPhase]);
+
+  // Refs for the review agent - always current, no stale closure issues
+  const reviewStateRef = useRef<ReviewState>({
+    receiptName: '',
+    receiptDate: new Date().toISOString(),
+    contacts: [],
+    userItems: [],
+    tax: 0,
+    tip: 0,
+    total: 0,
+  });
+  const reviewCallbacksRef = useRef<ReviewCallbacks>({
+    setReceiptName: () => {},
+    setReceiptDate: () => {},
+    updateContactName: () => {},
+    setTax: () => {},
+    setTip: () => {},
+    moveItem: () => {},
+    triggerDispatch: () => {},
+  });
+
+  const agent = useReviewAgent(reviewStateRef, reviewCallbacksRef);
+  const { showToast } = useToast();
+  const setCurrentStep = useSplitStore((state) => state.setCurrentStep);
+
+  useEffect(() => { setCurrentStep('review'); }, []);
+
+  // Receipt name and date states - pre-populated when editing an existing receipt
   const [receiptName, setReceiptName] = useState(editingReceiptName || '');
   const [receiptDate, setReceiptDate] = useState(
     editingReceiptCreatedAt ? new Date(editingReceiptCreatedAt) : new Date()
@@ -47,6 +107,57 @@ export default function ReviewPage() {
       updateReceiptData({ ...receiptData, total: grandTotal })
     }
   }, [receiptData.items, receiptData.tax, receiptData.tip, selected]);
+
+  useEffect(() => {
+    const isProcessing = agent.loading || agent.isTranscribing;
+    if (isProcessing) {
+      if (!overlayActiveRef.current) {
+        overlayActiveRef.current = true;
+        setOverlayPhase('processing');
+        setOverlayVisible(true);
+        Animated.timing(overlayOpacity, { toValue: 1, duration: 200, useNativeDriver: true }).start();
+      }
+      return;
+    }
+    if (!overlayActiveRef.current) return;
+    overlayActiveRef.current = false;
+
+    const summary = agent.lastActionSummary;
+    if (summary && summary.length > 0) {
+      const items = summary.map(s => ({
+        summary: s,
+        opacity: new Animated.Value(0),
+        translateY: new Animated.Value(12),
+      }));
+      setRevealItems(items);
+      setOverlayPhase('revealing');
+      Animated.sequence([
+        Animated.stagger(500, items.map(item =>
+          Animated.parallel([
+            Animated.timing(item.opacity, { toValue: 1, duration: 450, useNativeDriver: true }),
+            Animated.timing(item.translateY, { toValue: 0, duration: 450, useNativeDriver: true }),
+          ])
+        )),
+        Animated.delay(2000),
+        Animated.timing(overlayOpacity, { toValue: 0, duration: 500, useNativeDriver: true }),
+      ]).start(() => {
+        setOverlayVisible(false);
+        setRevealItems([]);
+        if (pendingDispatchRef.current) {
+          pendingDispatchRef.current = false;
+          handleFinish();
+        }
+      });
+    } else {
+      Animated.timing(overlayOpacity, { toValue: 0, duration: 300, useNativeDriver: true }).start(() => {
+        setOverlayVisible(false);
+        if (pendingDispatchRef.current) {
+          pendingDispatchRef.current = false;
+          handleFinish();
+        }
+      });
+    }
+  }, [agent.loading, agent.isTranscribing, agent.lastActionSummary]);
 
   const calculateTaxBreakdown = () => {
     if (!('tax' in receiptData) || !receiptData.tax || receiptData.tax <= 0) {
@@ -85,95 +196,119 @@ export default function ReviewPage() {
   const { taxPercentage, individualTaxes } = calculateTaxBreakdown();
   const { tipPerPerson, individualTips } = calculateTipBreakdown();
 
-  // Send group summary via native Messages app
+  // Keep agent refs in sync with latest state and callbacks each render
+  reviewStateRef.current = {
+    receiptName,
+    receiptDate: receiptDate.toISOString(),
+    contacts: selected.map((c) => ({
+      id: c.id,
+      name: c.name,
+      items: c.items as { id: string; name: string; price: number }[],
+    })),
+    userItems: (receiptData.userItems ?? []) as { id: string; name: string; price: number }[],
+    tax: receiptData.tax ?? 0,
+    tip: receiptData.tip ?? 0,
+    total: receiptData.total ?? 0,
+  };
+
+  // Send one group SMS with a unique shareable pay link per person
   const sendGroupSummary = async () => {
+    if (!session?.user || !savedReceiptId) {
+      showToast('Receipt not saved yet.', 'error');
+      return;
+    }
     try {
       const isAvailable = await SMS.isAvailableAsync();
       if (!isAvailable) {
-        Alert.alert('SMS Not Available', 'This device cannot send text messages.');
+        showToast('This device cannot send text messages.', 'error');
         return;
       }
 
-      // Collect all phone numbers
       const phoneNumbers = selected
         .map(c => c.phoneNumber)
-        .filter((num): num is string => !!num);
+        .filter((num): num is string => !!num && num !== 'no-phone');
 
       if (phoneNumbers.length === 0) {
-        Alert.alert('No Phone Numbers', 'None of the selected contacts have phone numbers.');
+        showToast('None of the selected contacts have phone numbers.', 'warning');
         return;
       }
 
-      // Build the formatted message
-      const name = receiptName.trim() || 'Split';
-      const dateStr = receiptDate.toLocaleDateString('en-US', {
-        month: 'short', day: 'numeric', year: 'numeric'
+      // Look up DB contact IDs by phone number for this user
+      const phones = selected
+        .map(c => c.phoneNumber)
+        .filter((p): p is string => !!p && p !== 'no-phone');
+
+      const { data: dbContacts } = await supabase
+        .from('contacts')
+        .select('id, phone_number')
+        .eq('user_id', session.user.id)
+        .in('phone_number', phones);
+
+      const phoneToDbId = new Map((dbContacts ?? []).map(c => [c.phone_number, c.id]));
+
+      // Upsert a payment_request for every contact that has a DB id
+      const upsertResults = await Promise.all(
+        selected.map((contact) => {
+          const dbContactId = phoneToDbId.get(contact.phoneNumber ?? '');
+          if (!dbContactId) return Promise.resolve({ data: null, error: null });
+          const mealTotal = calculateTotal(contact.items as ReceiptItem[]);
+          const tax = individualTaxes[contact.id] || 0;
+          const tip = individualTips[contact.id] || 0;
+          const amount = mealTotal + tax + tip;
+          return supabase
+            .from('payment_requests')
+            .upsert(
+              {
+                receipt_id: savedReceiptId,
+                contact_id: dbContactId,
+                owner_id: session.user.id,
+                amount,
+                items: [
+                  ...(contact.items as ReceiptItem[]).map((i) => ({ name: i.name, price: i.price })),
+                  ...(individualTaxes[contact.id] > 0 ? [{ name: 'Tax', price: individualTaxes[contact.id] }] : []),
+                  ...(individualTips[contact.id] > 0 ? [{ name: 'Tip', price: individualTips[contact.id] }] : []),
+                ],
+                status: 'requested',
+                requested_at: new Date().toISOString(),
+              },
+              { onConflict: 'receipt_id,contact_id' }
+            )
+            .select('token')
+            .single();
+        })
+      );
+
+      const base = (process.env.EXPO_PUBLIC_PAY_BASE_URL ?? '').replace(/\/$/, '');
+      const name = receiptName.trim() || 'the bill';
+      const dateStr = receiptDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+      let message = `🧾 ${name} — ${dateStr}\n`;
+
+      upsertResults.forEach(({ data }, i) => {
+        if (!data?.token) return;
+        const contact = selected[i];
+        const mealTotal = calculateTotal(contact.items as ReceiptItem[]);
+        const tax = individualTaxes[contact.id] || 0;
+        const tip = individualTips[contact.id] || 0;
+        const amount = mealTotal + tax + tip;
+        const url = `${base}?token=${data.token}`;
+        message += `\n${contact.name} — $${amount.toFixed(2)}\n${url}\n`;
       });
-
-      let message = `🧾 Divi — ${name}\n📅 ${dateStr}\n\n`;
-
-      selected.forEach(contact => {
-        const contactMealTotal = calculateTotal(contact.items as ReceiptItem[]);
-        const contactTax = individualTaxes[contact.id] || 0;
-        const contactTip = individualTips[contact.id] || 0;
-        const contactTotal = contactMealTotal + contactTax + contactTip;
-
-        message += `• ${contact.name}: $${contactTotal.toFixed(2)}`;
-      
-      
-        const details: string[] = [];
-        details.push(`meal $${contactMealTotal.toFixed(2)}`);
-        if (contactTax > 0) details.push(`tax $${contactTax.toFixed(2)}`);
-        if (contactTip > 0) details.push(`tip $${contactTip.toFixed(2)}`);
-        message += ` (${details.join(' + ')})\n`;
-      });
-
-        const userMealTotal = calculateTotal(receiptData.userItems as ReceiptItem[]);
-        const userTax = individualTaxes["user"] || 0;
-        const userTip = individualTips["user"] || 0;
-        const userTotal = userMealTotal + userTax + userTip;
-
-        message += `• ${profile?.full_name}: $${userTotal.toFixed(2)}`;
-      
-        const details: string[] = [];
-        details.push(`meal $${userMealTotal.toFixed(2)}`);
-        if (userTax > 0) details.push(`tax $${userTax.toFixed(2)}`);
-        if (userTip > 0) details.push(`tip $${userTip.toFixed(2)}`);
-        message += ` (${details.join(' + ')})\n`;
-
 
       const allMealItems = 'items' in receiptData ? receiptData.items : [];
-      const grandTotal = calculateTotal(allMealItems) +
+      const grandTotal =
+        calculateTotal(allMealItems) +
         Object.values(individualTaxes).reduce((s, t) => s + t, 0) +
         Object.values(individualTips).reduce((s, t) => s + t, 0);
 
       message += `\nTotal: $${grandTotal.toFixed(2)}`;
 
-      if (profile?.venmo_handle) {
-        const handle = profile.venmo_handle.replace('@', '');
-        const note = encodeURIComponent(`Divi - ${name}`);
-        const venmoLink = `https://venmo.com/u/${handle}`;
-        message += `\n\nPay me on Venmo:\n${venmoLink}`;
-      }
-
-      if (profile?.cashapp_handle) {
-        const handle = profile.cashapp_handle.replace('$', '');
-        const cashLink = `https://cash.app/$${handle}`;
-        message += `\n\nPay me on Cash App:\n${cashLink}`;
-      }
-
-      // Append Zelle Info if number exists
-      if (profile?.zelle_number) {
-        message += `\n\nPay me on Zelle:\n${profile.zelle_number}`;
-      }
-
       await SMS.sendSMSAsync(phoneNumbers, message);
       setShowSmsModal(false);
       triggerCompletion();
-
     } catch (error) {
       console.error('SMS Error:', error);
-      Alert.alert('Error', 'Failed to open Messages.');
+      showToast('Failed to open Messages.', 'error');
       setShowSmsModal(false);
     }
   };
@@ -199,16 +334,26 @@ export default function ReviewPage() {
       setReceiptDate(selectedDate);
     }
   };
-  // Handle finish — save (new) or update (edit) receipt, then prompt for SMS
+  // Handle finish - save (new) or update (edit) receipt, then prompt for SMS
   const handleFinish = async () => {
     const name = receiptName.trim() || `Split - ${receiptDate.toLocaleDateString()}`;
-
-    const success = editingReceiptId
-      ? await updateReceipt(editingReceiptId, name, receiptDate)
-      : await saveReceipt(name, receiptDate);
-
-    if (success) {
-      await refreshReceipts();
+    setIsSaving(true);
+    try {
+      if (editingReceiptId) {
+        const success = await updateReceipt(editingReceiptId, name, receiptDate);
+        if (success) {
+          setSavedReceiptId(editingReceiptId);
+          await refreshReceipts();
+        }
+      } else {
+        const receiptId = await saveReceipt(name, receiptDate);
+        if (receiptId) {
+          setSavedReceiptId(receiptId);
+          await refreshReceipts();
+        }
+      }
+    } finally {
+      setIsSaving(false);
     }
 
     if (selected.length > 0) {
@@ -218,24 +363,49 @@ export default function ReviewPage() {
     }
   };
 
+  // Update callbacks ref after all handlers are defined
+  reviewCallbacksRef.current = {
+    setReceiptName,
+    setReceiptDate,
+    updateContactName,
+    setTax: (amount) => updateReceiptData({ tax: amount }),
+    setTip: (amount) => updateReceiptData({ tip: amount }),
+    moveItem: executeMoveItem,
+    triggerDispatch: () => {
+      pendingDispatchRef.current = true;
+    },
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.headerContainer}>
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <TouchableOpacity
-            onPress={() => router.push({ pathname: '/assign', params: { initialIndex: selected.length - 1 } })}
-            style={{ marginRight: spacing.sm }}
-          >
-            <MaterialIcons name="arrow-back" size={28} color={colors.black} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>
-            <Text style={{ color: colors.black }}>Review </Text>
-            <Text style={{ color: colors.green }}>Split</Text>
-          </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <TouchableOpacity
+              onPress={() => router.back()}
+              style={{ marginRight: spacing.sm }}
+            >
+              <MaterialIcons name="arrow-back" size={28} color={colors.black} />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>
+              <Text style={{ color: colors.black }}>Review </Text>
+              <Text style={{ color: colors.green }}>Split</Text>
+            </Text>
+          </View>
+          <View style={styles.headerRight}>
+            <TouchableOpacity onPress={() => router.replace('/(tabs)')} style={styles.homeButton}>
+              <MaterialIcons name="home" size={20} color={colors.gray400} />
+            </TouchableOpacity>
+            <AgentButton
+              isRecording={agent.isRecording}
+              isDisabled={agent.loading || agent.isTranscribing}
+              onPress={agent.isRecording ? agent.stopAndSend : agent.startRecording}
+            />
+          </View>
         </View>
       </View>
 
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled" onScrollBeginDrag={Keyboard.dismiss}>
         {/* Receipt Name and Date Section */}
         <View style={styles.detailsCard}>
           <Text style={styles.inputLabel}>Receipt Name</Text>
@@ -370,6 +540,16 @@ export default function ReviewPage() {
           })()
         )}
 
+        {/* Level 4: Math mismatch warning */}
+        {'confidence' in receiptData && receiptData.confidence === 'low' && (
+          <View style={styles.mismatchCard}>
+            <MaterialIcons name="warning" size={16} color={colors.warning} />
+            <Text style={styles.mismatchText}>
+              The item totals don't perfectly match the scanned receipt. Please review the amounts before finalizing.
+            </Text>
+          </View>
+        )}
+
         {/* Show final total calculation */}
         {(() => {
           const allMealItems = 'items' in receiptData ? receiptData.items : [];
@@ -413,12 +593,57 @@ export default function ReviewPage() {
 
       <View style={styles.footer}>
         <TouchableOpacity
-          style={styles.finishButton}
+          style={[styles.finishButton, isSaving && { opacity: 0.7 }]}
           onPress={handleFinish}
+          disabled={isSaving}
+          activeOpacity={0.8}
         >
-          <Text style={styles.finishButtonText}>Proceed</Text>
+          {isSaving
+            ? <ActivityIndicator size="small" color={colors.white} />
+            : <Text style={styles.finishButtonText}>Proceed</Text>
+          }
         </TouchableOpacity>
       </View>
+
+      {/* Agent overlay - processing spinner → action reveal → fade out */}
+      {overlayVisible && (
+        <Animated.View style={[styles.processingOverlay, { opacity: overlayOpacity }]}>
+          <BlurView intensity={55} style={StyleSheet.absoluteFill} />
+          <View style={styles.overlayContent}>
+            {overlayPhase === 'processing' && (
+              <DiviLogoAnimated size={140} />
+            )}
+            {overlayPhase === 'revealing' && (
+              <View style={styles.actionList}>
+                {revealItems.map((item, i) => {
+                  const verbColor =
+                    item.summary.verb === 'Sent' ? colors.green :
+                    item.summary.verb === 'Moved' ? colors.black :
+                    colors.black;
+                  const iconName =
+                    item.summary.verb === 'Renamed' ? 'edit' :
+                    item.summary.verb === 'Moved' ? 'swap-horiz' :
+                    item.summary.verb === 'Sent' ? 'send' :
+                    'edit';
+                  return (
+                    <Animated.View
+                      key={i}
+                      style={[styles.actionRow, { opacity: item.opacity, transform: [{ translateY: item.translateY }] }]}
+                    >
+                      <MaterialIcons name={iconName as any} size={18} color={verbColor} />
+                      <Text style={[styles.actionVerb, { color: verbColor }]}>{item.summary.verb}</Text>
+                      <Text style={styles.actionName} numberOfLines={1}>{item.summary.name}</Text>
+                      {item.summary.amount !== undefined && (
+                        <Text style={styles.actionAmount}>${item.summary.amount.toFixed(2)}</Text>
+                      )}
+                    </Animated.View>
+                  );
+                })}
+              </View>
+            )}
+          </View>
+        </Animated.View>
+      )}
 
       {/* Group SMS Modal */}
       <Modal
@@ -549,6 +774,24 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.green,
   },
+  mismatchCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+    backgroundColor: `${colors.warning}15`,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: `${colors.warning}40`,
+    padding: spacing.md,
+    marginTop: spacing.lg,
+  },
+  mismatchText: {
+    fontFamily: fonts.body,
+    fontSize: fontSizes.sm,
+    color: colors.gray600,
+    flex: 1,
+    lineHeight: 18,
+  },
   cardTitle: {
     fontFamily: fonts.bodyBold,
     fontSize: fontSizes.lg,
@@ -582,13 +825,14 @@ const styles = StyleSheet.create({
   itemName: {
     fontFamily: fonts.body,
     fontSize: fontSizes.md,
-    color: colors.gray600,
+    color: colors.black,
     flex: 1,
+    marginRight: spacing.sm,
   },
   itemPrice: {
-    fontFamily: fonts.body,
+    fontFamily: fonts.bodySemiBold,
     fontSize: fontSizes.md,
-    color: colors.black,
+    color: colors.green,
   },
   summaryRow: {
     flexDirection: 'row',
@@ -643,6 +887,11 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.md,
     color: colors.white,
   },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
   modalOverlay: {
     flex: 1,
     justifyContent: 'center',
@@ -690,5 +939,63 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bodyBold,
     fontSize: fontSizes.md,
     color: colors.black,
-  }
+  },
+
+  homeButton: {
+    width: 32,
+    height: 32,
+    borderRadius: radii.full,
+    backgroundColor: colors.gray100,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  agentButton: {
+    width: 36,
+    height: 36,
+    borderRadius: radii.full,
+    backgroundColor: `${colors.green}15`,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  agentButtonRecording: {
+    backgroundColor: colors.error,
+  },
+  processingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 100,
+  },
+  overlayContent: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'flex-start',
+    paddingHorizontal: spacing.xl + 8,
+  },
+  actionList: {
+    gap: spacing.xl,
+    width: '100%',
+  },
+  actionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  actionVerb: {
+    fontFamily: fonts.bodyBold,
+    fontSize: fontSizes.xl,
+    minWidth: 90,
+  },
+  actionName: {
+    fontFamily: fonts.body,
+    fontSize: fontSizes.xl,
+    color: colors.black,
+    flex: 1,
+  },
+  actionAmount: {
+    fontFamily: fonts.bodySemiBold,
+    fontSize: fontSizes.xl,
+    color: colors.green,
+  },
 });
