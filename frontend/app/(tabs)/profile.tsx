@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { View, StyleSheet, TouchableOpacity, ScrollView, Alert, TextInput, Image, RefreshControl, Linking } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, ScrollView, Alert, TextInput, Image, RefreshControl, Linking, Keyboard } from 'react-native';
 import { Text, ActivityIndicator } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -359,6 +359,8 @@ export default function Profile() {
             <ScrollView
                 contentContainerStyle={styles.scrollContent}
                 showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+                onScrollBeginDrag={Keyboard.dismiss}
                 refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.green} />}
             >
                 {/* Hero */}
