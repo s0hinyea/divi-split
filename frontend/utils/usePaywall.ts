@@ -16,7 +16,7 @@ const MOCK_PACKAGE = {
   identifier: 'monthly_pro',
   packageType: 'MONTHLY',
   product: {
-    identifier: 'divi_monthly_pro',
+    identifier: 'com.sohi.divi.pro.monthly',
     description: 'Divi Pro Monthly',
     title: 'Divi Pro',
     price: 4.99,

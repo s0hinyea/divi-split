@@ -19,6 +19,7 @@ try {
 	GoogleSignin = gsi.GoogleSignin;
 	statusCodes = gsi.statusCodes;
 	GoogleSignin.configure({
+		webClientId: "944876518323-m3696ld877odr0d2tlkv1stjeu8o1b9m.apps.googleusercontent.com",
 		iosClientId: "944876518323-9jj4llibmjk07dk10qa2l1beuk1bcdtd.apps.googleusercontent.com",
 		iosUrlScheme: "com.googleusercontent.apps.944876518323-9jj4llibmjk07dk10qa2l1beuk1bcdtd",
 		scopes: ["profile", "email"],
@@ -112,8 +113,15 @@ export default function Home() {
 		}
 		setLoadingGoogle(true);
 		try {
+			const Crypto = require("expo-crypto");
+			const rawNonce = Crypto.randomUUID();
+			const hashedNonce = await Crypto.digestStringAsync(
+				Crypto.CryptoDigestAlgorithm.SHA256,
+				rawNonce
+			);
+
 			await GoogleSignin.hasPlayServices();
-			await GoogleSignin.signIn();
+			await GoogleSignin.signIn({ nonce: hashedNonce });
 			const { idToken } = await GoogleSignin.getTokens();
 
 			if (!idToken) throw new Error("No ID token returned.");
@@ -121,6 +129,7 @@ export default function Home() {
 			const { error } = await supabase.auth.signInWithIdToken({
 				provider: "google",
 				token: idToken,
+				nonce: rawNonce,
 			});
 
 			if (error) throw error;
