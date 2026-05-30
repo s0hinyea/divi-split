@@ -24,24 +24,10 @@ Deno.serve(async (req: Request) => {
         return new Response('Missing token', { status: 400 });
     }
 
-    // Fetch payment request with related contact + owner profile
+    // Fetch payment request + contact name
     const { data: pr, error } = await db
         .from('payment_requests')
-        .select(`
-            id,
-            status,
-            amount,
-            items,
-            token,
-            contacts ( contact_name ),
-            profiles!payment_requests_owner_id_fkey (
-                full_name,
-                venmo_handle,
-                cashapp_handle,
-                zelle_number,
-                expo_push_token
-            )
-        `)
+        .select('id, status, amount, items, token, contact_id, owner_id, contacts(contact_name)')
         .eq('token', token)
         .single();
 
@@ -49,8 +35,14 @@ Deno.serve(async (req: Request) => {
         return new Response('Payment request not found', { status: 404 });
     }
 
+    // Fetch owner profile separately (owner_id → auth.users, not directly to profiles)
+    const { data: owner } = await db
+        .from('profiles')
+        .select('full_name, venmo_handle, cashapp_handle, zelle_number, expo_push_token')
+        .eq('id', pr.owner_id)
+        .single();
+
     const contact = Array.isArray(pr.contacts) ? pr.contacts[0] : pr.contacts;
-    const owner = Array.isArray(pr.profiles) ? pr.profiles[0] : pr.profiles;
     const contactName: string = contact?.contact_name ?? 'You';
     const ownerName: string = owner?.full_name ?? 'Someone';
     const amount: number = pr.amount ?? 0;
@@ -336,13 +328,11 @@ Deno.serve(async (req: Request) => {
 </body>
 </html>`;
 
-    return new Response(html, {
-        headers: {
-            ...corsHeaders,
-            'Content-Type': 'text/html; charset=utf-8',
-            'Cache-Control': 'no-store',
-        },
-    });
+    const htmlHeaders = new Headers();
+    htmlHeaders.set('Content-Type', 'text/html; charset=utf-8');
+    htmlHeaders.set('Cache-Control', 'no-store');
+    htmlHeaders.set('Access-Control-Allow-Origin', '*');
+    return new Response(html, { headers: htmlHeaders });
 });
 
 function escHtml(str: string): string {
