@@ -12,7 +12,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.sohi.divi",
-      "buildNumber": "56",
+      "buildNumber": "57",
       "infoDictionary": {
         "NSCameraUsageDescription": "Divi needs access to your camera to scan receipts.",
         "NSPhotoLibraryUsageDescription": "Divi needs access to your photos so you can upload receipts.",
@@ -20,7 +20,8 @@
         "NSMicrophoneUsageDescription": "Divi needs access to your microphone for voice-assisted splitting."
       },
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSUserActivityTypes": ["INSendMessageIntent"]
       }
     },
     "android": {
@@ -50,7 +51,7 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#c1c5cd"
+          "backgroundColor": "#ffffff"
         }
       ],
       "expo-web-browser",
@@ -88,10 +89,23 @@
       "expo-asset",
       "expo-apple-authentication",
       [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/icon.png",
+          "color": "#00C37F",
+          "sounds": [],
+          "mode": "production",
+          "entitlements": {
+            "aps-environment": "production"
+          }
+        }
+      ],
+      [
         "@react-native-google-signin/google-signin",
         {
           "iosClientId": "944876518323-9jj4llibmjk07dk10qa2l1beuk1bcdtd.apps.googleusercontent.com",
           "iosUrlScheme": "com.googleusercontent.apps.944876518323-9jj4llibmjk07dk10qa2l1beuk1bcdtd"
+
         }
       ],
       "@react-native-community/datetimepicker"
