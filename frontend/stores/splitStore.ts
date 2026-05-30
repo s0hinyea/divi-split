@@ -37,7 +37,7 @@ interface SplitState {
     removeItem: (id: string) => void;
     splitItem: (id: string) => string[];
     setUserItems: (items: ReceiptItem[]) => void;
-    saveReceipt: (receiptName: string, receiptDate?: Date) => Promise<boolean>;
+    saveReceipt: (receiptName: string, receiptDate?: Date) => Promise<string | null>;
     calculateTotal: (items: any[]) => number;
 
     selected: Contact[];
@@ -219,10 +219,10 @@ export const useSplitStore = create<SplitState>((set, get) => ({
             if (error) throw error;
 
             console.log("Receipt saved atomically:", data);
-            return true;
+            return (data as any)?.receipt_id ?? null;
         } catch (error) {
             console.error("Save receipt error:", error);
-            return false;
+            return null;
         }
     },
 

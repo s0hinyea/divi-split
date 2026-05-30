@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Modal, ActivityIndicator, TextInput, Platform, StyleSheet, Animated } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Modal, ActivityIndicator, TextInput, Platform, StyleSheet, Animated, Keyboard } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSplitStore, ReceiptItem } from '../stores/splitStore';
 import { useHistory } from '../utils/HistoryContext';
 import { useProfile } from '../utils/ProfileContext';
 import * as SMS from 'expo-sms';
+import { supabase } from '@/lib/supabase';
+import { useSession } from '@/utils/SessionContext';
 import * as Haptics from 'expo-haptics';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -32,9 +34,11 @@ export default function ReviewPage() {
   const editingReceiptCreatedAt = useSplitStore((state) => state.editingReceiptCreatedAt);
   const { refreshReceipts } = useHistory();
   const { profile } = useProfile();
+  const { session } = useSession();
   // Modal state
   const [showSmsModal, setShowSmsModal] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [savedReceiptId, setSavedReceiptId] = useState<string | null>(null);
 
   // ── Agent overlay ───────────────────────────────────────────────────────────
   const [overlayVisible, setOverlayVisible] = useState(false);
@@ -207,8 +211,12 @@ export default function ReviewPage() {
     total: receiptData.total ?? 0,
   };
 
-  // Send one group SMS with each person's breakdown and pre-filled payment links
+  // Send one group SMS with a unique shareable pay link per person
   const sendGroupSummary = async () => {
+    if (!session?.user || !savedReceiptId) {
+      showToast('Receipt not saved yet.', 'error');
+      return;
+    }
     try {
       const isAvailable = await SMS.isAvailableAsync();
       if (!isAvailable) {
@@ -218,43 +226,73 @@ export default function ReviewPage() {
 
       const phoneNumbers = selected
         .map(c => c.phoneNumber)
-        .filter((num): num is string => !!num);
+        .filter((num): num is string => !!num && num !== 'no-phone');
 
       if (phoneNumbers.length === 0) {
         showToast('None of the selected contacts have phone numbers.', 'warning');
         return;
       }
 
-      const name = receiptName.trim() || 'Split';
-      const note = encodeURIComponent(`Divi - ${name}`);
+      // Look up DB contact IDs by phone number for this user
+      const phones = selected
+        .map(c => c.phoneNumber)
+        .filter((p): p is string => !!p && p !== 'no-phone');
+
+      const { data: dbContacts } = await supabase
+        .from('contacts')
+        .select('id, phone_number')
+        .eq('user_id', session.user.id)
+        .in('phone_number', phones);
+
+      const phoneToDbId = new Map((dbContacts ?? []).map(c => [c.phone_number, c.id]));
+
+      // Upsert a payment_request for every contact that has a DB id
+      const upsertResults = await Promise.all(
+        selected.map((contact) => {
+          const dbContactId = phoneToDbId.get(contact.phoneNumber ?? '');
+          if (!dbContactId) return Promise.resolve({ data: null, error: null });
+          const mealTotal = calculateTotal(contact.items as ReceiptItem[]);
+          const tax = individualTaxes[contact.id] || 0;
+          const tip = individualTips[contact.id] || 0;
+          const amount = mealTotal + tax + tip;
+          return supabase
+            .from('payment_requests')
+            .upsert(
+              {
+                receipt_id: savedReceiptId,
+                contact_id: dbContactId,
+                owner_id: session.user.id,
+                amount,
+                items: [
+                  ...(contact.items as ReceiptItem[]).map((i) => ({ name: i.name, price: i.price })),
+                  ...(individualTaxes[contact.id] > 0 ? [{ name: 'Tax', price: individualTaxes[contact.id] }] : []),
+                  ...(individualTips[contact.id] > 0 ? [{ name: 'Tip', price: individualTips[contact.id] }] : []),
+                ],
+                status: 'requested',
+                requested_at: new Date().toISOString(),
+              },
+              { onConflict: 'receipt_id,contact_id' }
+            )
+            .select('token')
+            .single();
+        })
+      );
+
+      const base = (process.env.EXPO_PUBLIC_PAY_BASE_URL ?? '').replace(/\/$/, '');
+      const name = receiptName.trim() || 'the bill';
       const dateStr = receiptDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
-      let message = `🧾 Divi: ${name}\n📅 ${dateStr}\n`;
+      let message = `🧾 ${name} — ${dateStr}\n`;
 
-      selected.forEach(contact => {
+      upsertResults.forEach(({ data }, i) => {
+        if (!data?.token) return;
+        const contact = selected[i];
         const mealTotal = calculateTotal(contact.items as ReceiptItem[]);
         const tax = individualTaxes[contact.id] || 0;
         const tip = individualTips[contact.id] || 0;
-        const total = mealTotal + tax + tip;
-        const amountStr = total.toFixed(2);
-
-        const details: string[] = [`meal $${mealTotal.toFixed(2)}`];
-        if (tax > 0) details.push(`tax $${tax.toFixed(2)}`);
-        if (tip > 0) details.push(`tip $${tip.toFixed(2)}`);
-
-        message += `\n${contact.name}: $${amountStr} (${details.join(' + ')})`;
-
-        if (profile?.venmo_handle) {
-          const handle = profile.venmo_handle.replace('@', '');
-          message += `\n venmo://paycharge?txn=pay&recipients=${encodeURIComponent(handle)}&amount=${amountStr}&note=${note}`;
-        }
-        if (profile?.cashapp_handle) {
-          const handle = profile.cashapp_handle.replace('$', '');
-          message += `\n https://cash.app/$${handle}/${amountStr}`;
-        }
-        if (profile?.zelle_number) {
-          message += `\n Zelle $${amountStr} → ${profile.zelle_number}`;
-        }
+        const amount = mealTotal + tax + tip;
+        const url = `${base}?token=${data.token}`;
+        message += `\n${contact.name} — $${amount.toFixed(2)}\n${url}\n`;
       });
 
       const allMealItems = 'items' in receiptData ? receiptData.items : [];
@@ -263,7 +301,7 @@ export default function ReviewPage() {
         Object.values(individualTaxes).reduce((s, t) => s + t, 0) +
         Object.values(individualTips).reduce((s, t) => s + t, 0);
 
-      message += `\n\nTotal: $${grandTotal.toFixed(2)}`;
+      message += `\nTotal: $${grandTotal.toFixed(2)}`;
 
       await SMS.sendSMSAsync(phoneNumbers, message);
       setShowSmsModal(false);
@@ -301,10 +339,19 @@ export default function ReviewPage() {
     const name = receiptName.trim() || `Split - ${receiptDate.toLocaleDateString()}`;
     setIsSaving(true);
     try {
-      const success = editingReceiptId
-        ? await updateReceipt(editingReceiptId, name, receiptDate)
-        : await saveReceipt(name, receiptDate);
-      if (success) await refreshReceipts();
+      if (editingReceiptId) {
+        const success = await updateReceipt(editingReceiptId, name, receiptDate);
+        if (success) {
+          setSavedReceiptId(editingReceiptId);
+          await refreshReceipts();
+        }
+      } else {
+        const receiptId = await saveReceipt(name, receiptDate);
+        if (receiptId) {
+          setSavedReceiptId(receiptId);
+          await refreshReceipts();
+        }
+      }
     } finally {
       setIsSaving(false);
     }
@@ -358,7 +405,7 @@ export default function ReviewPage() {
         </View>
       </View>
 
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled" onScrollBeginDrag={Keyboard.dismiss}>
         {/* Receipt Name and Date Section */}
         <View style={styles.detailsCard}>
           <Text style={styles.inputLabel}>Receipt Name</Text>
