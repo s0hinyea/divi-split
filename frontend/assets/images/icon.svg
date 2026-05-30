@@ -1,0 +1,15 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- White background -->
+  <rect width="1024" height="1024" fill="#FFFFFF"/>
+  <!-- Divi logo centered, scaled ~6x (original 120x160 -> ~720x960 at scale 6, with padding) -->
+  <!-- Scale factor: 5.5 => 120*5.5=660 wide, 160*5.5=880 tall -->
+  <!-- Offset: x=(1024-660)/2=182, y=(1024-880)/2=72 -->
+  <!-- Green line: orig x=40,y=30,w=10,h=100,rx=5 -->
+  <rect x="402" y="237" width="55" height="550" rx="27.5" fill="#00C37F"/>
+  <!-- Black line: orig x=70,y=30 -->
+  <rect x="567" y="237" width="55" height="550" rx="27.5" fill="#111111"/>
+  <!-- Green dot at left of orbit: orig (20,80) -->
+  <circle cx="292" cy="512" r="44" fill="#00C37F"/>
+  <!-- Black dot at right of orbit: orig (100,80) -->
+  <circle cx="732" cy="512" r="44" fill="#111111"/>
+</svg>
