@@ -432,6 +432,26 @@ export default function OCRResults() {
               <Text style={styles.itemRefPrice}>${item.price.toFixed(2)}</Text>
             </View>
           ))}
+          {((receiptData.tax ?? 0) > 0 || (receiptData.tip ?? 0) > 0) && (
+            <View style={styles.itemRefDivider} />
+          )}
+          {(receiptData.tax ?? 0) > 0 && (
+            <View style={styles.itemRefRow}>
+              <Text style={styles.itemRefName}>Tax</Text>
+              <Text style={styles.itemRefPrice}>${(receiptData.tax ?? 0).toFixed(2)}</Text>
+            </View>
+          )}
+          {(receiptData.tip ?? 0) > 0 && (
+            <View style={styles.itemRefRow}>
+              <Text style={styles.itemRefName}>Tip</Text>
+              <Text style={styles.itemRefPrice}>${(receiptData.tip ?? 0).toFixed(2)}</Text>
+            </View>
+          )}
+          <View style={styles.itemRefDivider} />
+          <View style={styles.itemRefRow}>
+            <Text style={styles.itemRefTotal}>Total</Text>
+            <Text style={styles.itemRefTotalAmount}>${calculatedTotal.toFixed(2)}</Text>
+          </View>
         </ScrollView>
 
         <View style={styles.dividerRow}>
@@ -441,12 +461,10 @@ export default function OCRResults() {
         </View>
 
         <View style={styles.manualZone}>
-          {agentDidAct && (
-            <TouchableOpacity style={styles.continueAssignButton} onPress={() => router.push('/assign')}>
-              <Text style={styles.continueAssignText}>Continue to Assign</Text>
-              <MaterialIcons name="arrow-forward" size={18} color={colors.white} />
-            </TouchableOpacity>
-          )}
+          <TouchableOpacity style={styles.continueAssignButton} onPress={() => router.push('/assign')}>
+            <MaterialIcons name="check" size={18} color={colors.white} />
+            <Text style={styles.continueAssignText}>Looks good</Text>
+          </TouchableOpacity>
           <TouchableOpacity
             style={styles.manualButton}
             onPress={() => setMode('manual')}
@@ -856,6 +874,22 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bodySemiBold,
     fontSize: fontSizes.sm,
     color: colors.gray400,
+  },
+  itemRefDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: colors.gray200,
+    marginVertical: spacing.xs,
+  },
+  itemRefTotal: {
+    flex: 1,
+    fontFamily: fonts.bodyBold,
+    fontSize: fontSizes.sm,
+    color: colors.black,
+  },
+  itemRefTotalAmount: {
+    fontFamily: fonts.bodyBold,
+    fontSize: fontSizes.sm,
+    color: colors.green,
   },
   dividerRow: {
     flexDirection: 'row',

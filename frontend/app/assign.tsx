@@ -356,12 +356,10 @@ export default function AssignAmounts() {
 
         {/* Manual zone */}
         <View style={styles.manualZone}>
-          {agentDidAct && (
-            <TouchableOpacity style={styles.continueReviewButton} onPress={finishAssign}>
-              <Text style={styles.continueReviewText}>Continue to Review</Text>
-              <MaterialIcons name="arrow-forward" size={18} color={colors.white} />
-            </TouchableOpacity>
-          )}
+          <TouchableOpacity style={styles.continueReviewButton} onPress={finishAssign}>
+            <MaterialIcons name="check" size={18} color={colors.white} />
+            <Text style={styles.continueReviewText}>Looks good</Text>
+          </TouchableOpacity>
           <TouchableOpacity
             style={styles.manualButton}
             onPress={() => setMode('manual')}
