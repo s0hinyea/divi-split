@@ -49,7 +49,7 @@ type PaymentRequest = {
 // Phase 4 will host the Edge Function at this path.
 const buildPayUrl = (token: string) => {
     const base = (process.env.EXPO_PUBLIC_PAY_BASE_URL ?? '').replace(/\/$/, '');
-    return `${base}/pay?token=${token}`;
+    return `${base}?token=${token}`;
 };
 
 const STATUS_CONFIG: Record<PaymentStatus, { dot: string; label: string; labelColor: string }> = {
@@ -158,8 +158,12 @@ export default function ReceiptDetail() {
     }, [fetchAssignments]);
 
     // Per-contact totals with tax + tip allocated proportionally
-    const contactTotals = useMemo(() => {
-        if (!receipt || contacts.length === 0) return new Map<string, number>();
+    const { contactTotals, contactTaxes, contactTips } = useMemo(() => {
+        if (!receipt || contacts.length === 0) return {
+            contactTotals: new Map<string, number>(),
+            contactTaxes: {} as Record<string, number>,
+            contactTips: {} as Record<string, number>,
+        };
 
         const shares = contacts.map((c) => ({
             id: c.dbId,
@@ -183,7 +187,7 @@ export default function ReceiptDetail() {
             const meal = c.items.reduce((s, i) => s + i.item_price, 0);
             totals.set(c.dbId, meal + (individualTaxes[c.dbId] || 0) + (individualTips[c.dbId] || 0));
         }
-        return totals;
+        return { contactTotals: totals, contactTaxes: individualTaxes, contactTips: individualTips };
     }, [contacts, unassignedItems, receipt]);
 
     const settledCount = contacts.filter(
@@ -305,10 +309,11 @@ export default function ReceiptDetail() {
                         contact_id: contact.dbId,
                         owner_id: session.user.id,
                         amount,
-                        items: contact.items.map((i) => ({
-                            name: i.item_name,
-                            price: i.item_price,
-                        })),
+                        items: [
+                            ...contact.items.map((i) => ({ name: i.item_name, price: i.item_price })),
+                            ...((contactTaxes[contact.dbId] || 0) > 0 ? [{ name: 'Tax', price: contactTaxes[contact.dbId] }] : []),
+                            ...((contactTips[contact.dbId] || 0) > 0 ? [{ name: 'Tip', price: contactTips[contact.dbId] }] : []),
+                        ],
                         status: 'requested',
                         requested_at: new Date().toISOString(),
                     },
@@ -506,10 +511,11 @@ export default function ReceiptDetail() {
                                 contact_id: c.dbId,
                                 owner_id: session.user.id,
                                 amount,
-                                items: c.items.map((i) => ({
-                                    name: i.item_name,
-                                    price: i.item_price,
-                                })),
+                                items: [
+                                    ...c.items.map((i) => ({ name: i.item_name, price: i.item_price })),
+                                    ...((contactTaxes[c.dbId] || 0) > 0 ? [{ name: 'Tax', price: contactTaxes[c.dbId] }] : []),
+                                    ...((contactTips[c.dbId] || 0) > 0 ? [{ name: 'Tip', price: contactTips[c.dbId] }] : []),
+                                ],
                                 status: 'requested',
                                 requested_at: new Date().toISOString(),
                             },
