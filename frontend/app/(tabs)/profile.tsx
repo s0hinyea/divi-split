@@ -466,6 +466,14 @@ export default function Profile() {
                         {!isSubscribed && <MaterialIcons name="chevron-right" size={22} color={C.gray300} />}
                         {isSubscribed && <MaterialIcons name="check-circle" size={20} color={colors.green} />}
                     </TouchableOpacity>
+                    <View style={styles.divider} />
+                    <TouchableOpacity style={styles.row} onPress={openPrivacyPolicy} activeOpacity={0.7}>
+                        <View style={styles.iconContainer}>
+                            <MaterialIcons name="privacy-tip" size={22} color={colors.black} />
+                        </View>
+                        <Text style={styles.settingLabel}>Privacy Policy</Text>
+                        <MaterialIcons name="open-in-new" size={20} color={colors.gray400} />
+                    </TouchableOpacity>
                 </View>
 
                 {/* Settings */}
