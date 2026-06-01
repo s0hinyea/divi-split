@@ -8,6 +8,7 @@ import { handleOCR } from '../utils/ocrUtil';
 import { useSplitStore } from '../stores/splitStore';
 import { useOCR } from '../utils/OCRContext';
 import { colors } from '@/styles/theme';
+import { useToast } from '@/components/ToastProvider';
 
 export default function PickPhoto() {
   const router = useRouter();
@@ -15,6 +16,7 @@ export default function PickPhoto() {
   const galleryActive = useRef<boolean>(false);
   const updateReceiptData = useSplitStore((state) => state.updateReceiptData);
   const { setIsProcessing, setStatus, setError } = useOCR();
+  const { showToast } = useToast();
 
   const pickFromGallery = async () => {
     if (galleryActive.current) return;
@@ -41,7 +43,7 @@ export default function PickPhoto() {
 
       const asset = res.assets[0];
       setLoading(true);
-      await handleOCR(asset.uri, updateReceiptData, setIsProcessing, setStatus, setError, router);
+      await handleOCR(asset.uri, updateReceiptData, setIsProcessing, setStatus, setError, router, showToast);
       setLoading(false);
     } catch (error) {
       console.error("Gallery picker error:", error);

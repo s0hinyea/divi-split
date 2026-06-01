@@ -7,12 +7,14 @@ import { useOCR } from '../utils/OCRContext';
 import { ActivityIndicator } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
+import { useToast } from '@/components/ToastProvider';
 
 export default function Scan() {
   const router = useRouter();
   const [launching, setLaunching] = useState(false);
   const updateReceiptData = useSplitStore((state) => state.updateReceiptData);
   const { setIsProcessing, setStatus, setError } = useOCR();
+  const { showToast } = useToast();
 
   useEffect(() => {
     const timer = setTimeout(() => launchCamera(), 100);
@@ -47,7 +49,7 @@ export default function Scan() {
         const scannedUri = result.assets[0].uri;
         console.log('🟢 [Scanner] Photo taken:', scannedUri);
         // Pass to OCR pipeline natively handles image paths
-        await handleOCR(scannedUri, updateReceiptData, setIsProcessing, setStatus, setError, router);
+        await handleOCR(scannedUri, updateReceiptData, setIsProcessing, setStatus, setError, router, showToast);
       } else {
         // User cancelled
         if (router.canGoBack()) router.back();

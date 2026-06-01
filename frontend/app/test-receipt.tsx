@@ -7,11 +7,13 @@ import { handleOCR } from '../utils/ocrUtil';
 import { useSplitStore } from '../stores/splitStore';
 import { useOCR } from '../utils/OCRContext';
 import { colors } from '@/styles/theme';
+import { useToast } from '@/components/ToastProvider';
 
 export default function TestReceipt() {
   const router = useRouter();
   const updateReceiptData = useSplitStore((state) => state.updateReceiptData);
   const { setIsProcessing, setStatus, setError } = useOCR();
+  const { showToast } = useToast();
 
   useFocusEffect(
     useCallback(() => {
@@ -22,7 +24,7 @@ export default function TestReceipt() {
           const asset = Asset.fromModule(require('../assets/test-receipt.png'));
           await asset.downloadAsync();
           if (cancelled || !asset.localUri) return;
-          await handleOCR(asset.localUri, updateReceiptData, setIsProcessing, setStatus, setError, router);
+          await handleOCR(asset.localUri, updateReceiptData, setIsProcessing, setStatus, setError, router, showToast);
         } catch (err) {
           console.error('[TestReceipt] error:', err);
           if (!cancelled) router.back();

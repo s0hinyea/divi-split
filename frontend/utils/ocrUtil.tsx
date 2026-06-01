@@ -1,9 +1,9 @@
-import { Alert } from "react-native";
 import { OCRResponse } from "../stores/splitStore";
 import { Router } from "expo-router";
 import { supabase } from "@/lib/supabase";
 import * as ImageManipulator from 'expo-image-manipulator';
 import { isNetworkError } from "@/utils/network";
+import { ToastType } from "@/components/ToastProvider";
 
 export const handleOCR = async (
 	imageUri: string,
@@ -11,7 +11,8 @@ export const handleOCR = async (
 	setIsProcessing: (val: boolean) => void,
 	setStatus: (val: string) => void,
 	setError: (val: string | null) => void,
-	router: Router
+	router: Router,
+	showToast: (message: string, type?: ToastType) => void,
 ) => {
 	try {
 		setIsProcessing(true);
@@ -120,18 +121,8 @@ export const handleOCR = async (
 		}
 
 		setError(body);
-		
-		// Bounce them back to the scanner immediately
-		if (router.canGoBack()) {
-			router.back();
-		} else {
-			router.replace('/scan');
-		}
-
-		// Show a simple native alert they can dismiss to try again
-		setTimeout(() => {
-			Alert.alert(title, body, [{ text: 'OK' }]);
-		}, 300);
+		router.replace('/(tabs)');
+		setTimeout(() => showToast(body, 'error'), 300);
 	} finally {
 		setIsProcessing(false);
 		setStatus("");
