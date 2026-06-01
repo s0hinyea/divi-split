@@ -124,7 +124,7 @@
       "typedRoutes": true
     },
     "extra": {
-      "privacyPolicyUrl": "https://s0hinyea.github.io/divi-split/privacy_policy.html",
+      "privacyPolicyUrl": "https://divi-privacy.netlify.app",
       "router": {},
       "eas": {
         "projectId": "e4b03e3d-d79c-4300-9d55-c869a5508515"

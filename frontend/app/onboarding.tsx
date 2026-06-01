@@ -11,7 +11,10 @@ import {
 	KeyboardAvoidingView,
 	Platform,
 	ScrollView,
+	Image,
 } from "react-native";
+
+const ZelleLogo = require('@/assets/images/zelle.png');
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { supabase } from "@/lib/supabase";
@@ -38,6 +41,7 @@ export default function Onboarding() {
 	const [username, setUsername] = useState("");
 	const [venmo, setVenmo] = useState("");
 	const [cashapp, setCashapp] = useState("");
+	const [zelle, setZelle] = useState("");
 	const [checkingUsername, setCheckingUsername] = useState(false);
 	const [isUsernameTaken, setIsUsernameTaken] = useState(false);
 	const [loading, setLoading] = useState(false);
@@ -104,6 +108,7 @@ export default function Onboarding() {
 				username: username.toLowerCase().trim(),
 				venmo_handle: sanitizeHandle(venmo, "@"),
 				cashapp_handle: sanitizeHandle(cashapp, "$"),
+				zelle_number: zelle.trim() || null,
 			});
 
 			if (err) {
@@ -258,6 +263,19 @@ export default function Onboarding() {
 										onChangeText={setCashapp}
 										autoCapitalize="none"
 										maxLength={30}
+									/>
+								</View>
+
+								<View style={[styles.inputGroup, { marginTop: 16 }]}>
+									<Image source={ZelleLogo} style={{ width: 22, height: 22, marginLeft: 15 }} resizeMode="contain" />
+									<TextInput
+										style={[styles.input, { flex: 1, backgroundColor: "transparent" }]}
+										placeholder="Zelle phone or email"
+										value={zelle}
+										onChangeText={setZelle}
+										autoCapitalize="none"
+										keyboardType="email-address"
+										maxLength={50}
 									/>
 								</View>
 
