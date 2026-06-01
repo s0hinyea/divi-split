@@ -10,7 +10,7 @@ import * as ImagePicker from 'expo-image-picker';
 
 export default function Scan() {
   const router = useRouter();
-  const [launching, setLaunching] = useState(true);
+  const [launching, setLaunching] = useState(false);
   const updateReceiptData = useSplitStore((state) => state.updateReceiptData);
   const { setIsProcessing, setStatus, setError } = useOCR();
 
@@ -20,7 +20,6 @@ export default function Scan() {
   }, []);
 
   const launchCamera = async () => {
-    if (launching) return;
     setLaunching(true);
 
     // Check camera permissions first
