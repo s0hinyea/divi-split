@@ -104,7 +104,7 @@ export const handleOCR = async (
 			body = 'The server took too long to respond. This can happen with large or blurry images. Try again with a clearer photo.';
 		} else if (message.startsWith('NOT_RECEIPT:')) {
 			title = 'No Receipt Found';
-			body = "This image doesn't appear to contain receipt information. Please try again with a clearer photo of your bill.";
+			body = "This image doesn't appear to contain receipt information. Please scan again.";
 		} else if (message === 'NO_ITEMS') {
 			title = 'No Items Found';
 			body = "We couldn't detect any items on this receipt. Make sure the receipt is well-lit and fully visible, then try again.";
