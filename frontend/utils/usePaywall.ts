@@ -4,7 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 
 const RC_API_KEY = process.env.EXPO_PUBLIC_REVENUECAT_API_KEY ?? '';
-const ENTITLEMENT_ID = 'pro';
+const ENTITLEMENT_ID = 'Divi Pro';
 const SCAN_COUNT_KEY = '@divi_scan_count';
 const MOCK_SUBSCRIBED_KEY = '@divi_mock_subscribed';
 const FREE_SCAN_LIMIT = 3;

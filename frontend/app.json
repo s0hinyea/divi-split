@@ -21,7 +21,9 @@
       },
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "NSUserActivityTypes": ["INSendMessageIntent"]
+        "NSUserActivityTypes": [
+          "INSendMessageIntent"
+        ]
       }
     },
     "android": {
@@ -105,10 +107,10 @@
         {
           "iosClientId": "944876518323-9jj4llibmjk07dk10qa2l1beuk1bcdtd.apps.googleusercontent.com",
           "iosUrlScheme": "com.googleusercontent.apps.944876518323-9jj4llibmjk07dk10qa2l1beuk1bcdtd"
-
         }
       ],
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      "@sentry/react-native"
     ],
     "experiments": {
       "typedRoutes": true
