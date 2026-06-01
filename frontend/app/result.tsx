@@ -482,6 +482,7 @@ export default function OCRResults() {
           onRestore={paywall.restorePurchases}
           currentPackage={paywall.currentPackage}
           purchaseError={paywall.purchaseError}
+          scanCount={paywall.scanCount}
         />
 
         {overlay}

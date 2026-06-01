@@ -12,7 +12,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useSession } from '@/utils/SessionContext';
 import { getUserFacingErrorMessage } from '@/utils/network';
 import { privacyPolicyUrl } from '@/constants/appConfig';
-import { usePaywall } from '@/utils/usePaywall';
+import { usePaywall, FREE_SCAN_LIMIT } from '@/utils/usePaywall';
 import PaywallModal from '@/components/PaywallModal';
 import Constants from 'expo-constants';
 
@@ -544,6 +544,7 @@ export default function Profile() {
                 onRestore={restorePurchases}
                 currentPackage={currentPackage}
                 purchaseError={purchaseError}
+                scanCount={scansRemaining <= 0 ? FREE_SCAN_LIMIT : FREE_SCAN_LIMIT - scansRemaining}
             />
         </SafeAreaView>
     );

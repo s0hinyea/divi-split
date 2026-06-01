@@ -14,6 +14,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 type PurchasesPackage = any;
 import { colors, fonts, fontSizes, spacing, radii, shadows } from '@/styles/theme';
+import { FREE_SCAN_LIMIT } from '@/utils/usePaywall';
 
 type Props = {
   visible: boolean;
@@ -22,12 +23,13 @@ type Props = {
   onRestore: () => Promise<boolean>;
   currentPackage: PurchasesPackage | null;
   purchaseError: string | null;
+  scanCount: number;
 };
 
 const FEATURES = [
-  'Unlimited AI-powered bill splitting',
-  'Assign items by voice, instantly',
-  'Smart split & assign logic',
+  { icon: 'bolt', text: 'Unlimited AI-powered bill splitting' },
+  { icon: 'mic', text: 'Assign items by voice, instantly' },
+  { icon: 'group', text: 'Split any receipt with any group' },
 ];
 
 export default function PaywallModal({
@@ -37,8 +39,9 @@ export default function PaywallModal({
   onRestore,
   currentPackage,
   purchaseError,
+  scanCount,
 }: Props) {
-  const slideAnim = useRef(new Animated.Value(400)).current;
+  const slideAnim = useRef(new Animated.Value(500)).current;
   const [purchasing, setPurchasing] = React.useState(false);
   const [restoring, setRestoring] = React.useState(false);
 
@@ -47,21 +50,22 @@ export default function PaywallModal({
       Animated.spring(slideAnim, {
         toValue: 0,
         useNativeDriver: true,
-        tension: 65,
-        friction: 11,
+        tension: 60,
+        friction: 12,
       }).start();
     } else {
       Animated.timing(slideAnim, {
-        toValue: 400,
+        toValue: 500,
         duration: 250,
         useNativeDriver: true,
       }).start();
     }
   }, [visible]);
 
-  const priceLabel = currentPackage
-    ? `${currentPackage.product.priceString} / ${currentPackage.packageType.toLowerCase()}`
-    : null;
+  const price = currentPackage?.product?.price ?? 4.99;
+  const priceString = currentPackage?.product?.priceString ?? '$4.99';
+  const perDay = (price / 30).toFixed(2);
+  const scansUsed = Math.min(scanCount, FREE_SCAN_LIMIT);
 
   const handleSubscribe = async () => {
     setPurchasing(true);
@@ -90,7 +94,7 @@ export default function PaywallModal({
       onRequestClose={onClose}
     >
       <Pressable style={styles.backdrop} onPress={onClose}>
-        <BlurView intensity={20} style={StyleSheet.absoluteFill} />
+        <BlurView intensity={25} style={StyleSheet.absoluteFill} />
       </Pressable>
 
       <Animated.View
@@ -100,33 +104,53 @@ export default function PaywallModal({
         <View style={styles.handle} />
 
         {/* Close */}
-        <TouchableOpacity style={styles.closeButton} onPress={onClose} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+        <TouchableOpacity
+          style={styles.closeButton}
+          onPress={onClose}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+        >
           <MaterialIcons name="close" size={20} color={colors.gray400} />
         </TouchableOpacity>
 
+        {/* Scan limit context */}
+        <View style={styles.limitBadge}>
+          <MaterialIcons name="lock-outline" size={13} color={colors.gray500} />
+          <Text style={styles.limitBadgeText}>
+            You've used {scansUsed} of {FREE_SCAN_LIMIT} free AI scans
+          </Text>
+        </View>
+
         {/* Icon */}
         <View style={styles.iconRing}>
-          <MaterialIcons name="auto-awesome" size={28} color={colors.green} />
+          <MaterialIcons name="auto-awesome" size={30} color={colors.green} />
         </View>
 
         {/* Header */}
         <Text style={styles.title}>Divi Pro</Text>
-        <Text style={styles.subtitle}>Unlock unlimited AI scans</Text>
+        <Text style={styles.subtitle}>Stop doing the math.{'\n'}Split any bill in seconds.</Text>
 
         {/* Feature list */}
         <View style={styles.features}>
           {FEATURES.map((f) => (
-            <View key={f} style={styles.featureRow}>
-              <MaterialIcons name="check-circle-outline" size={16} color={colors.green} />
-              <Text style={styles.featureText}>{f}</Text>
+            <View key={f.text} style={styles.featureRow}>
+              <View style={styles.featureIconBox}>
+                <MaterialIcons name={f.icon as any} size={15} color={colors.green} />
+              </View>
+              <Text style={styles.featureText}>{f.text}</Text>
             </View>
           ))}
         </View>
 
-        {/* Price */}
-        {priceLabel && (
-          <Text style={styles.price}>{priceLabel}</Text>
-        )}
+        {/* Price card */}
+        <View style={styles.priceCard}>
+          <View>
+            <Text style={styles.priceMain}>{priceString}</Text>
+            <Text style={styles.priceSub}>per month</Text>
+          </View>
+          <View style={styles.perDayBadge}>
+            <Text style={styles.perDayText}>just ${perDay}/day</Text>
+          </View>
+        </View>
 
         {/* Error */}
         {purchaseError && (
@@ -143,11 +167,12 @@ export default function PaywallModal({
           {purchasing ? (
             <ActivityIndicator color={colors.white} />
           ) : (
-            <Text style={styles.subscribeText}>
-              {currentPackage ? `Subscribe: ${currentPackage.product.priceString}` : 'Subscribe'}
-            </Text>
+            <Text style={styles.subscribeText}>Get Divi Pro</Text>
           )}
         </TouchableOpacity>
+
+        {/* Trust line */}
+        <Text style={styles.trustText}>Cancel anytime · No commitment</Text>
 
         {/* Restore */}
         <TouchableOpacity
@@ -169,7 +194,7 @@ export default function PaywallModal({
 const styles = StyleSheet.create({
   backdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(10,10,10,0.45)',
+    backgroundColor: 'rgba(10,10,10,0.5)',
   },
   sheet: {
     position: 'absolute',
@@ -181,7 +206,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: radii.xl,
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.md,
-    paddingBottom: Platform.OS === 'ios' ? 40 : spacing.xl,
+    paddingBottom: Platform.OS === 'ios' ? 44 : spacing.xl,
     alignItems: 'center',
     ...shadows.lg,
   },
@@ -190,16 +215,31 @@ const styles = StyleSheet.create({
     height: 4,
     borderRadius: radii.full,
     backgroundColor: colors.gray300,
-    marginBottom: spacing.lg,
+    marginBottom: spacing.md,
   },
   closeButton: {
     position: 'absolute',
     top: spacing.md,
     right: spacing.lg,
   },
+  limitBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: colors.gray100,
+    borderRadius: radii.full,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    marginBottom: spacing.md,
+  },
+  limitBadgeText: {
+    fontFamily: fonts.bodyMedium,
+    fontSize: 12,
+    color: colors.gray500,
+  },
   iconRing: {
-    width: 64,
-    height: 64,
+    width: 68,
+    height: 68,
     borderRadius: radii.full,
     backgroundColor: colors.greenLight,
     justifyContent: 'center',
@@ -207,7 +247,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   title: {
-    fontFamily: fonts.bodyBold,
+    fontFamily: fonts.display,
     fontSize: fontSizes.xl,
     color: colors.black,
     marginBottom: spacing.xs,
@@ -216,6 +256,8 @@ const styles = StyleSheet.create({
     fontFamily: fonts.body,
     fontSize: fontSizes.sm,
     color: colors.gray500,
+    textAlign: 'center',
+    lineHeight: 20,
     marginBottom: spacing.lg,
   },
   features: {
@@ -228,17 +270,52 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.sm,
   },
+  featureIconBox: {
+    width: 28,
+    height: 28,
+    borderRadius: radii.sm,
+    backgroundColor: colors.greenLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   featureText: {
-    fontFamily: fonts.body,
+    fontFamily: fonts.bodyMedium,
     fontSize: fontSizes.sm,
     color: colors.black,
+    flex: 1,
   },
-  price: {
-    fontFamily: fonts.bodySemiBold,
-    fontSize: fontSizes.sm,
-    color: colors.gray500,
+  priceCard: {
+    alignSelf: 'stretch',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.gray100,
+    borderRadius: radii.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 14,
     marginBottom: spacing.md,
-    textTransform: 'capitalize',
+  },
+  priceMain: {
+    fontFamily: fonts.display,
+    fontSize: fontSizes.lg,
+    color: colors.black,
+  },
+  priceSub: {
+    fontFamily: fonts.body,
+    fontSize: fontSizes.xs,
+    color: colors.gray400,
+    marginTop: 1,
+  },
+  perDayBadge: {
+    backgroundColor: colors.greenLight,
+    borderRadius: radii.full,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  perDayText: {
+    fontFamily: fonts.bodySemiBold,
+    fontSize: 12,
+    color: colors.green,
   },
   errorText: {
     fontFamily: fonts.body,
@@ -251,17 +328,25 @@ const styles = StyleSheet.create({
     alignSelf: 'stretch',
     backgroundColor: colors.black,
     borderRadius: radii.md,
-    paddingVertical: spacing.md,
+    paddingVertical: 16,
     alignItems: 'center',
-    marginBottom: spacing.sm,
+    marginBottom: spacing.xs,
   },
   subscribeButtonDisabled: {
     opacity: 0.6,
   },
   subscribeText: {
-    fontFamily: fonts.bodyBold,
+    fontFamily: fonts.display,
     fontSize: fontSizes.md,
     color: colors.white,
+    letterSpacing: 0.2,
+  },
+  trustText: {
+    fontFamily: fonts.body,
+    fontSize: 12,
+    color: colors.gray400,
+    marginBottom: spacing.sm,
+    marginTop: spacing.xs,
   },
   restoreButton: {
     paddingVertical: spacing.sm,

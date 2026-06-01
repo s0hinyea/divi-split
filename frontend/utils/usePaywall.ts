@@ -2,12 +2,13 @@ import { useEffect, useState, useCallback } from 'react';
 import Purchases, { LOG_LEVEL, PurchasesPackage } from 'react-native-purchases';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
+import { supabase } from '@/lib/supabase';
 
 const RC_API_KEY = process.env.EXPO_PUBLIC_REVENUECAT_API_KEY ?? '';
 const ENTITLEMENT_ID = 'Divi Pro';
 const SCAN_COUNT_KEY = '@divi_scan_count';
 const MOCK_SUBSCRIBED_KEY = '@divi_mock_subscribed';
-const FREE_SCAN_LIMIT = 3;
+export const FREE_SCAN_LIMIT = 3;
 
 const isExpoGo = Constants.appOwnership === 'expo';
 let rcConfigured = false;
@@ -32,6 +33,27 @@ function configureRC() {
   rcConfigured = true;
 }
 
+async function getUserId(): Promise<string | null> {
+  const { data } = await supabase.auth.getUser();
+  return data.user?.id ?? null;
+}
+
+async function fetchServerScanCount(userId: string): Promise<number> {
+  const { data } = await supabase
+    .from('profiles')
+    .select('ai_scan_count')
+    .eq('id', userId)
+    .single();
+  return data?.ai_scan_count ?? 0;
+}
+
+async function incrementServerScanCount(userId: string, newCount: number): Promise<void> {
+  await supabase
+    .from('profiles')
+    .update({ ai_scan_count: newCount })
+    .eq('id', userId);
+}
+
 export function usePaywall() {
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -39,6 +61,7 @@ export function usePaywall() {
   const [currentPackage, setCurrentPackage] = useState<PurchasesPackage | null>(null);
   const [purchaseError, setPurchaseError] = useState<string | null>(null);
   const [scanCount, setScanCount] = useState(0);
+  const [userId, setUserId] = useState<string | null>(null);
 
   const scansRemaining = Math.max(0, FREE_SCAN_LIMIT - scanCount);
 
@@ -47,7 +70,6 @@ export function usePaywall() {
 
     const init = async () => {
       try {
-        // In Expo Go, skip native Purchases calls and use mocks
         if (isExpoGo) {
           const [storedCount, storedSub] = await Promise.all([
             AsyncStorage.getItem(SCAN_COUNT_KEY),
@@ -60,16 +82,19 @@ export function usePaywall() {
           return;
         }
 
-        const [customerInfo, stored, offerings] = await Promise.all([
+        const uid = await getUserId();
+        setUserId(uid);
+
+        const [customerInfo, offerings, serverCount] = await Promise.all([
           Purchases.getCustomerInfo(),
-          AsyncStorage.getItem(SCAN_COUNT_KEY),
           Purchases.getOfferings(),
+          uid ? fetchServerScanCount(uid) : Promise.resolve(0),
         ]);
 
         setIsSubscribed(
           customerInfo.entitlements.active[ENTITLEMENT_ID] !== undefined
         );
-        setScanCount(stored ? parseInt(stored, 10) : 0);
+        setScanCount(serverCount);
 
         const pkg =
           offerings.current?.monthly ??
@@ -97,17 +122,21 @@ export function usePaywall() {
     }
 
     setScanCount(newCount);
-    await AsyncStorage.setItem(SCAN_COUNT_KEY, String(newCount));
+
+    if (isExpoGo) {
+      await AsyncStorage.setItem(SCAN_COUNT_KEY, String(newCount));
+    } else if (userId) {
+      await incrementServerScanCount(userId, newCount);
+    }
 
     return true;
-  }, [isSubscribed, scanCount]);
+  }, [isSubscribed, scanCount, userId]);
 
   const purchaseSubscription = useCallback(async () => {
     if (!currentPackage) return;
     setPurchaseError(null);
 
     if (isExpoGo) {
-      // Simulate network request
       await new Promise((resolve) => setTimeout(resolve, 1500));
       setIsSubscribed(true);
       setPaywallVisible(false);
@@ -159,9 +188,8 @@ export function usePaywall() {
   const clearMockSubscription = useCallback(async () => {
     if (isExpoGo) {
       setIsSubscribed(false);
-      await AsyncStorage.removeItem(MOCK_SUBSCRIBED_KEY);
-      // Reset scan count for easier testing too
       setScanCount(0);
+      await AsyncStorage.removeItem(MOCK_SUBSCRIBED_KEY);
       await AsyncStorage.removeItem(SCAN_COUNT_KEY);
     }
   }, []);
