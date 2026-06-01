@@ -19,9 +19,9 @@ try {
 	GoogleSignin = gsi.GoogleSignin;
 	statusCodes = gsi.statusCodes;
 	GoogleSignin.configure({
-		webClientId: "944876518323-m3696ld877odr0d2tlkv1stjeu8o1b9m.apps.googleusercontent.com",
-		iosClientId: "944876518323-9jj4llibmjk07dk10qa2l1beuk1bcdtd.apps.googleusercontent.com",
-		iosUrlScheme: "com.googleusercontent.apps.944876518323-9jj4llibmjk07dk10qa2l1beuk1bcdtd",
+		webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ?? "",
+		iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID ?? "",
+		iosUrlScheme: `com.googleusercontent.apps.${(process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID ?? "").replace(".apps.googleusercontent.com", "")}`,
 		scopes: ["profile", "email"],
 	});
 } catch {

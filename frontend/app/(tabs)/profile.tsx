@@ -270,7 +270,7 @@ export default function Profile() {
                     text: 'Email Support',
                     style: 'destructive',
                     onPress: () => {
-                        Linking.openURL(`mailto:suppport@divi.app?subject=Account Deletion Request&body=Please delete my account: ${session?.user?.email}`);
+                        Linking.openURL(`mailto:support@divi.app?subject=Account Deletion Request&body=Please delete my account: ${session?.user?.email}`);
                     },
                 },
             ]
