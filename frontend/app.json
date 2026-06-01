@@ -110,7 +110,15 @@
         }
       ],
       "@react-native-community/datetimepicker",
-      "@sentry/react-native"
+      "@sentry/react-native",
+      [
+        "@sentry/react-native/expo",
+        {
+          "url": "https://sentry.io/",
+          "project": "react-native",
+          "organization": "divi-gj"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

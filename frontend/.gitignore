@@ -9,3 +9,4 @@ expo-env.d.ts
 android/
 
 .env.local
+ios/sentry.properties
