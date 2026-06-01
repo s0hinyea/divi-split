@@ -67,7 +67,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
           style={[styles.toast, { transform: [{ translateY }], opacity }]}
         >
           <MaterialIcons name={iconMap[type] as any} size={18} color={accentColor[type]} />
-          <Text style={styles.toastText} numberOfLines={2}>{message}</Text>
+          <Text style={styles.toastText}>{message}</Text>
         </Animated.View>
       )}
     </ToastContext.Provider>
@@ -81,11 +81,11 @@ const styles = StyleSheet.create({
     left: spacing.lg,
     right: spacing.lg,
     backgroundColor: colors.white,
-    borderRadius: radii.full,
-    paddingVertical: spacing.sm + 4,
+    borderRadius: radii.lg,
+    paddingVertical: spacing.md,
     paddingHorizontal: spacing.lg,
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: spacing.sm,
     shadowColor: colors.black,
     shadowOffset: { width: 0, height: 4 },
