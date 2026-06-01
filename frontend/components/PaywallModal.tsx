@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Modal,
   View,
@@ -41,26 +41,39 @@ export default function PaywallModal({
   purchaseError,
   scanCount,
 }: Props) {
-  const slideAnim = useRef(new Animated.Value(500)).current;
+  const slideAnim = useRef(new Animated.Value(0)).current;
+  const [modalVisible, setModalVisible] = useState(false);
+  const [sheetHeight, setSheetHeight] = useState(620);
   const [purchasing, setPurchasing] = React.useState(false);
   const [restoring, setRestoring] = React.useState(false);
 
+  const translateY = slideAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [sheetHeight, 0],
+  });
+
   useEffect(() => {
     if (visible) {
+      setModalVisible(true);
       Animated.spring(slideAnim, {
-        toValue: 0,
+        toValue: 1,
         useNativeDriver: true,
-        tension: 60,
+        tension: 70,
         friction: 12,
-      }).start();
-    } else {
-      Animated.timing(slideAnim, {
-        toValue: 500,
-        duration: 250,
-        useNativeDriver: true,
       }).start();
     }
   }, [visible]);
+
+  const handleClose = () => {
+    Animated.timing(slideAnim, {
+      toValue: 0,
+      duration: 220,
+      useNativeDriver: true,
+    }).start(() => {
+      setModalVisible(false);
+      onClose();
+    });
+  };
 
   const price = currentPackage?.product?.price ?? 4.99;
   const priceString = currentPackage?.product?.priceString ?? '$4.99';
@@ -87,18 +100,19 @@ export default function PaywallModal({
 
   return (
     <Modal
-      visible={visible}
+      visible={modalVisible}
       transparent
-      animationType="none"
+      animationType="fade"
       statusBarTranslucent
-      onRequestClose={onClose}
+      onRequestClose={handleClose}
     >
-      <Pressable style={styles.backdrop} onPress={onClose}>
+      <Pressable style={styles.backdrop} onPress={handleClose}>
         <BlurView intensity={25} style={StyleSheet.absoluteFill} />
       </Pressable>
 
       <Animated.View
-        style={[styles.sheet, { transform: [{ translateY: slideAnim }] }]}
+        onLayout={(e) => setSheetHeight(e.nativeEvent.layout.height)}
+        style={[styles.sheet, { transform: [{ translateY }] }]}
       >
         {/* Drag handle */}
         <View style={styles.handle} />
@@ -106,7 +120,7 @@ export default function PaywallModal({
         {/* Close */}
         <TouchableOpacity
           style={styles.closeButton}
-          onPress={onClose}
+          onPress={handleClose}
           hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
         >
           <MaterialIcons name="close" size={20} color={colors.gray400} />

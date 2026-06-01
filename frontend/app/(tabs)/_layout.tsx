@@ -96,7 +96,7 @@ export default function TabsLayout() {
         }, 150);
     };
 
-    const bottomSheetHeight = screenHeight * 0.36;
+    const bottomSheetHeight = screenHeight * 0.30;
 
     return (
         <>
@@ -199,37 +199,37 @@ export default function TabsLayout() {
 
                                 <Text style={[styles.sheetTitle, { color: C.black }]}>Add a receipt</Text>
 
-                                <TouchableOpacity
-                                    style={[
-                                        styles.sheetOption,
-                                        { borderColor: C.gray200 },
-                                        selectedOption === 'scan' && { borderColor: C.green, backgroundColor: colors.greenLight },
-                                    ]}
-                                    onPress={() => handleOptionPress('scan')}
-                                    activeOpacity={0.7}
-                                >
-                                    <View style={[styles.sheetOptionIcon, { backgroundColor: C.gray100 }]}>
-                                        <MaterialIcons name="camera-alt" size={22} color={C.green} />
-                                    </View>
-                                    <Text style={[styles.sheetOptionText, { color: C.black }]}>Scan with camera</Text>
-                                    <MaterialIcons name="chevron-right" size={20} color={C.gray400} />
-                                </TouchableOpacity>
+                                <View style={styles.sheetOptionsRow}>
+                                    <TouchableOpacity
+                                        style={[
+                                            styles.sheetOptionCard,
+                                            { borderColor: C.gray200, backgroundColor: C.white },
+                                            selectedOption === 'scan' && styles.sheetOptionCardSelected,
+                                        ]}
+                                        onPress={() => handleOptionPress('scan')}
+                                        activeOpacity={0.7}
+                                    >
+                                        <View style={[styles.sheetOptionIcon, { backgroundColor: selectedOption === 'scan' ? colors.greenLight : C.gray100 }]}>
+                                            <MaterialIcons name="camera-alt" size={26} color={colors.green} />
+                                        </View>
+                                        <Text style={[styles.sheetOptionText, { color: C.black }]}>Scan with{'\n'}camera</Text>
+                                    </TouchableOpacity>
 
-                                <TouchableOpacity
-                                    style={[
-                                        styles.sheetOption,
-                                        { borderColor: C.gray200 },
-                                        selectedOption === 'library' && { borderColor: C.green, backgroundColor: colors.greenLight },
-                                    ]}
-                                    onPress={() => handleOptionPress('library')}
-                                    activeOpacity={0.7}
-                                >
-                                    <View style={[styles.sheetOptionIcon, { backgroundColor: C.gray100 }]}>
-                                        <MaterialIcons name="photo-library" size={22} color={C.green} />
-                                    </View>
-                                    <Text style={[styles.sheetOptionText, { color: C.black }]}>Pick from gallery</Text>
-                                    <MaterialIcons name="chevron-right" size={20} color={C.gray400} />
-                                </TouchableOpacity>
+                                    <TouchableOpacity
+                                        style={[
+                                            styles.sheetOptionCard,
+                                            { borderColor: C.gray200, backgroundColor: C.white },
+                                            selectedOption === 'library' && styles.sheetOptionCardSelected,
+                                        ]}
+                                        onPress={() => handleOptionPress('library')}
+                                        activeOpacity={0.7}
+                                    >
+                                        <View style={[styles.sheetOptionIcon, { backgroundColor: selectedOption === 'library' ? colors.greenLight : C.gray100 }]}>
+                                            <MaterialIcons name="photo-library" size={26} color={colors.green} />
+                                        </View>
+                                        <Text style={[styles.sheetOptionText, { color: C.black }]}>Pick from{'\n'}gallery</Text>
+                                    </TouchableOpacity>
+                                </View>
 
                             </Animated.View>
                         </TouchableWithoutFeedback>
@@ -302,26 +302,38 @@ const styles = StyleSheet.create({
         fontSize: 18,
         marginBottom: spacing.md,
     },
-    sheetOption: {
+    sheetOptionsRow: {
         flexDirection: 'row',
-        alignItems: 'center',
         gap: spacing.md,
-        paddingVertical: spacing.md,
-        paddingHorizontal: spacing.md,
-        borderRadius: radii.md,
-        borderWidth: 1,
-        marginBottom: spacing.sm,
+    },
+    sheetOptionCard: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: spacing.sm,
+        paddingVertical: spacing.lg,
+        borderRadius: radii.lg,
+        borderWidth: 1.5,
+    },
+    sheetOptionCardSelected: {
+        borderColor: colors.green,
+        backgroundColor: colors.greenLight,
+        shadowColor: colors.green,
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.3,
+        shadowRadius: 12,
+        elevation: 4,
     },
     sheetOptionIcon: {
-        width: 40,
-        height: 40,
-        borderRadius: radii.sm,
+        width: 52,
+        height: 52,
+        borderRadius: radii.md,
         justifyContent: 'center',
         alignItems: 'center',
     },
     sheetOptionText: {
-        flex: 1,
         fontFamily: fonts.bodySemiBold,
-        fontSize: 16,
+        fontSize: 14,
+        textAlign: 'center',
     },
 });
