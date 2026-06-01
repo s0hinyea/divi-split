@@ -263,18 +263,56 @@ export default function Profile() {
     const handleAccountDeletion = () => {
         Alert.alert(
             'Delete Account',
-            'To permanently delete your account and all associated data, please email us from the address on your account. We process deletions within 30 days.',
+            'This will permanently delete your account and all your receipts, contacts, and data. This cannot be undone.',
             [
                 { text: 'Cancel', style: 'cancel' },
                 {
-                    text: 'Email Support',
+                    text: 'Delete My Account',
                     style: 'destructive',
                     onPress: () => {
-                        Linking.openURL(`mailto:support@divi.app?subject=Account Deletion Request&body=Please delete my account: ${session?.user?.email}`);
+                        Alert.alert(
+                            'Are you sure?',
+                            'Your account and all data will be gone forever.',
+                            [
+                                { text: 'Go Back', style: 'cancel' },
+                                {
+                                    text: 'Yes, Delete',
+                                    style: 'destructive',
+                                    onPress: confirmAccountDeletion,
+                                },
+                            ]
+                        );
                     },
                 },
             ]
         );
+    };
+
+    const confirmAccountDeletion = async () => {
+        try {
+            const { data: { session: currentSession } } = await supabase.auth.getSession();
+            const token = currentSession?.access_token;
+            if (!token) throw new Error('Not authenticated');
+
+            const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+            const res = await fetch(`${supabaseUrl}/functions/v1/delete-account`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`,
+                },
+            });
+
+            if (!res.ok) {
+                const body = await res.json().catch(() => ({}));
+                throw new Error(body.error ?? 'Failed to delete account');
+            }
+
+            await supabase.auth.signOut();
+            router.replace('/home');
+        } catch (e: any) {
+            Alert.alert('Error', e.message ?? 'Something went wrong. Please try again.');
+        }
     };
 
     const handleSave = async () => {
