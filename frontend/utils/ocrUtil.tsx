@@ -103,9 +103,8 @@ export const handleOCR = async (
 			title = 'Request Timed Out';
 			body = 'The server took too long to respond. This can happen with large or blurry images. Try again with a clearer photo.';
 		} else if (message.startsWith('NOT_RECEIPT:')) {
-			title = 'Not a Receipt 🧾';
-			const reason = message.replace('NOT_RECEIPT:', '');
-			body = reason || "That doesn't look like a receipt. Point your camera at a printed bill or check and try again.";
+			title = 'No Receipt Found';
+			body = "This image doesn't appear to contain receipt information. Please scan a printed bill or check.";
 		} else if (message === 'NO_ITEMS') {
 			title = 'No Items Found';
 			body = "We couldn't detect any items on this receipt. Make sure the receipt is well-lit and fully visible, then try again.";
