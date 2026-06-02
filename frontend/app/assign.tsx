@@ -186,6 +186,26 @@ export default function AssignAmounts() {
     router.push("/review");
   }, [setUserItems, router]);
 
+  const splitEvenly = useCallback(() => {
+    const store = useSplitStore.getState();
+    const allItems = 'items' in store.receiptData
+      ? store.receiptData.items.filter(item => !/tax/i.test(item.name))
+      : [];
+    const subtotal = allItems.reduce((sum, item) => sum + item.price, 0);
+    const N = store.selected.length + 1;
+    const sharePerPerson = Math.round((subtotal / N) * 100) / 100;
+    const userShare = Math.round((subtotal - sharePerPerson * store.selected.length) * 100) / 100;
+
+    useSplitStore.setState({
+      selected: store.selected.map(contact => ({
+        ...contact,
+        items: [{ id: `even_${contact.id}`, name: 'Even split', price: sharePerPerson }],
+      })),
+    });
+    setUserItems([{ id: 'even_user', name: 'Even split', price: userShare }]);
+    router.push('/review');
+  }, [setUserItems, router]);
+
   // Auto-navigate after voice agent acts in fork mode
   useEffect(() => {
     if (agentDidAct && mode === 'fork') {
@@ -360,13 +380,23 @@ export default function AssignAmounts() {
             <MaterialIcons name="check" size={18} color={colors.white} />
             <Text style={styles.continueReviewText}>Looks good</Text>
           </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.manualButton}
-            onPress={() => setMode('manual')}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.manualButtonText}>Assign manually</Text>
-          </TouchableOpacity>
+          <View style={styles.splitRow}>
+            <TouchableOpacity
+              style={styles.splitEvenlyButton}
+              onPress={splitEvenly}
+              activeOpacity={0.8}
+            >
+              <MaterialIcons name="call-split" size={16} color={colors.black} />
+              <Text style={styles.manualButtonText}>Split evenly</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.manualButton}
+              onPress={() => setMode('manual')}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.manualButtonText}>Assign manually</Text>
+            </TouchableOpacity>
+          </View>
           <Text style={styles.manualHint}>Go person by person</Text>
         </View>
 
@@ -762,8 +792,24 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.md,
     color: colors.white,
   },
-  manualButton: {
+  splitRow: {
+    flexDirection: 'row',
     width: '100%',
+    gap: spacing.md,
+  },
+  splitEvenlyButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    paddingVertical: spacing.md + 2,
+    borderRadius: radii.lg,
+    borderWidth: 1.5,
+    borderColor: colors.gray300,
+  },
+  manualButton: {
+    flex: 1,
     paddingVertical: spacing.md + 2,
     borderRadius: radii.lg,
     borderWidth: 1.5,
