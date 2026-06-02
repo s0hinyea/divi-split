@@ -393,9 +393,6 @@ export default function ReviewPage() {
             </Text>
           </View>
           <View style={styles.headerRight}>
-            {agent.lastDurationMs != null && !agent.loading && !agent.isTranscribing && (
-              <Text style={styles.timingBadge}>{(agent.lastDurationMs / 1000).toFixed(1)}s</Text>
-            )}
             <TouchableOpacity onPress={() => router.replace('/(tabs)')} style={styles.homeButton}>
               <MaterialIcons name="home" size={20} color={colors.gray400} />
             </TouchableOpacity>
@@ -897,11 +894,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-  },
-  timingBadge: {
-    fontFamily: fonts.body,
-    fontSize: fontSizes.xs,
-    color: colors.gray400,
   },
   modalOverlay: {
     flex: 1,

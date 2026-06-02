@@ -195,6 +195,7 @@ export function useResultAgent(addChange: (c: Change) => void) {
           duration_ms?: number;
         };
         setLastDurationMs(duration_ms ?? null);
+        console.log(`[result-agent] duration: ${duration_ms != null ? `${duration_ms}ms` : 'n/a'}`);
 
         console.log(`[result-agent] reply: "${reply}", actions: ${actions?.length ?? 0}`);
         console.time('[result-agent] execute actions');

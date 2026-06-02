@@ -205,6 +205,7 @@ export function useAgentChat() {
           duration_ms?: number;
         };
         setLastDurationMs(duration_ms ?? null);
+        console.log(`[agent-chat] duration: ${duration_ms != null ? `${duration_ms}ms` : 'n/a'}`);
 
         // Snapshot before mutating so undo can restore
         const preStore = useSplitStore.getState();

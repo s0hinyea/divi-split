@@ -117,6 +117,7 @@ export function useReviewAgent(
           duration_ms?: number;
         };
         setLastDurationMs(duration_ms ?? null);
+        console.log(`[review-agent] duration: ${duration_ms != null ? `${duration_ms}ms` : 'n/a'}`);
 
         const summary: ActionSummary[] = [];
         if (actions?.length > 0) {
