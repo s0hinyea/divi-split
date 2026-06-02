@@ -10,7 +10,7 @@
     "userInterfaceStyle": "light",
     "newArchEnabled": false,
     "ios": {
-      "supportsTablet": true,
+      "supportsTablet": false,
       "bundleIdentifier": "com.sohi.divi",
       "buildNumber": "57",
       "infoDictionary": {
