@@ -12,7 +12,7 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.sohi.divi",
-      "buildNumber": "57",
+      "buildNumber": "59",
       "infoDictionary": {
         "NSCameraUsageDescription": "Divi needs access to your camera to scan receipts.",
         "NSPhotoLibraryUsageDescription": "Divi needs access to your photos so you can upload receipts.",
