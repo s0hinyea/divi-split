@@ -191,21 +191,7 @@ export default function Home() {
 						}
 					</TouchableOpacity>
 
-					{/* Google */}
-					<TouchableOpacity
-						style={[styles.googleButton, loadingGoogle && styles.buttonDisabled]}
-						activeOpacity={0.85}
-						onPress={handleGoogleSignIn}
-						disabled={loadingApple || loadingGoogle}
-					>
-						{loadingGoogle
-							? <ActivityIndicator color={BLACK} />
-							: <>
-								<Ionicons name="logo-google" size={18} color={BLACK} />
-								<Text style={styles.googleText}>Continue with Google</Text>
-							</>
-						}
-					</TouchableOpacity>
+					{/* Google sign-in hidden for now */}
 
 					{/* Divider */}
 					<View style={styles.orRow}>

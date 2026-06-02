@@ -245,7 +245,6 @@ export default function Onboarding() {
 										onChangeText={setVenmo}
 										autoCapitalize="none"
 										maxLength={30}
-										autoFocus
 									/>
 								</View>
 
