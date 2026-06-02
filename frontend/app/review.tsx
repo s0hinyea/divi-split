@@ -29,6 +29,9 @@ export default function ReviewPage() {
   const updateReceipt = useSplitStore((state) => state.updateReceipt);
   const updateContactName = useSplitStore((state) => state.updateContactName);
   const resetStore = useSplitStore((state) => state.resetStore);
+  const splitEvenlySnapshot = useSplitStore((state) => state.splitEvenlySnapshot);
+  const setSplitEvenlySnapshot = useSplitStore((state) => state.setSplitEvenlySnapshot);
+  const setUserItems = useSplitStore((state) => state.setUserItems);
   const editingReceiptId = useSplitStore((state) => state.editingReceiptId);
   const editingReceiptName = useSplitStore((state) => state.editingReceiptName);
   const editingReceiptCreatedAt = useSplitStore((state) => state.editingReceiptCreatedAt);
@@ -382,7 +385,14 @@ export default function ReviewPage() {
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <TouchableOpacity
-              onPress={() => router.back()}
+              onPress={() => {
+                if (splitEvenlySnapshot) {
+                  useSplitStore.setState({ selected: splitEvenlySnapshot.selected });
+                  setUserItems(splitEvenlySnapshot.userItems);
+                  setSplitEvenlySnapshot(null);
+                }
+                router.back();
+              }}
               style={{ marginRight: spacing.sm }}
             >
               <MaterialIcons name="arrow-back" size={28} color={colors.black} />

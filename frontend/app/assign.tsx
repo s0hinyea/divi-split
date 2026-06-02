@@ -196,6 +196,12 @@ export default function AssignAmounts() {
     const sharePerPerson = Math.round((subtotal / N) * 100) / 100;
     const userShare = Math.round((subtotal - sharePerPerson * store.selected.length) * 100) / 100;
 
+    // Snapshot before overwriting so back button can restore
+    store.setSplitEvenlySnapshot({
+      selected: JSON.parse(JSON.stringify(store.selected)),
+      userItems: [...(store.receiptData.userItems ?? [])],
+    });
+
     useSplitStore.setState({
       selected: store.selected.map(contact => ({
         ...contact,

@@ -66,6 +66,10 @@ interface SplitState {
     setCurrentStep: (step: 'contacts' | 'result' | 'assign' | 'review' | null) => void;
     setResumeContactIndex: (index: number) => void;
 
+    // Split evenly undo snapshot
+    splitEvenlySnapshot: { selected: Contact[]; userItems: ReceiptItem[] } | null;
+    setSplitEvenlySnapshot: (snap: { selected: Contact[]; userItems: ReceiptItem[] } | null) => void;
+
     resetStore: () => void;
     // Completion overlay
     showCompletion: boolean;
@@ -91,6 +95,9 @@ export const useSplitStore = create<SplitState>((set, get) => ({
     editingReceiptCreatedAt: '',
     currentStep: null,
     resumeContactIndex: 0,
+
+    splitEvenlySnapshot: null,
+    setSplitEvenlySnapshot: (snap) => set({ splitEvenlySnapshot: snap }),
 
     setCurrentStep: (step) => set({ currentStep: step }),
     setResumeContactIndex: (index) => set({ resumeContactIndex: index }),
@@ -334,6 +341,7 @@ export const useSplitStore = create<SplitState>((set, get) => ({
         editingReceiptCreatedAt: '',
         currentStep: null,
         resumeContactIndex: 0,
+        splitEvenlySnapshot: null,
     }),
 
     // Completion overlay actions
