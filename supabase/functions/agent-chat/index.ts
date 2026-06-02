@@ -112,6 +112,16 @@ const TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
 
 // ── System prompt builder ────────────────────────────────────────────────────
 
+const STATIC_SYSTEM_PROMPT = `You are Divi's receipt-splitting assistant. Help the user assign receipt items to the correct people using the available tools.
+
+RULES:
+- Use EXACT item IDs and contact IDs from the CURRENT STATE below — never invent IDs.
+- "me", "I", "myself", "my" → use assign_to_user.
+- Splitting an item → use split_item_between with exactly 2 assignees.
+- Always call tools BEFORE responding. Confirm what you did in 1–2 short sentences.
+- If a name is ambiguous (multiple contacts with similar names), ask for clarification.
+- If the user says something unrelated to splitting, gently redirect.`;
+
 function buildSystemPrompt(state: ReceiptState): string {
   const assignedIds = new Set([
     ...state.contacts.flatMap((c) => c.items.map((i) => i.id)),
@@ -128,8 +138,9 @@ function buildSystemPrompt(state: ReceiptState): string {
     .map((c) => `  ${c.name} [id:${c.id}]\n${fmtItems(c.items)}`)
     .join("\n");
 
-  return `You are Divi's receipt-splitting assistant. Help the user assign receipt items to the correct people using the available tools.
+  return `${STATIC_SYSTEM_PROMPT}
 
+CURRENT STATE:
 RECEIPT TOTALS: $${(state.total ?? 0).toFixed(2)} total | tax $${(state.tax ?? 0).toFixed(2)} | tip $${(state.tip ?? 0).toFixed(2)}
 
 UNASSIGNED ITEMS (these need to be assigned):
@@ -139,15 +150,7 @@ CONTACTS AND THEIR CURRENT ITEMS:
 ${contactBlock || "  (no contacts)"}
 
 CURRENT USER'S ITEMS:
-${fmtItems(state.userItems)}
-
-RULES:
-- Use EXACT item IDs and contact IDs from the lists above — never invent IDs.
-- "me", "I", "myself", "my" → use assign_to_user.
-- Splitting an item → use split_item_between with exactly 2 assignees.
-- Always call tools BEFORE responding. Confirm what you did in 1–2 short sentences.
-- If a name is ambiguous (multiple contacts with similar names), ask for clarification.
-- If the user says something unrelated to splitting, gently redirect.`;
+${fmtItems(state.userItems)}`;
 }
 
 // ── Stateful simulation of tool effects ─────────────────────────────────────
@@ -263,19 +266,6 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-    );
-    const { data: { user }, error: authError } = await supabase.auth.getUser(
-      authHeader.replace("Bearer ", ""),
-    );
-    if (authError || !user) {
-      return new Response(JSON.stringify({ error: "Invalid token" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
 
     const apiKey = Deno.env.get("OPENAI_API_KEY");
     if (!apiKey) {
@@ -285,11 +275,27 @@ Deno.serve(async (req) => {
       });
     }
 
-    const body = await req.json() as {
-      message: string;
-      history?: OpenAI.Chat.Completions.ChatCompletionMessageParam[];
-      state: ReceiptState;
-    };
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+    );
+
+    // Parallel: verify auth token and parse request body simultaneously
+    const [{ data: { user }, error: authError }, body] = await Promise.all([
+      supabase.auth.getUser(authHeader.replace("Bearer ", "")),
+      req.json() as Promise<{
+        message: string;
+        history?: OpenAI.Chat.Completions.ChatCompletionMessageParam[];
+        state: ReceiptState;
+      }>,
+    ]);
+
+    if (authError || !user) {
+      return new Response(JSON.stringify({ error: "Invalid token" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const { message, history = [], state } = body;
 
