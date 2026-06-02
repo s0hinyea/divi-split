@@ -151,23 +151,6 @@ const TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
 
 // ── System prompt ─────────────────────────────────────────────────────────────
 
-const STATIC_SYSTEM_PROMPT = `You are Divi's review assistant. Help the user finalize their receipt split before sending.
-
-WHAT YOU CAN DO:
-- Rename the receipt → set_receipt_name
-- Change the date → set_receipt_date (ISO format YYYY-MM-DD)
-- Rename a contact → rename_contact
-- Adjust tax or tip amounts → update_tax / update_tip
-- Move an item between people → move_item
-- Send the summary and finish → trigger_dispatch
-
-RULES:
-- Use EXACT item IDs and contact IDs from the CURRENT STATE below — never invent IDs.
-- "me", "I", "myself", "my" → use 'user' as the contact ID.
-- Always call tools BEFORE responding in text. Confirm what you did in 1–2 short sentences.
-- If the user says "send", "dispatch", "done", "finish", or "go" → call trigger_dispatch.
-- If something is ambiguous, ask for clarification before acting.`;
-
 function buildSystemPrompt(state: ReviewState): string {
   const fmtItems = (items: ReceiptItem[]) =>
     items.length > 0
@@ -178,9 +161,8 @@ function buildSystemPrompt(state: ReviewState): string {
     .map((c) => `  ${c.name} [id:${c.id}]\n${fmtItems(c.items)}`)
     .join("\n");
 
-  return `${STATIC_SYSTEM_PROMPT}
+  return `You are Divi's review assistant. Help the user finalize their receipt split before sending.
 
-CURRENT STATE:
 RECEIPT: "${state.receiptName || "(unnamed)"}" | Date: ${state.receiptDate}
 TOTALS: $${state.total.toFixed(2)} total | tax $${state.tax.toFixed(2)} | tip $${state.tip.toFixed(2)}
 
@@ -188,7 +170,22 @@ CONTACTS AND THEIR CURRENT ITEMS:
 ${contactBlock || "  (no contacts)"}
 
 CURRENT USER'S ITEMS:
-${fmtItems(state.userItems)}`;
+${fmtItems(state.userItems)}
+
+WHAT YOU CAN DO:
+- Rename the receipt → set_receipt_name
+- Change the date → set_receipt_date (ISO format YYYY-MM-DD)
+- Rename a contact → rename_contact
+- Adjust tax or tip amounts → update_tax / update_tip
+- Move an item between people → move_item
+- Send the summary and finish → trigger_dispatch
+
+RULES:
+- Use EXACT item IDs and contact IDs from the lists above — never invent IDs.
+- "me", "I", "myself", "my" → use 'user' as the contact ID.
+- Always call tools BEFORE responding in text. Confirm what you did in 1–2 short sentences.
+- If the user says "send", "dispatch", "done", "finish", or "go" → call trigger_dispatch.
+- If something is ambiguous, ask for clarification before acting.`;
 }
 
 // ── Stateful tool simulation ──────────────────────────────────────────────────
@@ -310,6 +307,19 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+    );
+    const { data: { user }, error: authError } = await supabase.auth.getUser(
+      authHeader.replace("Bearer ", ""),
+    );
+    if (authError || !user) {
+      return new Response(JSON.stringify({ error: "Invalid token" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const apiKey = Deno.env.get("OPENAI_API_KEY");
     if (!apiKey) {
@@ -319,27 +329,11 @@ Deno.serve(async (req) => {
       });
     }
 
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-    );
-
-    // Parallel: verify auth token and parse request body simultaneously
-    const [{ data: { user }, error: authError }, body] = await Promise.all([
-      supabase.auth.getUser(authHeader.replace("Bearer ", "")),
-      req.json() as Promise<{
-        message: string;
-        history?: OpenAI.Chat.Completions.ChatCompletionMessageParam[];
-        state: ReviewState;
-      }>,
-    ]);
-
-    if (authError || !user) {
-      return new Response(JSON.stringify({ error: "Invalid token" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    const body = (await req.json()) as {
+      message: string;
+      history?: OpenAI.Chat.Completions.ChatCompletionMessageParam[];
+      state: ReviewState;
+    };
 
     const { message, history = [], state } = body;
 
@@ -369,7 +363,7 @@ Deno.serve(async (req) => {
       iterations++;
 
       const response = await openai.chat.completions.create({
-        model: "gpt-4o",
+        model: "gpt-4o-mini",
         messages,
         tools: TOOLS,
         tool_choice: "auto",

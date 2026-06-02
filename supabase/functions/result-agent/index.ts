@@ -125,7 +125,23 @@ const TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
 
 // ── System prompt ─────────────────────────────────────────────────────────────
 
-const STATIC_SYSTEM_PROMPT = `You are Divi's receipt editor assistant. Help the user modify their receipt before splitting it with others.
+function buildSystemPrompt(state: ResultState): string {
+  const fmtItems = (items: ReceiptItem[]) =>
+    items.length > 0
+      ? items.map((i) => `  • ${i.name} $${i.price.toFixed(2)} [id:${i.id}]`).join("\n")
+      : "  (none)";
+
+  const subtotal = state.items.reduce((s, i) => s + i.price, 0);
+  const total = subtotal + state.tax + state.tip;
+
+  return `You are Divi's receipt editor assistant. Help the user modify their receipt before splitting it with others.
+
+CURRENT ITEMS:
+${fmtItems(state.items)}
+
+TAX: $${state.tax.toFixed(2)}
+TIP: $${state.tip.toFixed(2)}
+TOTAL: $${total.toFixed(2)}
 
 WHAT YOU CAN DO:
 - Add a new item → add_item
@@ -136,29 +152,10 @@ WHAT YOU CAN DO:
 - Update tip amount → set_tip
 
 RULES:
-- Use EXACT item IDs from the CURRENT STATE below — never invent IDs.
+- Use EXACT item IDs from the list above — never invent IDs.
 - Always call tools BEFORE responding. Confirm what you did in 1–2 short sentences.
 - For edits, preserve the existing name or price if the user only specifies one of them.
 - If something is ambiguous, ask for clarification before acting.`;
-
-function buildSystemPrompt(state: ResultState): string {
-  const fmtItems = (items: ReceiptItem[]) =>
-    items.length > 0
-      ? items.map((i) => `  • ${i.name} $${i.price.toFixed(2)} [id:${i.id}]`).join("\n")
-      : "  (none)";
-
-  const subtotal = state.items.reduce((s, i) => s + i.price, 0);
-  const total = subtotal + state.tax + state.tip;
-
-  return `${STATIC_SYSTEM_PROMPT}
-
-CURRENT STATE:
-ITEMS:
-${fmtItems(state.items)}
-
-TAX: $${state.tax.toFixed(2)}
-TIP: $${state.tip.toFixed(2)}
-TOTAL: $${total.toFixed(2)}`;
 }
 
 // ── Stateful tool simulation ──────────────────────────────────────────────────
@@ -254,6 +251,19 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+    );
+    const { data: { user }, error: authError } = await supabase.auth.getUser(
+      authHeader.replace("Bearer ", ""),
+    );
+    if (authError || !user) {
+      return new Response(JSON.stringify({ error: "Invalid token" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const apiKey = Deno.env.get("OPENAI_API_KEY");
     if (!apiKey) {
@@ -263,27 +273,11 @@ Deno.serve(async (req) => {
       });
     }
 
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-    );
-
-    // Parallel: verify auth token and parse request body simultaneously
-    const [{ data: { user }, error: authError }, body] = await Promise.all([
-      supabase.auth.getUser(authHeader.replace("Bearer ", "")),
-      req.json() as Promise<{
-        message: string;
-        history?: OpenAI.Chat.Completions.ChatCompletionMessageParam[];
-        state: ResultState;
-      }>,
-    ]);
-
-    if (authError || !user) {
-      return new Response(JSON.stringify({ error: "Invalid token" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    const body = (await req.json()) as {
+      message: string;
+      history?: OpenAI.Chat.Completions.ChatCompletionMessageParam[];
+      state: ResultState;
+    };
 
     const { message, history = [], state } = body;
 
@@ -313,7 +307,7 @@ Deno.serve(async (req) => {
       iterations++;
 
       const response = await openai.chat.completions.create({
-        model: "gpt-4o",
+        model: "gpt-4o-mini",
         messages,
         tools: TOOLS,
         tool_choice: "auto",
