@@ -133,6 +133,7 @@ export function useAgentChat() {
   const [error, setError] = useState<string | null>(null);
   const [lastActionSummary, setLastActionSummary] = useState<ActionSummary[] | null>(null);
   const [lastReply, setLastReply] = useState<string | null>(null);
+  const [lastDurationMs, setLastDurationMs] = useState<number | null>(null);
   const snapshotRef = useRef<AssignSnapshot | null>(null);
 
   const sendMessage = useCallback(
@@ -198,10 +199,12 @@ export function useAgentChat() {
           throw new Error(`${response.status}: ${errMsg}`);
         }
 
-        const { reply, actions } = (await response.json()) as {
+        const { reply, actions, duration_ms } = (await response.json()) as {
           reply: string;
           actions: AgentAction[];
+          duration_ms?: number;
         };
+        setLastDurationMs(duration_ms ?? null);
 
         // Snapshot before mutating so undo can restore
         const preStore = useSplitStore.getState();
@@ -252,5 +255,5 @@ export function useAgentChat() {
     setLastReply(null);
   }, []);
 
-  return { loading, error, lastActionSummary, lastReply, sendMessage, undoLastAgentAction };
+  return { loading, error, lastActionSummary, lastReply, lastDurationMs, sendMessage, undoLastAgentAction };
 }

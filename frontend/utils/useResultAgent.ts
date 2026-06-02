@@ -110,6 +110,7 @@ export function useResultAgent(addChange: (c: Change) => void) {
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [lastActionSummary, setLastActionSummary] = useState<ActionSummary[] | null>(null);
+  const [lastDurationMs, setLastDurationMs] = useState<number | null>(null);
 
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const messagesRef = useRef<AgentMessage[]>([]);
@@ -188,10 +189,12 @@ export function useResultAgent(addChange: (c: Change) => void) {
           throw new Error(`${response.status}: ${errMsg}`);
         }
 
-        const { reply, actions } = (await response.json()) as {
+        const { reply, actions, duration_ms } = (await response.json()) as {
           reply: string;
           actions: ResultAction[];
+          duration_ms?: number;
         };
+        setLastDurationMs(duration_ms ?? null);
 
         console.log(`[result-agent] reply: "${reply}", actions: ${actions?.length ?? 0}`);
         console.time('[result-agent] execute actions');
@@ -292,6 +295,7 @@ export function useResultAgent(addChange: (c: Change) => void) {
     loading,
     error,
     lastActionSummary,
+    lastDurationMs,
     isRecording,
     isTranscribing,
     startRecording,

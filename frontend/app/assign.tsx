@@ -541,6 +541,9 @@ export default function AssignAmounts() {
                     </Animated.View>
                   );
                 })}
+                {agent.lastDurationMs != null && (
+                  <Text style={styles.timingLabel}>{(agent.lastDurationMs / 1000).toFixed(1)}s</Text>
+                )}
               </View>
             )}
           </View>
@@ -973,6 +976,13 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bodySemiBold,
     fontSize: fontSizes.xl,
     color: colors.green,
+  },
+  timingLabel: {
+    fontFamily: fonts.body,
+    fontSize: fontSizes.xs,
+    color: colors.gray400,
+    marginTop: spacing.sm,
+    alignSelf: 'flex-end',
   },
   messagePhase: {
     alignItems: 'center',

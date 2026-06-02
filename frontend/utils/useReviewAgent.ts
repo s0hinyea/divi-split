@@ -60,6 +60,7 @@ export function useReviewAgent(
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [lastActionSummary, setLastActionSummary] = useState<ActionSummary[] | null>(null);
+  const [lastDurationMs, setLastDurationMs] = useState<number | null>(null);
 
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const messagesRef = useRef<AgentMessage[]>([]);
@@ -110,10 +111,12 @@ export function useReviewAgent(
           throw new Error((errBody as { error?: string }).error ?? "Agent request failed");
         }
 
-        const { reply, actions } = (await response.json()) as {
+        const { reply, actions, duration_ms } = (await response.json()) as {
           reply: string;
           actions: ReviewAction[];
+          duration_ms?: number;
         };
+        setLastDurationMs(duration_ms ?? null);
 
         const summary: ActionSummary[] = [];
         if (actions?.length > 0) {
@@ -232,6 +235,7 @@ export function useReviewAgent(
     loading,
     error,
     lastActionSummary,
+    lastDurationMs,
     isRecording,
     isTranscribing,
     startRecording,

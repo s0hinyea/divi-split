@@ -344,6 +344,7 @@ Deno.serve(async (req) => {
       });
     }
 
+    const startedAt = Date.now();
     const openai = new OpenAI({ apiKey });
     const actions: ReviewAction[] = [];
     let currentState = state;
@@ -403,7 +404,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    return new Response(JSON.stringify({ reply: finalReply || "Done!", actions }), {
+    return new Response(JSON.stringify({ reply: finalReply || "Done!", actions, duration_ms: Date.now() - startedAt }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
