@@ -285,6 +285,10 @@ export default function AssignAmounts() {
               : 'Anything not assigned goes to you.'}
           </Text>
 
+          {agent.lastDurationMs != null && !agent.loading && !agent.isTranscribing && (
+            <Text style={styles.timingBadge}>{(agent.lastDurationMs / 1000).toFixed(1)}s</Text>
+          )}
+
           {/* Big mic button */}
           <View style={styles.micWrapper}>
             <Animated.View style={[styles.pulseRing, { transform: [{ scale: pulseAnim }] }]} />
@@ -612,6 +616,12 @@ const styles = StyleSheet.create({
     color: colors.gray500,
     textAlign: 'center',
     marginBottom: spacing.xl + spacing.md,
+  },
+  timingBadge: {
+    fontFamily: fonts.body,
+    fontSize: fontSizes.xs,
+    color: colors.gray400,
+    marginBottom: spacing.md,
   },
   micWrapper: {
     alignItems: 'center',

@@ -404,6 +404,10 @@ export default function OCRResults() {
               : 'Tap mic, speak your changes.'}
           </Text>
 
+          {agent.lastDurationMs != null && !agent.loading && !agent.isTranscribing && (
+            <Text style={styles.timingBadge}>{(agent.lastDurationMs / 1000).toFixed(1)}s</Text>
+          )}
+
           <View style={styles.micWrapper}>
             <Animated.View style={[styles.pulseRing, { transform: [{ scale: pulseAnim }] }]} />
             {isProcessing && (
@@ -813,6 +817,12 @@ const styles = StyleSheet.create({
     color: colors.gray500,
     textAlign: 'center',
     marginBottom: spacing.xl + spacing.md,
+  },
+  timingBadge: {
+    fontFamily: fonts.body,
+    fontSize: fontSizes.xs,
+    color: colors.gray400,
+    marginBottom: spacing.md,
   },
   micWrapper: {
     alignItems: 'center',
