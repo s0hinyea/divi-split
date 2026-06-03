@@ -402,18 +402,15 @@ export default function Auth({ initialMode }: AuthProps) {
 					setLoading(false);
 					return;
 				}
-				const { data, error: lookupError } = await supabase
-					.from('profiles')
-					.select('email')
-					.eq('username', cleanUsername)
-					.maybeSingle();
+				const { data: lookedUpEmail, error: lookupError } = await supabase
+					.rpc('get_email_by_username', { p_username: cleanUsername });
 
-				if (lookupError || !data?.email) {
+				if (lookupError || !lookedUpEmail) {
 					setLoginError("No account found with that username.");
 					setLoading(false);
 					return;
 				}
-				loginEmail = data.email;
+				loginEmail = lookedUpEmail;
 			}
 
 			const { error } = await supabase.auth.signInWithPassword({ email: loginEmail, password });

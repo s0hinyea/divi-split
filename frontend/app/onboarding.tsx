@@ -273,7 +273,8 @@ export default function Onboarding() {
 										value={zelle}
 										onChangeText={setZelle}
 										autoCapitalize="none"
-										keyboardType="email-address"
+										keyboardType="default"
+										textContentType="telephoneNumber"
 										maxLength={50}
 									/>
 								</View>

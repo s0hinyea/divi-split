@@ -1,4 +1,4 @@
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useState, useEffect, useRef } from 'react';
 import {
   View, TextInput, StyleSheet, TouchableOpacity, Pressable,
@@ -16,6 +16,8 @@ import { colors, fonts, fontSizes, spacing, radii } from '@/styles/theme';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSplitStore, ReceiptItem, ItemCategory } from '../stores/splitStore';
 import { useResultAgent, ActionSummary } from '../utils/useResultAgent';
+import { useOrchestratorAgent } from '../utils/useOrchestratorAgent';
+import { useOCR } from '../utils/OCRContext';
 import DiviLogoAnimated from '../components/DiviLogoAnimated';
 import { usePaywall } from '../utils/usePaywall';
 import PaywallModal from '../components/PaywallModal';
@@ -35,12 +37,57 @@ export default function OCRResults() {
   const paywall = usePaywall();
   const { showAlert } = useCustomAlert();
 
+  const { voice } = useLocalSearchParams<{ voice?: string }>();
+  const isVoiceSplit = voice === '1';
+  const { isProcessing: ocrProcessing } = useOCR();
+
   const [mode, setMode] = useState<'fork' | 'manual'>('fork');
   const [agentDidAct, setAgentDidAct] = useState(false);
+
+  const orchestrator = useOrchestratorAgent();
 
   useEffect(() => { setCurrentStep('result'); }, []);
 
   const agent = useResultAgent(addChange);
+
+  // ── Orchestrator pulse animation ───────────────────────────────────────────
+  const orchPulseAnim = useRef(new Animated.Value(1)).current;
+  const orchPulseLoopRef = useRef<Animated.CompositeAnimation | null>(null);
+
+  useEffect(() => {
+    if (orchestrator.isRecording) {
+      orchPulseLoopRef.current = Animated.loop(
+        Animated.sequence([
+          Animated.timing(orchPulseAnim, { toValue: 1.25, duration: 700, useNativeDriver: true }),
+          Animated.timing(orchPulseAnim, { toValue: 1, duration: 700, useNativeDriver: true }),
+        ])
+      );
+      orchPulseLoopRef.current.start();
+    } else {
+      orchPulseLoopRef.current?.stop();
+      Animated.timing(orchPulseAnim, { toValue: 1, duration: 200, useNativeDriver: true }).start();
+    }
+    return () => orchPulseLoopRef.current?.stop();
+  }, [orchestrator.isRecording]);
+
+  // ── Orchestrator spin animation ─────────────────────────────────────────────
+  const orchSpinAnim = useRef(new Animated.Value(0)).current;
+  const orchSpinLoopRef = useRef<Animated.CompositeAnimation | null>(null);
+
+  useEffect(() => {
+    if (orchestrator.isBusy) {
+      orchSpinLoopRef.current = Animated.loop(
+        Animated.timing(orchSpinAnim, { toValue: 1, duration: 900, useNativeDriver: true, easing: (t) => t })
+      );
+      orchSpinLoopRef.current.start();
+    } else {
+      orchSpinLoopRef.current?.stop();
+      orchSpinAnim.setValue(0);
+    }
+    return () => orchSpinLoopRef.current?.stop();
+  }, [orchestrator.isBusy]);
+
+  const orchSpinDeg = orchSpinAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
 
   // ── Pulse animation ────────────────────────────────────────────────────────
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -378,6 +425,111 @@ export default function OCRResults() {
       </View>
     </Animated.View>
   );
+
+  // ── Voice split mode ───────────────────────────────────────────────────────
+  if (isVoiceSplit) {
+    const micDisabled = ocrProcessing || orchestrator.isBusy;
+    const micLabel = ocrProcessing
+      ? 'Reading receipt...'
+      : orchestrator.isRecording
+      ? 'Listening...'
+      : orchestrator.isTranscribing
+      ? 'Transcribing...'
+      : orchestrator.isProcessing
+      ? 'Working...'
+      : 'Tap mic to start';
+
+    return (
+      <SafeAreaView style={styles.forkContainer} edges={['top']}>
+        <View style={styles.forkHeader}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+            <MaterialIcons name="arrow-back" size={26} color={colors.black} />
+          </TouchableOpacity>
+          <Text style={styles.forkHeaderTitle}>Voice Split</Text>
+          <TouchableOpacity onPress={() => { useSplitStore.getState().resetStore(); router.replace('/(tabs)'); }} style={styles.homeButton}>
+            <MaterialIcons name="home" size={20} color={colors.gray400} />
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.voiceZone}>
+          <MaterialIcons name="auto-awesome" size={22} color={colors.green} style={{ marginBottom: spacing.md }} />
+          <Text style={styles.voiceTitle}>{micLabel}</Text>
+          <Text style={styles.voiceSubtitle}>
+            {ocrProcessing
+              ? 'Mic activates once receipt is ready'
+              : orchestrator.isRecording
+              ? 'Tap mic when done speaking'
+              : "Say who's splitting and who got what"}
+          </Text>
+
+          <View style={styles.micWrapper}>
+            <Animated.View style={[styles.pulseRing, { transform: [{ scale: orchPulseAnim }] }]} />
+            {orchestrator.isBusy && (
+              <Animated.View style={[styles.spinRing, { transform: [{ rotate: orchSpinDeg }] }]} />
+            )}
+            <TouchableOpacity
+              style={[
+                styles.bigMicButton,
+                orchestrator.isRecording && styles.bigMicButtonActive,
+                micDisabled && !orchestrator.isRecording && styles.bigMicButtonProcessing,
+              ]}
+              onPress={orchestrator.isRecording ? orchestrator.stopAndSend : orchestrator.startRecording}
+              disabled={micDisabled && !orchestrator.isRecording}
+              activeOpacity={0.85}
+            >
+              <MaterialIcons
+                name={orchestrator.isRecording ? 'stop' : ocrProcessing ? 'hourglass-empty' : 'mic'}
+                size={36}
+                color={colors.white}
+              />
+            </TouchableOpacity>
+          </View>
+
+          {orchestrator.unmatched.length > 0 && (
+            <Text style={styles.unmatchedText}>
+              Could not find: {orchestrator.unmatched.join(', ')}
+            </Text>
+          )}
+          {orchestrator.error && (
+            <Text style={[styles.unmatchedText, { color: colors.error }]}>{orchestrator.error}</Text>
+          )}
+        </View>
+
+        <ScrollView
+          style={styles.itemRefList}
+          contentContainerStyle={styles.itemRefContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {displayItems.map((item, i) => (
+            <View key={item.id} style={[styles.voiceItemRow, i < displayItems.length - 1 && styles.voiceItemRowBorder]}>
+              <Text style={styles.voiceItemName} numberOfLines={1}>{item.name}</Text>
+              <Text style={styles.voiceItemPrice}>${item.price.toFixed(2)}</Text>
+            </View>
+          ))}
+          {((receiptData.tax ?? 0) > 0 || (receiptData.tip ?? 0) > 0) && (
+            <View style={styles.itemRefDivider} />
+          )}
+          {(receiptData.tax ?? 0) > 0 && (
+            <View style={styles.voiceItemRow}>
+              <Text style={styles.voiceItemName}>Tax</Text>
+              <Text style={styles.voiceItemPrice}>${(receiptData.tax ?? 0).toFixed(2)}</Text>
+            </View>
+          )}
+          {(receiptData.tip ?? 0) > 0 && (
+            <View style={styles.voiceItemRow}>
+              <Text style={styles.voiceItemName}>Tip</Text>
+              <Text style={styles.voiceItemPrice}>${(receiptData.tip ?? 0).toFixed(2)}</Text>
+            </View>
+          )}
+          <View style={styles.itemRefDivider} />
+          <View style={styles.voiceItemRow}>
+            <Text style={styles.voiceItemTotal}>Total</Text>
+            <Text style={styles.voiceItemTotalAmount}>${calculatedTotal.toFixed(2)}</Text>
+          </View>
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
 
   // ── Fork mode ──────────────────────────────────────────────────────────────
   if (mode === 'fork') {
@@ -1198,6 +1350,47 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bodySemiBold,
     fontSize: fontSizes.md,
     color: colors.white,
+  },
+
+  // ── Voice split mode items ─────────────────────────────────────────────────
+  voiceItemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 11,
+  },
+  voiceItemRowBorder: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.gray200,
+  },
+  voiceItemName: {
+    flex: 1,
+    fontFamily: fonts.bodyBold,
+    fontSize: fontSizes.md,
+    color: colors.black,
+  },
+  voiceItemPrice: {
+    fontFamily: fonts.bodyBold,
+    fontSize: fontSizes.md,
+    color: colors.green,
+  },
+  voiceItemTotal: {
+    flex: 1,
+    fontFamily: fonts.bodyBold,
+    fontSize: fontSizes.lg,
+    color: colors.black,
+  },
+  voiceItemTotalAmount: {
+    fontFamily: fonts.bodyBold,
+    fontSize: fontSizes.lg,
+    color: colors.green,
+  },
+  unmatchedText: {
+    fontFamily: fonts.body,
+    fontSize: fontSizes.sm,
+    color: colors.gray500,
+    textAlign: 'center',
+    marginTop: spacing.sm,
+    paddingHorizontal: spacing.lg,
   },
 
   // ── Overlay ────────────────────────────────────────────────────────────────

@@ -17,7 +17,7 @@ export const handleOCR = async (
 	try {
 		setIsProcessing(true);
 		setError(null);
-		router.push("/contacts");
+		router.push("/split-mode");
 
 		setStatus("Compressing image...");
 		console.time('[ocr] image compression');
@@ -82,6 +82,8 @@ export const handleOCR = async (
 		console.log(`[ocr] items extracted: ${extractedData?.items?.length ?? 0}, confidence: ${extractedData?.confidence ?? 'unknown'}`);
 
 		if (extractedData && "items" in extractedData && extractedData.items.length > 0) {
+			// Filter out $0 items (promo lines, headers, etc.)
+			extractedData.items = extractedData.items.filter((item: any) => item.price > 0);
 			updateReceiptData(extractedData);
 
 			// confidence field is stored in receiptData; review screen shows inline Level 4 warning

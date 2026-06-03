@@ -103,7 +103,17 @@
             box-shadow: 0 1px 4px rgba(0,0,0,0.08);
         }
         .zelle-label { font-size: 12px; color: #999; margin-bottom: 4px; }
+        .zelle-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
         .zelle-number { font-size: 17px; font-weight: 700; color: #6D1ED4; }
+        .zelle-copy-btn {
+            background: none; border: 1.5px solid #6D1ED4; border-radius: 8px;
+            color: #6D1ED4; font-size: 13px; font-weight: 600;
+            padding: 6px 14px; cursor: pointer; flex-shrink: 0;
+            transition: background 0.15s, color 0.15s;
+        }
+        .zelle-copy-btn:active, .zelle-copy-btn.copied {
+            background: #6D1ED4; color: #fff;
+        }
         .sent-btn {
             display: block; width: 100%; max-width: 420px;
             margin-top: 20px; padding: 18px;
@@ -218,7 +228,10 @@
             if (zelle) {
                 payButtons += `<div class="zelle-block">
                     <p class="zelle-label">Pay with Zelle</p>
-                    <p class="zelle-number">${esc(zelle)}</p>
+                    <div class="zelle-row">
+                        <p class="zelle-number" id="zelleNumber">${esc(zelle)}</p>
+                        <button class="zelle-copy-btn" id="zelleCopyBtn" onclick="copyZelle()">Copy</button>
+                    </div>
                 </div>`;
             }
 
@@ -270,6 +283,18 @@
                 btn.textContent = 'I sent it';
                 alert('Something went wrong. Please try again.');
             }
+        }
+
+        function copyZelle() {
+            const btn = document.getElementById('zelleCopyBtn');
+            const num = document.getElementById('zelleNumber')?.textContent ?? '';
+            navigator.clipboard.writeText(num).then(() => {
+                btn.textContent = 'Copied!';
+                btn.classList.add('copied');
+                setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2000);
+            }).catch(() => {
+                btn.textContent = 'Copy';
+            });
         }
 
         load();
