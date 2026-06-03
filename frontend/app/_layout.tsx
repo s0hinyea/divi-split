@@ -23,6 +23,7 @@ import { AppThemeProvider, useIsDark } from "@/utils/ThemeContext";
 import { ToastProvider } from "@/components/ToastProvider";
 import { CustomAlertProvider } from "@/components/CustomAlert";
 import { registerForPushNotifications, configureNotificationHandler } from "@/utils/pushNotifications";
+import { useKeepAlive } from "@/utils/useKeepAlive";
 import * as Sentry from '@sentry/react-native';
 
 Sentry.init({
@@ -143,6 +144,7 @@ function AppReadyGate({ loaded }: { loaded: boolean }) {
 
 function RootShell() {
   const isDark = useIsDark();
+  useKeepAlive();
 
   return (
     <ChangeProvider>

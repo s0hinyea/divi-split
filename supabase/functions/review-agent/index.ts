@@ -321,6 +321,15 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Ping endpoint - warms the runtime without calling OpenAI
+    const url = new URL(req.url);
+    if (url.searchParams.get("ping") === "1") {
+      return new Response(JSON.stringify({ ok: true }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const apiKey = Deno.env.get("OPENAI_API_KEY");
     if (!apiKey) {
       return new Response(JSON.stringify({ error: "OPENAI_API_KEY not set" }), {

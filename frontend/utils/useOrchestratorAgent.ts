@@ -13,6 +13,14 @@ import { useSplitStore, Contact, ReceiptItem } from "../stores/splitStore";
 
 const TRANSCRIBE_TIMEOUT_MS = 12_000;
 const ORCHESTRATOR_TIMEOUT_MS = 15_000;
+const CONTACT_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+// Module-level cache - persists across hook instances for the app session
+type ContactCacheEntry = {
+  contacts: { id: string; name: string; phoneNumber?: string }[];
+  loadedAt: number;
+};
+let _contactCache: ContactCacheEntry | null = null;
 
 type OrchestratorResult = {
   selected_contact_ids?: string[];
@@ -208,22 +216,34 @@ export function useOrchestratorAgent() {
       setIsProcessing(true);
 
       // ── Step 2: Load + sanitize + pre-filter device contacts ──────────────
-      const { status } = await Contacts.requestPermissionsAsync();
+      // Use cached contacts if still fresh to avoid re-reading all contacts
+      const cacheValid =
+        _contactCache !== null &&
+        Date.now() - _contactCache.loadedAt < CONTACT_CACHE_TTL_MS;
+
       const deviceContacts: { id: string; name: string; phoneNumber?: string }[] = [];
-      if (status === "granted") {
-        const { data } = await Contacts.getContactsAsync({
-          fields: [Contacts.Fields.Name, Contacts.Fields.PhoneNumbers],
-        });
-        for (const c of data) {
-          if (!c.id || !c.name) continue;
-          const sanitized = sanitizeName(c.name);
-          if (!sanitized) continue;
-          deviceContacts.push({
-            id: c.id,
-            name: sanitized,
-            phoneNumber: c.phoneNumbers?.[0]?.number,
+      if (cacheValid && _contactCache) {
+        deviceContacts.push(..._contactCache.contacts);
+        console.log(`[orchestrator] contacts: loaded from cache (${deviceContacts.length})`);
+      } else {
+        const { status } = await Contacts.requestPermissionsAsync();
+        if (status === "granted") {
+          const { data } = await Contacts.getContactsAsync({
+            fields: [Contacts.Fields.Name, Contacts.Fields.PhoneNumbers],
           });
+          for (const c of data) {
+            if (!c.id || !c.name) continue;
+            const sanitized = sanitizeName(c.name);
+            if (!sanitized) continue;
+            deviceContacts.push({
+              id: c.id,
+              name: sanitized,
+              phoneNumber: c.phoneNumbers?.[0]?.number,
+            });
+          }
         }
+        _contactCache = { contacts: deviceContacts, loadedAt: Date.now() };
+        console.log(`[orchestrator] contacts: loaded ${deviceContacts.length} from device, cached`);
       }
 
       const store = useSplitStore.getState();
