@@ -166,6 +166,22 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'space-between',
     },
+    logoLockup: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+    },
+    logoText: {
+        fontFamily: fonts.bodyBold,
+        fontSize: fontSizes.xl,
+        letterSpacing: -0.5,
+    },
+    sectionUnderline: {
+        height: 2,
+        backgroundColor: colors.green,
+        borderRadius: 1,
+        marginTop: 2,
+    },
     debtorAvatar: {
         width: 28,
         height: 28,
@@ -369,7 +385,15 @@ export default function Dashboard() {
                         <Text style={themed.greeting}>{getGreeting()},</Text>
                         <Text style={themed.userName}>{getUserName()}.</Text>
                     </View>
-                    <DiviLogo size={36} />
+                    <View style={styles.logoLockup}>
+                        <DiviLogo size={32} />
+                        <Text style={styles.logoText}>
+                            <Text style={{ color: C.black }}>D</Text>
+                            <Text style={{ color: C.green }}>i</Text>
+                            <Text style={{ color: C.black }}>v</Text>
+                            <Text style={{ color: C.green }}>i</Text>
+                        </Text>
+                    </View>
                 </View>
 
                 {/* Resume in-progress split banner */}
@@ -410,7 +434,7 @@ export default function Dashboard() {
                 )}
 
                 {/* Stat cards */}
-                <View style={themed.statRow}>
+                <View style={[themed.statRow, { marginTop: spacing.md }]}>
                     <ReceiptCard style={themed.statCard} showTopZigzag={false} showBottomZigzag={true}>
                         <Text style={[themed.statAmount, { fontSize: totalFontSize }]}>${totalString}</Text>
                         <Text style={themed.statLabel}>split this month</Text>
@@ -432,7 +456,10 @@ export default function Dashboard() {
                 {topDebtors.length > 0 && (
                     <ReceiptCard style={themed.recentCard} showTopZigzag={true} showBottomZigzag={false}>
                         <View style={themed.recentHeader}>
-                            <Text style={themed.recentTitle}>Pending</Text>
+                            <View>
+                                <Text style={themed.recentTitle}>Most Owed</Text>
+                                <View style={styles.sectionUnderline} />
+                            </View>
                             <TouchableOpacity onPress={() => router.push('/(tabs)/history')}>
                                 <Text style={themed.viewAllText}>View all →</Text>
                             </TouchableOpacity>
@@ -455,7 +482,10 @@ export default function Dashboard() {
                 {/* Recent splits */}
                 <ReceiptCard style={[themed.recentCard, { marginTop: topDebtors.length > 0 ? spacing.md : 0 }]} showTopZigzag={topDebtors.length === 0} showBottomZigzag={true}>
                     <View style={themed.recentHeader}>
-                        <Text style={themed.recentTitle}>Recent Splits</Text>
+                        <View>
+                            <Text style={themed.recentTitle}>Recent Splits</Text>
+                            <View style={styles.sectionUnderline} />
+                        </View>
                         {recentTwo.length > 0 && (
                             <TouchableOpacity onPress={() => router.push('/(tabs)/history')}>
                                 <Text style={themed.viewAllText}>View all →</Text>
