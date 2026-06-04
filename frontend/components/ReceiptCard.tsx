@@ -83,7 +83,7 @@ export default function ReceiptCard({
                 <Path
                     d={createZigzagPath()}
                     fill={C.white}
-                    stroke={C.black}
+                    stroke={C.gray400}
                     strokeWidth={1.5}
                 />
             </Svg>
