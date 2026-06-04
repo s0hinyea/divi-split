@@ -80,6 +80,29 @@
         td.price { text-align: right; font-weight: 600; color: #111; white-space: nowrap; }
         .total-row { font-size: 18px; font-weight: 800; color: #00C37F; }
         .total-row td { padding-top: 10px; }
+
+        /* Aggregate receipt section label */
+        .receipt-label {
+            font-size: 11px;
+            font-weight: 600;
+            color: #999;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            margin-bottom: 8px;
+        }
+        .receipt-subtotal {
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+            font-weight: 600;
+            color: #555;
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid #F0F0F0;
+        }
+        .receipt-section { margin-bottom: 16px; }
+        .receipt-section:last-child { margin-bottom: 0; }
+
         .payment-section { width: 100%; max-width: 420px; margin-bottom: 4px; }
         .section-label {
             font-size: 11px; color: #999;
@@ -171,7 +194,13 @@
         const db = createClient(SUPABASE_URL, SUPABASE_ANON);
         const root = document.getElementById('root');
 
-        const token = new URLSearchParams(location.search).get('token');
+        const params = new URLSearchParams(location.search);
+        // Support single ?token= (existing) and aggregate ?tokens=a,b,c
+        const tokensParam = params.get('tokens');
+        const tokenParam  = params.get('token');
+        const tokens = tokensParam
+            ? tokensParam.split(',').map(t => t.trim()).filter(Boolean)
+            : tokenParam ? [tokenParam] : [];
 
         function esc(str) {
             return String(str ?? '')
@@ -180,47 +209,88 @@
         }
 
         async function load() {
-            if (!token) {
+            if (tokens.length === 0) {
                 root.innerHTML = '<p class="error-msg">Invalid link.</p>';
                 return;
             }
 
-            const { data, error } = await db.rpc('get_pay_page_data', { p_token: token });
+            const results = await Promise.all(
+                tokens.map(t => db.rpc('get_pay_page_data', { p_token: t }))
+            );
 
-            if (error || !data) {
+            const payloads = results.map(r => r.data).filter(Boolean);
+            if (payloads.length === 0) {
                 root.innerHTML = '<p class="error-msg">Payment request not found.</p>';
                 return;
             }
 
-            const {
-                status, amount, items,
-                contact_name, owner_name,
-                venmo, cashapp, zelle,
-            } = data;
+            const first = payloads[0];
+            const { contact_name, owner_name, venmo, cashapp, zelle } = first;
+            const isAggregate = payloads.length > 1;
 
-            // Update page title and header
+            const grandTotal = payloads.reduce((s, p) => s + Number(p.amount), 0);
+            const alreadyPaid = payloads.every(p => p.status === 'settled' || p.status === 'pending');
+
             document.title = `Divi: Pay ${esc(owner_name)}`;
             document.getElementById('headerName').textContent = contact_name;
             document.getElementById('pageHeader').style.display = 'block';
 
-            const alreadyPaid = status === 'settled' || status === 'pending';
+            // Build item section(s)
+            let itemsHtml = '';
+            if (isAggregate) {
+                payloads.forEach((p, i) => {
+                    const rows = (p.items ?? []).map(item =>
+                        `<tr><td class="item-name">${esc(item.name)}</td><td class="price">$${Number(item.price).toFixed(2)}</td></tr>`
+                    ).join('');
+                    itemsHtml += `
+                        <div class="receipt-section">
+                            <div class="receipt-label">Receipt ${i + 1}</div>
+                            <table>${rows}</table>
+                            <div class="receipt-subtotal">
+                                <span>Subtotal</span>
+                                <span>$${Number(p.amount).toFixed(2)}</span>
+                            </div>
+                        </div>
+                        ${i < payloads.length - 1 ? '<div class="divider"></div>' : ''}
+                    `;
+                });
+                itemsHtml += `
+                    <div class="divider"></div>
+                    <table>
+                        <tr class="total-row">
+                            <td>Total (${payloads.length} receipts)</td>
+                            <td class="price">$${grandTotal.toFixed(2)}</td>
+                        </tr>
+                    </table>
+                `;
+            } else {
+                const rows = (first.items ?? []).map(item =>
+                    `<tr><td class="item-name">${esc(item.name)}</td><td class="price">$${Number(item.price).toFixed(2)}</td></tr>`
+                ).join('');
+                itemsHtml = `
+                    <table>
+                        ${rows}
+                        <tr class="total-row">
+                            <td>Total</td>
+                            <td class="price">$${grandTotal.toFixed(2)}</td>
+                        </tr>
+                    </table>
+                `;
+            }
 
-            const itemRows = (items ?? []).map(item =>
-                `<tr><td class="item-name">${esc(item.name)}</td><td class="price">$${Number(item.price).toFixed(2)}</td></tr>`
-            ).join('');
-
+            // Build pay buttons using grand total
             let payButtons = '';
             if (venmo) {
                 const handle = String(venmo).replace('@', '');
-                const note = encodeURIComponent(`Divi: $${Number(amount).toFixed(2)}`);
-                payButtons += `<a href="venmo://paycharge?txn=pay&recipients=${encodeURIComponent(handle)}&amount=${Number(amount).toFixed(2)}&note=${note}" class="pay-btn venmo">
+                const note = encodeURIComponent(`Divi: $${grandTotal.toFixed(2)}`);
+                payButtons += `<a href="venmo://paycharge?txn=pay&recipients=${encodeURIComponent(handle)}&amount=${grandTotal.toFixed(2)}&note=${note}" class="pay-btn venmo">
                     <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19.4 2c.5 1.2.7 2.4.7 3.9 0 4.9-4.2 11.2-7.6 15.7H5.3L2 4l6.5-.6 1.7 13.4c1.6-2.6 3.5-6.7 3.5-9.5 0-1.5-.3-2.5-.7-3.4L19.4 2z"/></svg>
                     Pay with Venmo
                 </a>`;
             }
             if (cashapp) {
                 const handle = String(cashapp).replace('$', '');
-                payButtons += `<a href="https://cash.app/$${encodeURIComponent(handle)}/${Number(amount).toFixed(2)}" class="pay-btn cashapp">
+                payButtons += `<a href="https://cash.app/$${encodeURIComponent(handle)}/${grandTotal.toFixed(2)}" class="pay-btn cashapp">
                     <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.2 7.2l-.7-2.6A7 7 0 0 0 12 3a7 7 0 0 0-7 7c0 3.1 2 5.8 4.9 6.7l.7 2.6A1 1 0 0 0 11.5 20h1a1 1 0 0 0 1-.8l.7-2.6A7 7 0 0 0 19 10a7 7 0 0 0-1.8-2.8zM12 15a5 5 0 1 1 0-10 5 5 0 0 1 0 10z"/></svg>
                     Pay with Cash App
                 </a>`;
@@ -240,13 +310,7 @@
                     <div class="from-label">Requested by</div>
                     <div class="from-name">${esc(owner_name)}</div>
                     <div class="divider"></div>
-                    <table>
-                        ${itemRows}
-                        <tr class="total-row">
-                            <td>Total</td>
-                            <td class="price">$${Number(amount).toFixed(2)}</td>
-                        </tr>
-                    </table>
+                    ${itemsHtml}
                 </div>
 
                 ${payButtons ? `<div class="payment-section"><div class="section-label">Pay via</div>${payButtons}</div>` : ''}
@@ -268,16 +332,13 @@
             btn.disabled = true;
             btn.textContent = 'Sending...';
             try {
-                const res = await fetch(`${EDGE_FN_URL}?token=${encodeURIComponent(token)}`, {
-                    method: 'POST',
-                });
-                const json = await res.json();
-                if (json.ok) {
-                    btn.textContent = 'Sent!';
-                    btn.style.background = '#00C37F';
-                } else {
-                    throw new Error('not ok');
-                }
+                await Promise.all(
+                    tokens.map(t =>
+                        fetch(`${EDGE_FN_URL}?token=${encodeURIComponent(t)}`, { method: 'POST' })
+                    )
+                );
+                btn.textContent = 'Sent!';
+                btn.style.background = '#00C37F';
             } catch {
                 btn.disabled = false;
                 btn.textContent = 'I sent it';

@@ -186,13 +186,13 @@ export default function ContactDebt() {
                 })
             );
 
-            let message = `Hey ${contactName}, you owe me $${total.toFixed(2)} total across ${outstanding.length} receipt${outstanding.length !== 1 ? 's' : ''}:\n`;
-            outstanding.forEach((r, i) => {
-                const token = updateResults[i]?.data?.token ?? r.token;
-                const url = buildPayUrl(token);
-                message += `\n${r.receiptName} — $${r.amount.toFixed(2)}\n${url}\n`;
-            });
-            message += `\nTotal: $${total.toFixed(2)}`;
+            const allTokens = outstanding.map((r, i) => updateResults[i]?.data?.token ?? r.token);
+            const base = (process.env.EXPO_PUBLIC_PAY_BASE_URL ?? '').replace(/\/$/, '');
+            const aggregateUrl = allTokens.length === 1
+                ? `${base}?token=${allTokens[0]}`
+                : `${base}?tokens=${allTokens.join(',')}`;
+
+            const message = `Hey ${contactName}, you owe me $${total.toFixed(2)} across ${outstanding.length} receipt${outstanding.length !== 1 ? 's' : ''}. Pay here: ${aggregateUrl}`;
 
             const phone = contactPhone && contactPhone !== 'no-phone' && contactPhone !== '' ? contactPhone : null;
             if (phone) {
