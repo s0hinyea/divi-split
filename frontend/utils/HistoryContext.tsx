@@ -127,7 +127,13 @@ export function HistoryProvider({ children }: { children: ReactNode }) {
         try {
             if (!session?.user) throw new Error("No session");
 
-            // Delete items first (in case no cascade is set up)
+            // Delete payment_requests first (no DB cascade on receipt_id FK)
+            await supabase
+                .from('payment_requests')
+                .delete()
+                .eq('receipt_id', id);
+
+            // Delete items (cleans up assignments via FK cascade if configured)
             await supabase
                 .from('receipt_items')
                 .delete()

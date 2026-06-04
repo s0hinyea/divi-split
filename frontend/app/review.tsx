@@ -246,9 +246,9 @@ export default function ReviewPage() {
         }
       }
 
-      // Upsert payment_requests immediately after save so tracking always works
+      // Sync payment_requests after save so tracking always works
       // regardless of whether the user sends SMS
-      if (receiptId && session?.user?.id && selected.length > 0) {
+      if (receiptId && session?.user?.id) {
         const phones = selected
           .map(c => c.phoneNumber)
           .filter((p): p is string => !!p && p !== 'no-phone');
@@ -259,31 +259,90 @@ export default function ReviewPage() {
 
         const phoneToDbId = new Map((dbContacts ?? []).map(c => [c.phone_number, c.id]));
 
-        await Promise.all(
-          selected.map((contact) => {
-            const dbContactId = phoneToDbId.get(contact.phoneNumber ?? '');
-            if (!dbContactId) return Promise.resolve();
-            const mealTotal = calculateTotal(contact.items as ReceiptItem[]);
-            const tax = individualTaxes[contact.id] || 0;
-            const tip = individualTips[contact.id] || 0;
-            const amount = mealTotal + tax + tip;
-            return supabase.from('payment_requests').upsert(
-              {
+        if (editingReceiptId) {
+          // EDIT MODE: preserve existing status (requested/pending stay as-is),
+          // update amounts/items for contacts still in split, clean up removed contacts.
+          const { data: existingPRs } = await supabase
+            .from('payment_requests')
+            .select('id, contact_id, status')
+            .eq('receipt_id', receiptId);
+
+          const existingByContactId = new Map((existingPRs ?? []).map(p => [p.contact_id, p]));
+          const activeContactIds: string[] = [];
+
+          await Promise.all(
+            selected.map((contact) => {
+              const dbContactId = phoneToDbId.get(contact.phoneNumber ?? '');
+              if (!dbContactId) return Promise.resolve();
+              activeContactIds.push(dbContactId);
+              const mealTotal = calculateTotal(contact.items as ReceiptItem[]);
+              const tax = individualTaxes[contact.id] || 0;
+              const tip = individualTips[contact.id] || 0;
+              const amount = mealTotal + tax + tip;
+              const items = [
+                ...(contact.items as ReceiptItem[]).map(i => ({ name: i.name, price: i.price })),
+                ...(tax > 0 ? [{ name: 'Tax', price: tax }] : []),
+                ...(tip > 0 ? [{ name: 'Tip', price: tip }] : []),
+              ];
+              const existing = existingByContactId.get(dbContactId);
+              if (existing) {
+                // Update amount/items only — preserve payment status
+                return supabase.from('payment_requests')
+                  .update({ amount, items })
+                  .eq('id', existing.id);
+              }
+              // New contact added during edit
+              return supabase.from('payment_requests').insert({
                 receipt_id: receiptId,
                 contact_id: dbContactId,
                 owner_id: session.user.id,
                 amount,
-                items: [
-                  ...(contact.items as ReceiptItem[]).map(i => ({ name: i.name, price: i.price })),
-                  ...(tax > 0 ? [{ name: 'Tax', price: tax }] : []),
-                  ...(tip > 0 ? [{ name: 'Tip', price: tip }] : []),
-                ],
+                items,
                 status: 'unpaid',
-              },
-              { onConflict: 'receipt_id,contact_id' }
-            );
-          })
-        );
+              });
+            })
+          );
+
+          // Delete PRs for contacts removed from this split (never touch settled)
+          const deleteQuery = supabase
+            .from('payment_requests')
+            .delete()
+            .eq('receipt_id', receiptId)
+            .neq('status', 'settled');
+
+          if (activeContactIds.length > 0) {
+            await deleteQuery.not('contact_id', 'in', `(${activeContactIds.join(',')})`);
+          } else {
+            await deleteQuery;
+          }
+        } else if (selected.length > 0) {
+          // NEW RECEIPT: insert with status='unpaid'
+          await Promise.all(
+            selected.map((contact) => {
+              const dbContactId = phoneToDbId.get(contact.phoneNumber ?? '');
+              if (!dbContactId) return Promise.resolve();
+              const mealTotal = calculateTotal(contact.items as ReceiptItem[]);
+              const tax = individualTaxes[contact.id] || 0;
+              const tip = individualTips[contact.id] || 0;
+              const amount = mealTotal + tax + tip;
+              return supabase.from('payment_requests').upsert(
+                {
+                  receipt_id: receiptId,
+                  contact_id: dbContactId,
+                  owner_id: session.user.id,
+                  amount,
+                  items: [
+                    ...(contact.items as ReceiptItem[]).map(i => ({ name: i.name, price: i.price })),
+                    ...(tax > 0 ? [{ name: 'Tax', price: tax }] : []),
+                    ...(tip > 0 ? [{ name: 'Tip', price: tip }] : []),
+                  ],
+                  status: 'unpaid',
+                },
+                { onConflict: 'receipt_id,contact_id' }
+              );
+            })
+          );
+        }
       }
     } finally {
       setIsSaving(false);

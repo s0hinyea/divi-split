@@ -310,7 +310,8 @@ export default function Dashboard() {
             .from('payment_requests')
             .select('amount, contacts(contact_name)')
             .eq('owner_id', session.user.id)
-            .in('status', ['unpaid', 'requested', 'pending']);
+            .in('status', ['unpaid', 'requested', 'pending'])
+            .limit(500);
         if (error || !data) return;
         const totals: Record<string, number> = {};
         for (const row of data as any[]) {

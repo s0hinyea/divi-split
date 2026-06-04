@@ -296,7 +296,8 @@ export default function History() {
             .from('payment_requests')
             .select('amount, contact_id, contacts(contact_name, phone_number)')
             .eq('owner_id', session.user.id)
-            .in('status', ['unpaid', 'requested', 'pending']);
+            .in('status', ['unpaid', 'requested', 'pending'])
+            .limit(500);
 
         if (error || !data) { setDebtorsLoading(false); return; }
 
