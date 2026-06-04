@@ -134,13 +134,9 @@ export default function TabsLayout() {
                 <Tabs.Screen
                     name="index"
                     options={{
-                        tabBarIcon: ({ focused }) => (
+                        tabBarIcon: ({ color, focused }) => (
                             <View style={styles.tabIconWrapper}>
-                                <DiviLogo
-                                    size={28}
-                                    green={focused ? C.green : C.gray400}
-                                    black={focused ? C.black : C.gray400}
-                                />
+                                <MaterialIcons name="home" size={24} color={color} />
                                 {focused && <View style={[styles.activeDot, { backgroundColor: C.green }]} />}
                             </View>
                         ),

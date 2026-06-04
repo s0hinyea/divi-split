@@ -5,6 +5,7 @@ import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useFocusEffect } from 'expo-router';
 import { useRouter } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
+import Svg, { Circle, Rect } from 'react-native-svg';
 import { fonts, fontSizes, spacing, colors, radii } from '@/styles/theme';
 import { useThemeColors } from '@/utils/ThemeContext';
 import ReceiptCard from '@/components/ReceiptCard';
@@ -17,6 +18,19 @@ import { useCustomAlert } from '@/components/CustomAlert';
 import { supabase } from '@/lib/supabase';
 
 type Debtor = { name: string; total: number };
+
+function DiviLogo({ size = 32 }: { size?: number }) {
+    const C = useThemeColors();
+    const scale = size / 160;
+    return (
+        <Svg width={120 * scale} height={160 * scale} viewBox="0 0 120 160" fill="none">
+            <Circle cx="20" cy="80" r="8" fill={C.green} />
+            <Rect x="40" y="30" width="10" height="100" rx="5" fill={C.green} />
+            <Rect x="70" y="30" width="10" height="100" rx="5" fill={C.black} />
+            <Circle cx="100" cy="80" r="8" fill={C.black} />
+        </Svg>
+    );
+}
 
 
 function ReceiptLines({ color }: { color: string }) {
@@ -147,6 +161,11 @@ const styles = StyleSheet.create({
     receiptLines: { gap: 4, marginTop: spacing.xs },
     receiptLine: { height: 2, borderRadius: 1 },
 
+    headerRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+    },
     debtorAvatar: {
         width: 28,
         height: 28,
@@ -345,8 +364,13 @@ export default function Dashboard() {
                     <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.green} />
                 }
             >
-                <Text style={themed.greeting}>{getGreeting()},</Text>
-                <Text style={themed.userName}>{getUserName()}.</Text>
+                <View style={styles.headerRow}>
+                    <View>
+                        <Text style={themed.greeting}>{getGreeting()},</Text>
+                        <Text style={themed.userName}>{getUserName()}.</Text>
+                    </View>
+                    <DiviLogo size={36} />
+                </View>
 
                 {/* Resume in-progress split banner */}
                 {splitInProgress && (
