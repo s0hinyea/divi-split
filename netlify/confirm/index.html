@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+    <title>Divi - Email Confirmed</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #f5f5f5;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+        }
+
+        .card {
+            background: #fff;
+            border-radius: 24px;
+            padding: 48px 36px;
+            max-width: 400px;
+            width: 100%;
+            text-align: center;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+        }
+
+        .check-circle {
+            width: 72px;
+            height: 72px;
+            background: #1DB954;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 24px;
+        }
+
+        .check-circle svg {
+            width: 36px;
+            height: 36px;
+        }
+
+        .logo {
+            font-size: 15px;
+            font-weight: 700;
+            color: #1DB954;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            margin-bottom: 16px;
+        }
+
+        h1 {
+            font-size: 26px;
+            font-weight: 800;
+            color: #111;
+            margin-bottom: 12px;
+            line-height: 1.2;
+        }
+
+        p {
+            font-size: 15px;
+            color: #888;
+            line-height: 1.6;
+            margin-bottom: 32px;
+        }
+
+        .open-btn {
+            display: inline-block;
+            background: #111;
+            color: #fff;
+            font-family: 'Inter', sans-serif;
+            font-size: 16px;
+            font-weight: 600;
+            text-decoration: none;
+            padding: 16px 32px;
+            border-radius: 100px;
+            width: 100%;
+        }
+
+        .open-btn:active {
+            opacity: 0.85;
+        }
+
+        .footer-note {
+            margin-top: 20px;
+            font-size: 13px;
+            color: #bbb;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="check-circle">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12" />
+            </svg>
+        </div>
+
+        <div class="logo">Divi</div>
+        <h1>Email confirmed!</h1>
+        <p>Your account is all set. Open the app to start splitting bills with friends.</p>
+
+        <a href="divi://" class="open-btn">Open Divi</a>
+
+        <p class="footer-note">If the button doesn't work, open the Divi app manually.</p>
+    </div>
+</body>
+</html>
