@@ -65,43 +65,78 @@ export default function ReceiptCard({
     const totalHeight = dimensions.height + (showTopZigzag ? zigzagHeight : 0) + (showBottomZigzag ? zigzagHeight : 0);
 
     return (
-        <View
-            style={[styles.container, style]}
-            onLayout={(e) => {
-                const { width, height } = e.nativeEvent.layout;
-                const contentHeight = height - (showTopZigzag ? zigzagHeight : 0) - (showBottomZigzag ? zigzagHeight : 0);
-                setDimensions({ width, height: contentHeight });
-            }}
-        >
-            <Svg
-                width="100%"
-                height={totalHeight}
-                style={styles.svg}
-                viewBox={`0 0 ${dimensions.width} ${totalHeight}`}
-                preserveAspectRatio="none"
-            >
-                <Path
-                    d={createZigzagPath()}
-                    fill={C.white}
-                    stroke={C.gray400}
-                    strokeWidth={1.5}
-                />
-            </Svg>
+        <View style={[styles.wrapper, style]}>
+            {/* Paper stack layers — furthest back to closest */}
+            <View style={[styles.paperLayer, styles.paperLayer2, { backgroundColor: C.gray300 }]} />
+            <View style={[styles.paperLayer, styles.paperLayer1, { backgroundColor: C.gray200 }]} />
 
-            <View style={[
-                styles.content,
-                {
-                    marginTop: showTopZigzag ? zigzagHeight : 0,
-                    marginBottom: showBottomZigzag ? zigzagHeight : 0,
-                }
-            ]}>
-                {children}
+            <View
+                style={styles.container}
+                onLayout={(e) => {
+                    const { width, height } = e.nativeEvent.layout;
+                    const contentHeight = height - (showTopZigzag ? zigzagHeight : 0) - (showBottomZigzag ? zigzagHeight : 0);
+                    setDimensions({ width, height: contentHeight });
+                }}
+            >
+                <Svg
+                    width="100%"
+                    height={totalHeight}
+                    style={styles.svg}
+                    viewBox={`0 0 ${dimensions.width} ${totalHeight}`}
+                    preserveAspectRatio="none"
+                >
+                    <Path
+                        d={createZigzagPath()}
+                        fill={C.white}
+                        stroke={C.gray400}
+                        strokeWidth={1.5}
+                    />
+                </Svg>
+
+                <View style={[
+                    styles.content,
+                    {
+                        marginTop: showTopZigzag ? zigzagHeight : 0,
+                        marginBottom: showBottomZigzag ? zigzagHeight : 0,
+                    }
+                ]}>
+                    {children}
+                </View>
             </View>
         </View>
     );
 }
 
 const styles = StyleSheet.create({
+    wrapper: {
+        position: 'relative',
+        paddingBottom: 9,
+        shadowColor: '#0A0A0A',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.10,
+        shadowRadius: 18,
+        elevation: 6,
+    },
+    paperLayer: {
+        position: 'absolute',
+        left: 0,
+        right: 0,
+        top: 0,
+        bottom: 0,
+        borderRadius: 4,
+    },
+    paperLayer1: {
+        bottom: -5,
+        left: 5,
+        right: 5,
+        opacity: 0.7,
+    },
+    paperLayer2: {
+        bottom: -9,
+        left: 10,
+        right: 10,
+        opacity: 0.45,
+    },
     container: {
         position: 'relative',
     },
