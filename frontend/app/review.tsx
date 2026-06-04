@@ -225,23 +225,65 @@ export default function ReviewPage() {
       setReceiptDate(selectedDate);
     }
   };
-  // Handle finish - save (new) or update (edit) receipt, then prompt for SMS
+  // Handle finish - save receipt, upsert payment_requests, then prompt for SMS
   const handleFinish = async () => {
     const name = receiptName.trim() || `Split - ${receiptDate.toLocaleDateString()}`;
     setIsSaving(true);
+    let receiptId: string | null = null;
     try {
       if (editingReceiptId) {
         const success = await updateReceipt(editingReceiptId, name, receiptDate);
         if (success) {
+          receiptId = editingReceiptId;
           setSavedReceiptId(editingReceiptId);
           await refreshReceipts();
         }
       } else {
-        const receiptId = await saveReceipt(name, receiptDate);
+        receiptId = await saveReceipt(name, receiptDate);
         if (receiptId) {
           setSavedReceiptId(receiptId);
           await refreshReceipts();
         }
+      }
+
+      // Upsert payment_requests immediately after save so tracking always works
+      // regardless of whether the user sends SMS
+      if (receiptId && session?.user?.id && selected.length > 0) {
+        const phones = selected
+          .map(c => c.phoneNumber)
+          .filter((p): p is string => !!p && p !== 'no-phone');
+
+        const { data: dbContacts } = phones.length > 0
+          ? await supabase.from('contacts').select('id, phone_number').eq('user_id', session.user.id).in('phone_number', phones)
+          : { data: [] };
+
+        const phoneToDbId = new Map((dbContacts ?? []).map(c => [c.phone_number, c.id]));
+
+        await Promise.all(
+          selected.map((contact) => {
+            const dbContactId = phoneToDbId.get(contact.phoneNumber ?? '');
+            if (!dbContactId) return Promise.resolve();
+            const mealTotal = calculateTotal(contact.items as ReceiptItem[]);
+            const tax = individualTaxes[contact.id] || 0;
+            const tip = individualTips[contact.id] || 0;
+            const amount = mealTotal + tax + tip;
+            return supabase.from('payment_requests').upsert(
+              {
+                receipt_id: receiptId,
+                contact_id: dbContactId,
+                owner_id: session.user.id,
+                amount,
+                items: [
+                  ...(contact.items as ReceiptItem[]).map(i => ({ name: i.name, price: i.price })),
+                  ...(tax > 0 ? [{ name: 'Tax', price: tax }] : []),
+                  ...(tip > 0 ? [{ name: 'Tip', price: tip }] : []),
+                ],
+                status: 'unpaid',
+              },
+              { onConflict: 'receipt_id,contact_id' }
+            );
+          })
+        );
       }
     } finally {
       setIsSaving(false);
