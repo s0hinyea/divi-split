@@ -57,7 +57,7 @@ function createStyles(C: ReturnType<typeof useThemeColors>) {
         // Stat cards row
         statRow: {
             flexDirection: 'row',
-            alignItems: 'center',
+            alignItems: 'stretch',
             marginBottom: spacing.md,
         },
         statCard: { flex: 1 },
