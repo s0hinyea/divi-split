@@ -111,6 +111,6 @@ const styles = StyleSheet.create({
         left: 0,
     },
     content: {
-        padding: spacing.md,
+        padding: 12,
     },
 });

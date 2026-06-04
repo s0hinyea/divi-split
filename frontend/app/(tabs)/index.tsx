@@ -36,21 +36,21 @@ function createStyles(C: ReturnType<typeof useThemeColors>) {
             backgroundColor: C.gray100,
         },
         scrollContent: {
-            padding: spacing.lg,
-            paddingBottom: 140,
+            padding: spacing.md,
+            paddingBottom: 100,
         },
 
         greeting: {
             fontFamily: fonts.body,
-            fontSize: fontSizes.lg,
-            color: C.black,
-            marginTop: spacing.md,
+            fontSize: fontSizes.sm,
+            color: C.gray500,
+            marginTop: spacing.sm,
         },
         userName: {
             fontFamily: fonts.bodyBold,
-            fontSize: fontSizes.xxl,
+            fontSize: fontSizes.xl,
             color: C.black,
-            marginBottom: spacing.xl,
+            marginBottom: spacing.md,
             letterSpacing: -0.5,
         },
 
@@ -58,24 +58,24 @@ function createStyles(C: ReturnType<typeof useThemeColors>) {
         statRow: {
             flexDirection: 'row',
             alignItems: 'center',
-            marginBottom: spacing.lg,
+            marginBottom: spacing.md,
         },
         statCard: { flex: 1 },
-        statSpacer: { width: spacing.md },
+        statSpacer: { width: spacing.sm },
         flippedCard: { transform: [{ scaleX: -1 }] },
         flippedContent: { transform: [{ scaleX: -1 }] },
 
         statAmount: {
             fontFamily: fonts.bodySemiBold,
-            fontSize: fontSizes.xxl,
+            fontSize: fontSizes.xl,
             color: C.green,
-            marginBottom: spacing.xs,
+            marginBottom: 2,
         },
         statLabel: {
             fontFamily: fonts.body,
-            fontSize: fontSizes.sm,
+            fontSize: fontSizes.xs,
             color: C.gray600,
-            marginBottom: spacing.sm,
+            marginBottom: spacing.xs,
         },
 
         // Recent splits card
@@ -84,16 +84,16 @@ function createStyles(C: ReturnType<typeof useThemeColors>) {
             flexDirection: 'row',
             justifyContent: 'space-between',
             alignItems: 'center',
-            marginBottom: spacing.md,
+            marginBottom: spacing.sm,
         },
         recentTitle: {
             fontFamily: fonts.bodyBold,
-            fontSize: fontSizes.lg,
+            fontSize: fontSizes.md,
             color: C.black,
         },
         viewAllText: {
             fontFamily: fonts.bodySemiBold,
-            fontSize: fontSizes.sm,
+            fontSize: fontSizes.xs,
             color: C.green,
         },
 
@@ -101,7 +101,7 @@ function createStyles(C: ReturnType<typeof useThemeColors>) {
             flexDirection: 'row',
             justifyContent: 'space-between',
             alignItems: 'center',
-            paddingVertical: spacing.md,
+            paddingVertical: spacing.sm,
         },
         receiptRowBorder: {
             borderBottomWidth: 1,
@@ -110,54 +110,54 @@ function createStyles(C: ReturnType<typeof useThemeColors>) {
         receiptRowLeft: { flex: 1 },
         receiptName: {
             fontFamily: fonts.bodySemiBold,
-            fontSize: fontSizes.md,
+            fontSize: fontSizes.sm,
             color: C.black,
         },
         receiptDate: {
             fontFamily: fonts.body,
             fontSize: fontSizes.xs,
             color: C.gray600,
-            marginTop: 2,
+            marginTop: 1,
         },
         receiptAmount: {
             fontFamily: fonts.bodySemiBold,
-            fontSize: fontSizes.lg,
+            fontSize: fontSizes.md,
             color: C.green,
         },
 
         emptyState: {
             alignItems: 'center',
-            paddingVertical: spacing.xl,
-            gap: spacing.sm,
+            paddingVertical: spacing.md,
+            gap: spacing.xs,
         },
         emptyTitle: {
             fontFamily: fonts.bodySemiBold,
-            fontSize: fontSizes.md,
+            fontSize: fontSizes.sm,
             color: C.gray600,
         },
         emptySubtitle: {
             fontFamily: fonts.body,
-            fontSize: fontSizes.sm,
+            fontSize: fontSizes.xs,
             color: C.gray400,
         },
     });
 }
 
 const styles = StyleSheet.create({
-    receiptLines: { gap: 6, marginTop: spacing.sm },
+    receiptLines: { gap: 4, marginTop: spacing.xs },
     receiptLine: { height: 2, borderRadius: 1 },
 
     debtorAvatar: {
-        width: 36,
-        height: 36,
-        borderRadius: 18,
+        width: 28,
+        height: 28,
+        borderRadius: 14,
         backgroundColor: `${colors.green}20`,
         justifyContent: 'center',
         alignItems: 'center',
     },
     debtorAvatarText: {
         fontFamily: fonts.bodyBold,
-        fontSize: fontSizes.md,
+        fontSize: fontSizes.xs,
         color: colors.green,
     },
     resumeBanner: {
@@ -429,7 +429,7 @@ export default function Dashboard() {
                 )}
 
                 {/* Recent splits */}
-                <ReceiptCard style={[themed.recentCard, { marginTop: topDebtors.length > 0 ? spacing.lg : 0 }]} showTopZigzag={topDebtors.length === 0} showBottomZigzag={true}>
+                <ReceiptCard style={[themed.recentCard, { marginTop: topDebtors.length > 0 ? spacing.md : 0 }]} showTopZigzag={topDebtors.length === 0} showBottomZigzag={true}>
                     <View style={themed.recentHeader}>
                         <Text style={themed.recentTitle}>Recent Splits</Text>
                         {recentTwo.length > 0 && (
