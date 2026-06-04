@@ -18,10 +18,10 @@ export const colors = {
     white: '#FFFFFF',
 
     // Surfaces
-    background: '#F6F5F2',      // warm off-white - screen backgrounds
+    background: '#F2F7F4',      // green-tinted off-white - screen backgrounds
 
-    // Grays (warm-tinted)
-    gray100: '#F6F5F2',
+    // Grays (green-tinted)
+    gray100: '#F2F7F4',
     gray200: '#ECEAE6',
     gray300: '#D8D5CF',
     gray400: '#A8A49C',
