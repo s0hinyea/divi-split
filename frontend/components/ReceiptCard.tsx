@@ -111,6 +111,7 @@ const styles = StyleSheet.create({
     wrapper: {
         position: 'relative',
         paddingBottom: 9,
+        flexDirection: 'column',
         shadowColor: '#0A0A0A',
         shadowOffset: { width: 0, height: 8 },
         shadowOpacity: 0.10,
@@ -139,6 +140,7 @@ const styles = StyleSheet.create({
     },
     container: {
         position: 'relative',
+        flex: 1,
     },
     svg: {
         position: 'absolute',
