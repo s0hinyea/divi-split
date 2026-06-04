@@ -1,7 +1,7 @@
 import { View, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useRouter } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
 import { fonts, fontSizes, spacing, colors, radii } from '@/styles/theme';
@@ -13,6 +13,10 @@ import { useSession } from '@/utils/SessionContext';
 import { DashboardSkeleton } from '@/components/SkeletonLoader';
 import { useSplitStore } from '@/stores/splitStore';
 import { useCustomAlert } from '@/components/CustomAlert';
+import { supabase } from '@/lib/supabase';
+
+type Debtor = { name: string; total: number };
+
 
 function ReceiptLines({ color }: { color: string }) {
     return (
@@ -142,6 +146,19 @@ const styles = StyleSheet.create({
     receiptLines: { gap: 6, marginTop: spacing.sm },
     receiptLine: { height: 2, borderRadius: 1 },
 
+    debtorAvatar: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        backgroundColor: `${colors.green}20`,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    debtorAvatarText: {
+        fontFamily: fonts.bodyBold,
+        fontSize: fontSizes.md,
+        color: colors.green,
+    },
     resumeBanner: {
         flexDirection: 'row',
         backgroundColor: colors.white,
@@ -240,6 +257,31 @@ export default function Dashboard() {
 
     const splitInProgress = currentStep !== null && receiptItems.length > 0;
 
+    const [topDebtors, setTopDebtors] = useState<Debtor[]>([]);
+
+    const fetchTopDebtors = useCallback(async () => {
+        if (!session?.user?.id) return;
+        const { data, error } = await supabase
+            .from('payment_requests')
+            .select('amount, contacts(contact_name)')
+            .eq('owner_id', session.user.id)
+            .in('status', ['unpaid', 'requested', 'pending']);
+        if (error || !data) return;
+        const totals: Record<string, number> = {};
+        for (const row of data as any[]) {
+            const name = row.contacts?.contact_name;
+            if (!name) continue;
+            totals[name] = (totals[name] ?? 0) + Number(row.amount);
+        }
+        const sorted = Object.entries(totals)
+            .map(([name, total]) => ({ name, total }))
+            .sort((a, b) => b.total - a.total)
+            .slice(0, 3);
+        setTopDebtors(sorted);
+    }, [session?.user?.id]);
+
+    useEffect(() => { fetchTopDebtors(); }, [fetchTopDebtors]);
+
     const STEP_LABELS: Record<string, string> = {
         contacts: 'Selecting contacts',
         result: 'Editing items',
@@ -269,9 +311,9 @@ export default function Dashboard() {
 
     const onRefresh = useCallback(async () => {
         setRefreshing(true);
-        await Promise.all([refreshReceipts(), refreshProfile()]);
+        await Promise.all([refreshReceipts(), refreshProfile(), fetchTopDebtors()]);
         setRefreshing(false);
-    }, []);
+    }, [fetchTopDebtors]);
 
     const getGreeting = () => {
         const hour = new Date().getHours();
@@ -361,8 +403,32 @@ export default function Dashboard() {
                     </ReceiptCard>
                 </View>
 
+                {/* Pending balances */}
+                {topDebtors.length > 0 && (
+                    <ReceiptCard style={themed.recentCard} showTopZigzag={true} showBottomZigzag={false}>
+                        <View style={themed.recentHeader}>
+                            <Text style={themed.recentTitle}>Pending</Text>
+                            <TouchableOpacity onPress={() => router.push('/(tabs)/history')}>
+                                <Text style={themed.viewAllText}>View all →</Text>
+                            </TouchableOpacity>
+                        </View>
+                        {topDebtors.map((d, i) => (
+                            <View
+                                key={d.name}
+                                style={[themed.receiptRow, i < topDebtors.length - 1 && themed.receiptRowBorder]}
+                            >
+                                <View style={styles.debtorAvatar}>
+                                    <Text style={styles.debtorAvatarText}>{d.name.charAt(0).toUpperCase()}</Text>
+                                </View>
+                                <Text style={[themed.receiptName, { flex: 1, marginLeft: spacing.md }]}>{d.name}</Text>
+                                <Text style={themed.receiptAmount}>${d.total.toFixed(2)}</Text>
+                            </View>
+                        ))}
+                    </ReceiptCard>
+                )}
+
                 {/* Recent splits */}
-                <ReceiptCard style={themed.recentCard} showTopZigzag={true} showBottomZigzag={true}>
+                <ReceiptCard style={[themed.recentCard, { marginTop: topDebtors.length > 0 ? spacing.lg : 0 }]} showTopZigzag={topDebtors.length === 0} showBottomZigzag={true}>
                     <View style={themed.recentHeader}>
                         <Text style={themed.recentTitle}>Recent Splits</Text>
                         {recentTwo.length > 0 && (
