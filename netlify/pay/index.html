@@ -346,16 +346,37 @@
             }
         }
 
-        function copyZelle() {
+        // Must be on window so inline onclick in dynamically inserted HTML can reach it
+        window.copyZelle = function() {
             const btn = document.getElementById('zelleCopyBtn');
-            const num = document.getElementById('zelleNumber')?.textContent ?? '';
-            navigator.clipboard.writeText(num).then(() => {
+            const num = document.getElementById('zelleNumber')?.textContent?.trim() ?? '';
+            if (!num) return;
+
+            const finish = () => {
                 btn.textContent = 'Copied!';
                 btn.classList.add('copied');
                 setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2000);
-            }).catch(() => {
-                btn.textContent = 'Copy';
-            });
+            };
+
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(num).then(finish).catch(() => fallbackCopy(num, finish));
+            } else {
+                fallbackCopy(num, finish);
+            }
+        };
+
+        function fallbackCopy(text, onSuccess) {
+            const ta = document.createElement('textarea');
+            ta.value = text;
+            ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0;';
+            document.body.appendChild(ta);
+            ta.focus();
+            ta.select();
+            try {
+                document.execCommand('copy');
+                onSuccess();
+            } catch (_) {}
+            document.body.removeChild(ta);
         }
 
         load();
