@@ -211,6 +211,15 @@ const styles = StyleSheet.create({
         width: 4,
         backgroundColor: colors.green,
     },
+    placeholderAvatar: {
+        backgroundColor: colors.gray200,
+    },
+    placeholderBar: {
+        height: 10,
+        width: 120,
+        borderRadius: 5,
+        backgroundColor: colors.gray200,
+    },
     resumeBannerBody: {
         flex: 1,
         padding: spacing.md,
@@ -368,7 +377,7 @@ export default function Dashboard() {
         return name.charAt(0).toUpperCase() + name.slice(1);
     };
 
-    const recentTwo = receipts.slice(0, 2);
+    const recentTwo = receipts.slice(0, 3);
     const totalString = monthlyTotal.toFixed(0);
     const totalFontSize = totalString.length > 5 ? fontSizes.lg : fontSizes.xxl;
 
@@ -454,21 +463,24 @@ export default function Dashboard() {
                 </View>
 
                 {/* Pending balances */}
-                {topDebtors.length > 0 && (
-                    <ReceiptCard style={themed.recentCard} showTopZigzag={true} showBottomZigzag={false}>
-                        <View style={themed.recentHeader}>
-                            <View>
-                                <Text style={themed.recentTitle}>Most Owed</Text>
-                                <View style={styles.sectionUnderline} />
-                            </View>
+                <ReceiptCard style={themed.recentCard} showTopZigzag={true} showBottomZigzag={false}>
+                    <View style={themed.recentHeader}>
+                        <View>
+                            <Text style={themed.recentTitle}>Most Owed</Text>
+                            <View style={styles.sectionUnderline} />
+                        </View>
+                        {topDebtors.length > 0 && (
                             <TouchableOpacity onPress={() => router.push('/(tabs)/history')}>
                                 <Text style={themed.viewAllText}>View all →</Text>
                             </TouchableOpacity>
-                        </View>
-                        {topDebtors.map((d, i) => (
+                        )}
+                    </View>
+                    {Array.from({ length: 3 }).map((_, i) => {
+                        const d = topDebtors[i];
+                        return d ? (
                             <View
                                 key={d.name}
-                                style={[themed.receiptRow, i < topDebtors.length - 1 && themed.receiptRowBorder]}
+                                style={[themed.receiptRow, i < 2 && themed.receiptRowBorder]}
                             >
                                 <View style={styles.debtorAvatar}>
                                     <Text style={styles.debtorAvatarText}>{d.name.charAt(0).toUpperCase()}</Text>
@@ -476,12 +488,17 @@ export default function Dashboard() {
                                 <Text style={[themed.receiptName, { flex: 1, marginLeft: spacing.md }]}>{d.name}</Text>
                                 <Text style={themed.receiptAmount}>${d.total.toFixed(2)}</Text>
                             </View>
-                        ))}
-                    </ReceiptCard>
-                )}
+                        ) : (
+                            <View key={`empty-debtor-${i}`} style={[themed.receiptRow, i < 2 && themed.receiptRowBorder]}>
+                                <View style={[styles.debtorAvatar, styles.placeholderAvatar]} />
+                                <View style={[styles.placeholderBar, { marginLeft: spacing.md }]} />
+                            </View>
+                        );
+                    })}
+                </ReceiptCard>
 
                 {/* Recent splits */}
-                <ReceiptCard style={[themed.recentCard, { marginTop: topDebtors.length > 0 ? spacing.md : 0 }]} showTopZigzag={topDebtors.length === 0} showBottomZigzag={true}>
+                <ReceiptCard style={[themed.recentCard, { marginTop: spacing.md }]} showTopZigzag={false} showBottomZigzag={true}>
                     <View style={themed.recentHeader}>
                         <View>
                             <Text style={themed.recentTitle}>Recent Splits</Text>
@@ -496,38 +513,39 @@ export default function Dashboard() {
 
                     {loading ? (
                         <DashboardSkeleton />
-                    ) : recentTwo.length === 0 ? (
-                        <View style={themed.emptyState}>
-                            <MaterialIcons name="receipt-long" size={32} color={C.gray300} />
-                            <Text style={themed.emptyTitle}>No receipts yet</Text>
-                            <Text style={themed.emptySubtitle}>Tap + to scan your first one!</Text>
-                        </View>
                     ) : (
-                        recentTwo.map((receipt, i) => (
-                            <TouchableOpacity
-                                key={receipt.id}
-                                style={[
-                                    themed.receiptRow,
-                                    i < recentTwo.length - 1 && themed.receiptRowBorder,
-                                ]}
-                                onPress={() => router.push(`/receipt/${receipt.id}`)}
-                                activeOpacity={0.7}
-                            >
-                                <View style={themed.receiptRowLeft}>
-                                    <Text style={themed.receiptName}>{receipt.receipt_name}</Text>
-                                    <Text style={themed.receiptDate}>
-                                        {new Date(receipt.created_at).toLocaleDateString('en-US', {
-                                            month: 'short',
-                                            day: 'numeric',
-                                        })}
-                                        {receipt.receipt_items && ` · ${receipt.receipt_items.length} items`}
+                        Array.from({ length: 3 }).map((_, i) => {
+                            const receipt = recentTwo[i];
+                            return receipt ? (
+                                <TouchableOpacity
+                                    key={receipt.id}
+                                    style={[themed.receiptRow, i < 2 && themed.receiptRowBorder]}
+                                    onPress={() => router.push(`/receipt/${receipt.id}`)}
+                                    activeOpacity={0.7}
+                                >
+                                    <View style={themed.receiptRowLeft}>
+                                        <Text style={themed.receiptName}>{receipt.receipt_name}</Text>
+                                        <Text style={themed.receiptDate}>
+                                            {new Date(receipt.created_at).toLocaleDateString('en-US', {
+                                                month: 'short',
+                                                day: 'numeric',
+                                            })}
+                                            {receipt.receipt_items && ` · ${receipt.receipt_items.length} items`}
+                                        </Text>
+                                    </View>
+                                    <Text style={themed.receiptAmount}>
+                                        ${(receipt.total_amount || 0).toFixed(2)}
                                     </Text>
+                                </TouchableOpacity>
+                            ) : (
+                                <View key={`empty-receipt-${i}`} style={[themed.receiptRow, i < 2 && themed.receiptRowBorder]}>
+                                    <View style={themed.receiptRowLeft}>
+                                        <View style={styles.placeholderBar} />
+                                        <View style={[styles.placeholderBar, { width: 80, marginTop: 5 }]} />
+                                    </View>
                                 </View>
-                                <Text style={themed.receiptAmount}>
-                                    ${(receipt.total_amount || 0).toFixed(2)}
-                                </Text>
-                            </TouchableOpacity>
-                        ))
+                            );
+                        })
                     )}
                 </ReceiptCard>
             </ScrollView>
