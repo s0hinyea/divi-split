@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "expo-router";
 import {
   View,
@@ -100,25 +100,34 @@ export default function ChooseContacts() {
     }
   };
 
-  const filteredContacts = contacts
-    .filter((c) => c.name?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false)
-    .sort((a, b) => {
-      const aSelected = selected.some((c) => c.id === a.id);
-      const bSelected = selected.some((c) => c.id === b.id);
-      if (aSelected && !bSelected) return -1;
-      if (!aSelected && bSelected) return 1;
-      return 0;
-    });
+  const filteredContacts = useMemo(() =>
+    contacts
+      .filter((c) => c.name?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false)
+      .sort((a, b) => {
+        const aSelected = selected.some((c) => c.id === a.id);
+        const bSelected = selected.some((c) => c.id === b.id);
+        if (aSelected && !bSelected) return -1;
+        if (!aSelected && bSelected) return 1;
+        return 0;
+      }),
+    [contacts, selected, searchQuery]
+  );
 
-  // Only show recents section when not searching, and only for contacts that still exist
-  const visibleRecents = searchQuery
-    ? []
-    : recentContacts.filter(r => contacts.some(c => c.id === r.id));
+  const visibleRecents = useMemo(() =>
+    searchQuery ? [] : recentContacts.filter(r => contacts.some(c => c.id === r.id)),
+    [searchQuery, recentContacts, contacts]
+  );
 
-  // Deduplicate: hide recents from the main list to avoid showing them twice
-  const mainContacts = visibleRecents.length > 0
-    ? filteredContacts.filter(c => !visibleRecents.some(r => r.id === c.id))
-    : filteredContacts;
+  const mainContacts = useMemo(() =>
+    visibleRecents.length > 0
+      ? filteredContacts.filter(c => !visibleRecents.some(r => r.id === c.id))
+      : filteredContacts,
+    [visibleRecents, filteredContacts]
+  );
+
+  const handleContactPress = useCallback((item: Contact) => {
+    manageContacts(item);
+  }, [manageContacts]);
 
   const handleContinue = () => {
     saveRecents(selected);
@@ -139,7 +148,7 @@ export default function ChooseContacts() {
       <TouchableOpacity
         key={item.id}
         style={[styles.contactItem, isSelected && styles.selectedContact]}
-        onPress={() => manageContacts(item)}
+        onPress={() => handleContactPress(item)}
         activeOpacity={0.7}
       >
         <View style={styles.avatarContainer}>
@@ -205,6 +214,8 @@ export default function ChooseContacts() {
         keyExtractor={(item) => item.id!}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
         ListHeaderComponent={visibleRecents.length > 0 ? (
           <View>
             <Text style={styles.sectionLabel}>Recent</Text>
@@ -321,8 +332,13 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   selectedContact: {
-    backgroundColor: `${colors.green}10`,
+    backgroundColor: colors.greenLight,
     borderColor: colors.green,
+    shadowColor: colors.green,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 3,
   },
   avatarContainer: {
     width: 40,

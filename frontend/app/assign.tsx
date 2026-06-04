@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Pressable, StyleSheet, ActivityIndicator, Modal } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -34,14 +34,6 @@ export default function AssignAmounts() {
   useEffect(() => { setResumeContactIndex(currentContactIndex); }, [currentContactIndex]);
 
   const currentContact = selected[currentContactIndex];
-  const items = 'items' in receiptData ? receiptData.items.filter(item => !/tax/i.test(item.name)) : [];
-
-  const assignedToOthers = selected
-    .filter(c => c.id !== currentContact?.id)
-    .flatMap(c => c.items);
-
-  const available = items.filter(item => !assignedToOthers.some(assigned => assigned.id === item.id));
-
   const CATEGORY_ORDER: ItemCategory[] = ['entree', 'appetizer', 'side', 'drink', 'dessert', 'other'];
   const CATEGORY_LABELS: Record<ItemCategory, string> = {
     entree: 'Entrees',
@@ -51,18 +43,38 @@ export default function AssignAmounts() {
     dessert: 'Desserts',
     other: 'Other',
   };
-  const groupedAvailable = CATEGORY_ORDER
-    .map(cat => ({ cat, items: available.filter(it => (it.category ?? 'other') === cat) }))
-    .filter(g => g.items.length > 0);
-  const hasCategoryData = available.some(it => it.category != null);
+
+  const items = useMemo(
+    () => 'items' in receiptData ? receiptData.items.filter(item => !/tax/i.test(item.name)) : [],
+    [receiptData]
+  );
+
+  const available = useMemo(() => {
+    const assignedToOthers = selected
+      .filter(c => c.id !== currentContact?.id)
+      .flatMap(c => c.items);
+    return items.filter(item => !assignedToOthers.some(assigned => assigned.id === item.id));
+  }, [items, selected, currentContact?.id]);
+
+  const groupedAvailable = useMemo(() =>
+    CATEGORY_ORDER
+      .map(cat => ({ cat, items: available.filter(it => (it.category ?? 'other') === cat) }))
+      .filter(g => g.items.length > 0),
+    [available]
+  );
+
+  const hasCategoryData = useMemo(() => available.some(it => it.category != null), [available]);
 
   const contactTotal = currentContact?.items?.reduce((sum, item) => sum + item.price, 0) ?? 0;
 
-  const toggleItem = (item: ReceiptItem) => {
+  const toggleItem = useCallback((item: ReceiptItem) => {
     if (currentContact) manageItems(item, currentContact);
-  };
+  }, [currentContact, manageItems]);
 
-  const isSelected = (item: ReceiptItem) => currentContact?.items?.some(it => it.id === item.id);
+  const isSelected = useCallback(
+    (item: ReceiptItem) => currentContact?.items?.some(it => it.id === item.id) ?? false,
+    [currentContact]
+  );
 
   const finishAssign = useCallback(async () => {
     const store = useSplitStore.getState();
@@ -327,7 +339,12 @@ const styles = StyleSheet.create({
   },
   selectedItemCard: {
     borderColor: colors.green,
-    backgroundColor: colors.white,
+    backgroundColor: colors.greenLight,
+    shadowColor: colors.green,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 4,
   },
   itemCardPressed: {
     opacity: 0.75,
