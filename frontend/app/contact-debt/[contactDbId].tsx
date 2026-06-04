@@ -216,11 +216,6 @@ export default function ContactDebt() {
                 </TouchableOpacity>
                 <View style={styles.headerText}>
                     <Text style={styles.headerTitle}>{contactName}</Text>
-                    {!loading && receipts.length > 0 && (
-                        <Text style={styles.headerSubtitle}>
-                            {allSettled ? 'All settled up' : `${outstanding.length} of ${receipts.length} receipt${receipts.length !== 1 ? 's' : ''} outstanding`}
-                        </Text>
-                    )}
                 </View>
                 {!loading && !allSettled && (
                     <View style={styles.totalBadge}>
