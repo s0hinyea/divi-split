@@ -174,7 +174,6 @@ export default function Onboarding() {
 										onChangeText={(t) =>
 											setUsername(t.toLowerCase().replace(/[^a-z0-9_.]/g, ""))
 										}
-										autoFocus
 										autoCapitalize="none"
 										maxLength={20}
 										onSubmitEditing={handleContinue}

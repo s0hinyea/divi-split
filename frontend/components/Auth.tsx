@@ -483,7 +483,6 @@ export default function Auth({ initialMode }: AuthProps) {
 									value={fullName}
 									onChangeText={setFullName}
 									onBlur={() => touch('name')}
-									autoFocus
 									returnKeyType="next"
 									onSubmitEditing={nextStep}
 									maxLength={50}
@@ -506,7 +505,6 @@ export default function Auth({ initialMode }: AuthProps) {
 									value={email}
 									onChangeText={setEmail}
 									onBlur={() => touch('email')}
-									autoFocus
 									autoCapitalize="none"
 									keyboardType="email-address"
 									textContentType="emailAddress"
@@ -532,7 +530,6 @@ export default function Auth({ initialMode }: AuthProps) {
 										onChangeText={setPassword}
 										onBlur={() => touch('password')}
 										secureTextEntry={!showPassword}
-										autoFocus
 										textContentType="newPassword"
 										onSubmitEditing={nextStep}
 									/>
@@ -578,7 +575,6 @@ export default function Auth({ initialMode }: AuthProps) {
 										placeholder="username"
 										value={username}
 										onChangeText={t => setUsername(t.toLowerCase().replace(/[^a-z0-9_.]/g, ''))}
-										autoFocus
 										autoCapitalize="none"
 										maxLength={20}
 										onSubmitEditing={nextStep}
@@ -709,7 +705,6 @@ export default function Auth({ initialMode }: AuthProps) {
 										onChangeText={setOtpCode}
 										keyboardType="number-pad" 
 										maxLength={8}
-										autoFocus
 									/>
 								)}
 							</>
@@ -723,7 +718,6 @@ export default function Auth({ initialMode }: AuthProps) {
 										onChangeText={setPassword}
 										onBlur={() => touch('password')}
 										secureTextEntry={!showPassword}
-										autoFocus
 										textContentType="newPassword"
 									/>
 									<TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
