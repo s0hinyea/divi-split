@@ -2,6 +2,7 @@ import { View, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from '
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useFocusEffect } from 'expo-router';
 import { useRouter } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
 import { fonts, fontSizes, spacing, colors, radii } from '@/styles/theme';
@@ -280,7 +281,7 @@ export default function Dashboard() {
         setTopDebtors(sorted);
     }, [session?.user?.id]);
 
-    useEffect(() => { fetchTopDebtors(); }, [fetchTopDebtors]);
+    useFocusEffect(useCallback(() => { fetchTopDebtors(); }, [fetchTopDebtors]));
 
     const STEP_LABELS: Record<string, string> = {
         contacts: 'Selecting contacts',
