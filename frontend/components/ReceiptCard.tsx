@@ -66,10 +66,6 @@ export default function ReceiptCard({
 
     return (
         <View style={[styles.wrapper, style]}>
-            {/* Paper stack layers — furthest back to closest */}
-            <View style={[styles.paperLayer, styles.paperLayer2, { backgroundColor: C.gray300 }]} />
-            <View style={[styles.paperLayer, styles.paperLayer1, { backgroundColor: C.gray200 }]} />
-
             <View
                 style={styles.container}
                 onLayout={(e) => {
@@ -110,33 +106,7 @@ export default function ReceiptCard({
 const styles = StyleSheet.create({
     wrapper: {
         position: 'relative',
-        paddingBottom: 9,
         flexDirection: 'column',
-        shadowColor: '#0A0A0A',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.10,
-        shadowRadius: 18,
-        elevation: 6,
-    },
-    paperLayer: {
-        position: 'absolute',
-        left: 0,
-        right: 0,
-        top: 0,
-        bottom: 0,
-        borderRadius: 4,
-    },
-    paperLayer1: {
-        bottom: -5,
-        left: 5,
-        right: 5,
-        opacity: 0.7,
-    },
-    paperLayer2: {
-        bottom: -9,
-        left: 10,
-        right: 10,
-        opacity: 0.45,
     },
     container: {
         position: 'relative',

@@ -40,17 +40,8 @@ export function ChangeProvider({ children }: { children: ReactNode }) {
 				const lastChange = newChanges.pop();
 				if (lastChange) {
 					switch (lastChange.type) {
-						case "EDIT_NAME": {
-							const item = items.find(
-								(it) => it.id === lastChange.id
-							);
-							if (item)
-								updateItem(lastChange.id, {
-									...item,
-									name: lastChange.previous.name,
-								});
-							break;
-						}
+						case "EDIT_ITEM":
+						case "EDIT_NAME":
 						case "EDIT_PRICE": {
 							const item = items.find(
 								(it) => it.id === lastChange.id
@@ -58,6 +49,7 @@ export function ChangeProvider({ children }: { children: ReactNode }) {
 							if (item)
 								updateItem(lastChange.id, {
 									...item,
+									name: lastChange.previous.name,
 									price: lastChange.previous.price,
 								});
 							break;

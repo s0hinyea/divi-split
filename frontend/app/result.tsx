@@ -76,21 +76,14 @@ export default function OCRResults() {
     if (!targetId) return;
     const previousItem = items.find(item => item.id === targetId);
     if (!previousItem) return;
-    let updatedItem = { ...previousItem };
-    let changed = false;
     let parsedPrice = parseFloat(finalPrice);
     if (isNaN(parsedPrice)) parsedPrice = 0;
-    if (previousItem.name !== finalName) {
-      updatedItem.name = finalName;
-      addChange({ type: 'EDIT_NAME', id: targetId, previous: previousItem });
-      changed = true;
+    const nameChanged = previousItem.name !== finalName;
+    const priceChanged = previousItem.price !== parsedPrice;
+    if (nameChanged || priceChanged) {
+      addChange({ type: 'EDIT_ITEM', id: targetId, previous: previousItem });
+      updateItem(targetId, { ...previousItem, name: finalName, price: parsedPrice });
     }
-    if (previousItem.price !== parsedPrice) {
-      updatedItem.price = parsedPrice;
-      addChange({ type: 'EDIT_PRICE', id: targetId, previous: previousItem });
-      changed = true;
-    }
-    if (changed) updateItem(targetId, updatedItem);
   }
 
   function finishChange() {
@@ -160,7 +153,10 @@ export default function OCRResults() {
   function finishTaxEdit() {
     setEditingTax(false);
     const taxValue = parseFloat(taxInput) || 0;
-    if ('items' in receiptData) updateReceiptData({ ...receiptData, tax: taxValue });
+    if ('items' in receiptData) {
+      addChange({ type: 'SET_TAX', id: 'tax', previous: { id: 'tax', name: 'Tax', price: 0 }, previousAmount: receiptData.tax ?? 0 });
+      updateReceiptData({ ...receiptData, tax: taxValue });
+    }
   }
 
   function startTipEdit() {
@@ -172,7 +168,10 @@ export default function OCRResults() {
   function finishTipEdit() {
     setEditingTip(false);
     const tipValue = parseFloat(tipInput) || 0;
-    if ('items' in receiptData) updateReceiptData({ ...receiptData, tip: tipValue });
+    if ('items' in receiptData) {
+      addChange({ type: 'SET_TIP', id: 'tip', previous: { id: 'tip', name: 'Tip', price: 0 }, previousAmount: receiptData.tip ?? 0 });
+      updateReceiptData({ ...receiptData, tip: tipValue });
+    }
   }
 
   const renderRightActions = (id: string, item: ReceiptItem) => (

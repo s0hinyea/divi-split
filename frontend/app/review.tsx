@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Modal, ActivityIndicator, TextInput, Platform, StyleSheet, Keyboard } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Modal, ActivityIndicator, TextInput, Platform, StyleSheet, Keyboard, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSplitStore, ReceiptItem } from '../stores/splitStore';
 import { useHistory } from '../utils/HistoryContext';
@@ -42,6 +42,42 @@ export default function ReviewPage() {
 
   const { showToast } = useToast();
   const setCurrentStep = useSplitStore((state) => state.setCurrentStep);
+
+  // Track original contact names so we can detect renames and offer to persist them
+  const originalNamesRef = useRef<Map<string, string>>(
+    new Map(selected.map(c => [c.id, c.name ?? '']))
+  );
+  // Suppress the rename alert once the user has tapped Proceed
+  const isFinishingRef = useRef(false);
+
+  const handleNameBlur = (contactId: string) => {
+    if (isFinishingRef.current) return;
+    // Read from store directly to avoid stale closure issues
+    const currentContact = useSplitStore.getState().selected.find(c => c.id === contactId);
+    if (!currentContact) return;
+    const original = originalNamesRef.current.get(contactId);
+    if (!original || currentContact.name === original) return;
+    if (!currentContact.phoneNumber || currentContact.phoneNumber === 'no-phone') return;
+    const newName = currentContact.name;
+    Alert.alert(
+      'Save name?',
+      `Always call this contact "${newName}"?`,
+      [
+        { text: 'Just this split', style: 'cancel' },
+        {
+          text: 'Save for next time',
+          onPress: async () => {
+            await supabase
+              .from('contacts')
+              .update({ contact_name: newName })
+              .eq('user_id', session?.user?.id)
+              .eq('phone_number', currentContact.phoneNumber);
+            originalNamesRef.current.set(contactId, newName);
+          },
+        },
+      ]
+    );
+  };
 
   useEffect(() => { setCurrentStep('review'); }, []);
 
@@ -227,6 +263,7 @@ export default function ReviewPage() {
   };
   // Handle finish - save receipt, upsert payment_requests, then prompt for SMS
   const handleFinish = async () => {
+    isFinishingRef.current = true;
     const name = receiptName.trim() || `Split - ${receiptDate.toLocaleDateString()}`;
     setIsSaving(true);
     let receiptId: string | null = null;
@@ -434,6 +471,7 @@ export default function ReviewPage() {
                   style={styles.cardTitleInput}
                   value={contact.name}
                   onChangeText={(text) => updateContactName(contact.id, text)}
+                  onBlur={() => handleNameBlur(contact.id)}
                   placeholder="Contact Name"
                   placeholderTextColor={colors.gray400}
                 />
