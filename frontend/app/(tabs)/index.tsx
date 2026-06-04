@@ -305,7 +305,8 @@ export default function Dashboard() {
         if (error || !data) return;
         const totals: Record<string, number> = {};
         for (const row of data as any[]) {
-            const name = row.contacts?.contact_name;
+            const c = Array.isArray(row.contacts) ? row.contacts[0] : row.contacts;
+            const name = c?.contact_name;
             if (!name) continue;
             totals[name] = (totals[name] ?? 0) + Number(row.amount);
         }
