@@ -216,9 +216,9 @@ export default function ContactDebt() {
                 </TouchableOpacity>
                 <View style={styles.headerText}>
                     <Text style={styles.headerTitle}>{contactName}</Text>
-                    {!loading && (
+                    {!loading && receipts.length > 0 && (
                         <Text style={styles.headerSubtitle}>
-                            {allSettled ? 'All settled up' : `$${total.toFixed(2)} outstanding`}
+                            {allSettled ? 'All settled up' : `${outstanding.length} of ${receipts.length} receipt${receipts.length !== 1 ? 's' : ''} outstanding`}
                         </Text>
                     )}
                 </View>
@@ -241,7 +241,7 @@ export default function ContactDebt() {
                 ) : (
                     <>
                         <View style={styles.sectionHeader}>
-                            <Text style={styles.sectionTitle}>Receipts</Text>
+                            <Text style={styles.sectionTitle}>Receipts · {receipts.length}</Text>
                             <Text style={[styles.sectionCount, { color: allSettled ? colors.green : colors.gray400 }]}>
                                 {allSettled ? 'All paid' : `${settledCount}/${receipts.length} paid`}
                             </Text>
