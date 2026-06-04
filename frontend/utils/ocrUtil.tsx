@@ -47,11 +47,13 @@ export const handleOCR = async (
 	setError: (val: string | null) => void,
 	router: Router,
 	showToast: (message: string, type?: ToastType) => void,
+	signal?: AbortSignal,
 ) => {
 	try {
+		if (signal?.aborted) return;
 		setIsProcessing(true);
 		setError(null);
-		router.push("/split-mode");
+		router.push("/contacts");
 
 		setStatus("Compressing image...");
 		console.time('[ocr] image compression');
@@ -63,6 +65,8 @@ export const handleOCR = async (
 		const base64DataUrl = `data:image/jpeg;base64,${manipulatedImage.base64}`;
 		console.timeEnd('[ocr] image compression');
 		console.log(`[ocr] base64 size: ${(base64DataUrl.length / 1024).toFixed(1)}KB`);
+
+		if (signal?.aborted) return;
 
 		// Check OCR cache before hitting the edge function
 		const cacheKey = makeOcrCacheKey(base64DataUrl);

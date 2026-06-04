@@ -13,7 +13,7 @@ export default function Scan() {
   const router = useRouter();
   const [launching, setLaunching] = useState(false);
   const updateReceiptData = useSplitStore((state) => state.updateReceiptData);
-  const { setIsProcessing, setStatus, setError } = useOCR();
+  const { setIsProcessing, setStatus, setError, startOCR } = useOCR();
   const { showToast } = useToast();
 
   useEffect(() => {
@@ -49,7 +49,8 @@ export default function Scan() {
         const scannedUri = result.assets[0].uri;
         console.log('🟢 [Scanner] Photo taken:', scannedUri);
         // Pass to OCR pipeline natively handles image paths
-        await handleOCR(scannedUri, updateReceiptData, setIsProcessing, setStatus, setError, router, showToast);
+        const signal = startOCR();
+        await handleOCR(scannedUri, updateReceiptData, setIsProcessing, setStatus, setError, router, showToast, signal);
       } else {
         // User cancelled
         if (router.canGoBack()) router.back();

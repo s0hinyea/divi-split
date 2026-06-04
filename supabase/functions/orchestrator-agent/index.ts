@@ -109,20 +109,24 @@ Parse the user's statement and return ONLY a JSON object with this exact structu
   "user_item_ids": ["item_id_d"],
   "receipt_corrections": [
     { "action": "edit", "id": "item_id", "name": "corrected name", "price": 12.50 },
-    { "action": "add", "name": "missing item", "price": 5.00 },
+    { "action": "add", "name": "missing item", "price": 5.00, "assign_to": "contact_id_1" },
     { "action": "delete", "id": "item_id" }
   ],
-  "unmatched_names": ["name that didnt match any contact"]
+  "unmatched_names": [
+    { "name": "Samwell", "intended_item_ids": ["item_id_c"] }
+  ]
 }
+
+IMPORTANT: Do NOT put unmatched names in selected_contact_ids or assignments. Unmatched names go ONLY in unmatched_names.
 
 RULES:
 - selected_contact_ids: every contact mentioned by the user (excluding "me/I")
-- assignments: only include entries where the user explicitly assigned items to someone
-- user_item_ids: item IDs the user assigned to themselves
+- assignments: only include entries where the user explicitly assigned items to EXISTING receipt items only — never invented or added items
+- user_item_ids: item IDs the user assigned to themselves (existing items only)
 - receipt_corrections: only when user explicitly says to fix an item (rename, add missing, remove wrong)
-- unmatched_names: names spoken that did not match any contact in the list
-- Fuzzy name matching: "Mike" can match "Michael Johnson", "Alex" matches "Alexandra Kim", nicknames OK
-- If ambiguous between two contacts, pick the closest match and leave out of unmatched_names
+- For "add" corrections: if the user says this new item belongs to someone, set "assign_to" to that contact's ID (or "user" for the bill payer). Omit "assign_to" if unassigned.
+- unmatched_names: names spoken that did NOT clearly match any contact. Include the item IDs the user intended for that person (from the existing receipt list). Use [] for intended_item_ids if no items were mentioned for them.
+- NAME MATCHING RULES (strict): Only match if there is clear phonetic or spelling similarity (e.g. "Sam" → "Samuel", "Mike" → "Michael", "Alex" → "Alexandra"). NEVER match a name to a contact whose name is a phrase, sentence, or has no phonetic resemblance. If no good match exists, add to unmatched_names.
 - Return empty arrays [] for sections with no data, never null
 - Do not invent contact IDs or item IDs — only use exact IDs from the lists above`;
 

@@ -3,13 +3,12 @@ import {
     StyleSheet,
     TouchableOpacity,
     RefreshControl,
-    Pressable,
 } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useRouter } from 'expo-router';
-import { ScrollView } from 'react-native-gesture-handler';
+import { ScrollView, Pressable } from 'react-native-gesture-handler';
 import Swipeable from 'react-native-gesture-handler/Swipeable';
 import { MaterialIcons } from '@expo/vector-icons';
 import { fonts, fontSizes, spacing, radii, shadows, colors } from '@/styles/theme';
@@ -233,7 +232,7 @@ export default function History() {
             <View style={styles.header}>
                 <Text style={styles.title}>History</Text>
                 {receipts.length > 0 && (
-                    <Text style={styles.subtitle}>{receipts.length} receipt{receipts.length !== 1 ? 's' : ''}</Text>
+                    <Text style={styles.subtitle}>tap to edit, swipe to delete</Text>
                 )}
             </View>
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Modal, ActivityIndicator, TextInput, Platform, StyleSheet, Animated, Keyboard } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Modal, ActivityIndicator, TextInput, Platform, StyleSheet, Keyboard } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSplitStore, ReceiptItem } from '../stores/splitStore';
 import { useHistory } from '../utils/HistoryContext';
@@ -14,10 +14,7 @@ import { colors, fonts, fontSizes, spacing, radii } from '@/styles/theme';
 import { MaterialIcons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { allocateAmount } from '../utils/mathUtil';
-import { useReviewAgent, executeMoveItem, ReviewState, ReviewCallbacks, ActionSummary } from '../utils/useReviewAgent';
-import DiviLogoAnimated from '../components/DiviLogoAnimated';
 import { useToast } from '../components/ToastProvider';
-import AgentButton from '../components/AgentButton';
 
 export default function ReviewPage() {
   const router = useRouter();
@@ -43,51 +40,6 @@ export default function ReviewPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [savedReceiptId, setSavedReceiptId] = useState<string | null>(null);
 
-  // ── Agent overlay ───────────────────────────────────────────────────────────
-  const [overlayVisible, setOverlayVisible] = useState(false);
-  const [overlayPhase, setOverlayPhase] = useState<'processing' | 'revealing'>('processing');
-  const [revealItems, setRevealItems] = useState<{ summary: ActionSummary; opacity: Animated.Value; translateY: Animated.Value }[]>([]);
-  const overlayOpacity = useRef(new Animated.Value(0)).current;
-  const overlayActiveRef = useRef(false);
-  const pendingDispatchRef = useRef(false);
-
-  // Haptic pulse effect during processing
-  useEffect(() => {
-    let interval: any;
-    if (overlayVisible && overlayPhase === 'processing') {
-      // Immediate pulse
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      
-      interval = setInterval(() => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      }, 800);
-    }
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [overlayVisible, overlayPhase]);
-
-  // Refs for the review agent - always current, no stale closure issues
-  const reviewStateRef = useRef<ReviewState>({
-    receiptName: '',
-    receiptDate: new Date().toISOString(),
-    contacts: [],
-    userItems: [],
-    tax: 0,
-    tip: 0,
-    total: 0,
-  });
-  const reviewCallbacksRef = useRef<ReviewCallbacks>({
-    setReceiptName: () => {},
-    setReceiptDate: () => {},
-    updateContactName: () => {},
-    setTax: () => {},
-    setTip: () => {},
-    moveItem: () => {},
-    triggerDispatch: () => {},
-  });
-
-  const agent = useReviewAgent(reviewStateRef, reviewCallbacksRef);
   const { showToast } = useToast();
   const setCurrentStep = useSplitStore((state) => state.setCurrentStep);
 
@@ -111,56 +63,6 @@ export default function ReviewPage() {
     }
   }, [receiptData.items, receiptData.tax, receiptData.tip, selected]);
 
-  useEffect(() => {
-    const isProcessing = agent.loading || agent.isTranscribing;
-    if (isProcessing) {
-      if (!overlayActiveRef.current) {
-        overlayActiveRef.current = true;
-        setOverlayPhase('processing');
-        setOverlayVisible(true);
-        Animated.timing(overlayOpacity, { toValue: 1, duration: 200, useNativeDriver: true }).start();
-      }
-      return;
-    }
-    if (!overlayActiveRef.current) return;
-    overlayActiveRef.current = false;
-
-    const summary = agent.lastActionSummary;
-    if (summary && summary.length > 0) {
-      const items = summary.map(s => ({
-        summary: s,
-        opacity: new Animated.Value(0),
-        translateY: new Animated.Value(12),
-      }));
-      setRevealItems(items);
-      setOverlayPhase('revealing');
-      Animated.sequence([
-        Animated.stagger(500, items.map(item =>
-          Animated.parallel([
-            Animated.timing(item.opacity, { toValue: 1, duration: 450, useNativeDriver: true }),
-            Animated.timing(item.translateY, { toValue: 0, duration: 450, useNativeDriver: true }),
-          ])
-        )),
-        Animated.delay(2000),
-        Animated.timing(overlayOpacity, { toValue: 0, duration: 500, useNativeDriver: true }),
-      ]).start(() => {
-        setOverlayVisible(false);
-        setRevealItems([]);
-        if (pendingDispatchRef.current) {
-          pendingDispatchRef.current = false;
-          handleFinish();
-        }
-      });
-    } else {
-      Animated.timing(overlayOpacity, { toValue: 0, duration: 300, useNativeDriver: true }).start(() => {
-        setOverlayVisible(false);
-        if (pendingDispatchRef.current) {
-          pendingDispatchRef.current = false;
-          handleFinish();
-        }
-      });
-    }
-  }, [agent.loading, agent.isTranscribing, agent.lastActionSummary]);
 
   const calculateTaxBreakdown = () => {
     if (!('tax' in receiptData) || !receiptData.tax || receiptData.tax <= 0) {
@@ -199,20 +101,6 @@ export default function ReviewPage() {
   const { taxPercentage, individualTaxes } = calculateTaxBreakdown();
   const { tipPerPerson, individualTips } = calculateTipBreakdown();
 
-  // Keep agent refs in sync with latest state and callbacks each render
-  reviewStateRef.current = {
-    receiptName,
-    receiptDate: receiptDate.toISOString(),
-    contacts: selected.map((c) => ({
-      id: c.id,
-      name: c.name,
-      items: c.items as { id: string; name: string; price: number }[],
-    })),
-    userItems: (receiptData.userItems ?? []) as { id: string; name: string; price: number }[],
-    tax: receiptData.tax ?? 0,
-    tip: receiptData.tip ?? 0,
-    total: receiptData.total ?? 0,
-  };
 
   // Send one group SMS with a unique shareable pay link per person
   const sendGroupSummary = async () => {
@@ -366,19 +254,6 @@ export default function ReviewPage() {
     }
   };
 
-  // Update callbacks ref after all handlers are defined
-  reviewCallbacksRef.current = {
-    setReceiptName,
-    setReceiptDate,
-    updateContactName,
-    setTax: (amount) => updateReceiptData({ tax: amount }),
-    setTip: (amount) => updateReceiptData({ tip: amount }),
-    moveItem: executeMoveItem,
-    triggerDispatch: () => {
-      pendingDispatchRef.current = true;
-    },
-  };
-
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.headerContainer}>
@@ -406,11 +281,6 @@ export default function ReviewPage() {
             <TouchableOpacity onPress={() => router.replace('/(tabs)')} style={styles.homeButton}>
               <MaterialIcons name="home" size={20} color={colors.gray400} />
             </TouchableOpacity>
-            <AgentButton
-              isRecording={agent.isRecording}
-              isDisabled={agent.loading || agent.isTranscribing}
-              onPress={agent.isRecording ? agent.stopAndSend : agent.startRecording}
-            />
           </View>
         </View>
       </View>
@@ -614,49 +484,6 @@ export default function ReviewPage() {
           }
         </TouchableOpacity>
       </View>
-
-      {/* Agent overlay - processing spinner → action reveal → fade out */}
-      {overlayVisible && (
-        <Animated.View style={[styles.processingOverlay, { opacity: overlayOpacity }]}>
-          <BlurView intensity={55} style={StyleSheet.absoluteFill} />
-          <View style={styles.overlayContent}>
-            {overlayPhase === 'processing' && (
-              <DiviLogoAnimated size={140} />
-            )}
-            {overlayPhase === 'revealing' && (
-              <View style={styles.actionList}>
-                {revealItems.map((item, i) => {
-                  const verbColor =
-                    item.summary.verb === 'Sent' ? colors.green :
-                    item.summary.verb === 'Moved' ? colors.black :
-                    colors.black;
-                  const iconName =
-                    item.summary.verb === 'Renamed' ? 'edit' :
-                    item.summary.verb === 'Moved' ? 'swap-horiz' :
-                    item.summary.verb === 'Sent' ? 'send' :
-                    'edit';
-                  return (
-                    <Animated.View
-                      key={i}
-                      style={[styles.actionRow, { opacity: item.opacity, transform: [{ translateY: item.translateY }] }]}
-                    >
-                      <MaterialIcons name={iconName as any} size={18} color={verbColor} />
-                      <Text style={[styles.actionVerb, { color: verbColor }]}>{item.summary.verb}</Text>
-                      <Text style={styles.actionName} numberOfLines={1}>{item.summary.name}</Text>
-                      {item.summary.amount !== undefined && (
-                        <Text style={styles.actionAmount}>${item.summary.amount.toFixed(2)}</Text>
-                      )}
-                    </Animated.View>
-                  );
-                })}
-                {agent.lastDurationMs != null && (
-                  <Text style={styles.timingLabel}>{(agent.lastDurationMs / 1000).toFixed(1)}s</Text>
-                )}
-              </View>
-            )}
-          </View>
-        </Animated.View>
-      )}
 
       {/* Group SMS Modal */}
       <Modal
@@ -961,61 +788,5 @@ const styles = StyleSheet.create({
     backgroundColor: colors.gray100,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  agentButton: {
-    width: 36,
-    height: 36,
-    borderRadius: radii.full,
-    backgroundColor: `${colors.green}15`,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  agentButtonRecording: {
-    backgroundColor: colors.error,
-  },
-  processingOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 100,
-  },
-  overlayContent: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'flex-start',
-    paddingHorizontal: spacing.xl + 8,
-  },
-  actionList: {
-    gap: spacing.xl,
-    width: '100%',
-  },
-  actionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  actionVerb: {
-    fontFamily: fonts.bodyBold,
-    fontSize: fontSizes.xl,
-    minWidth: 90,
-  },
-  actionName: {
-    fontFamily: fonts.body,
-    fontSize: fontSizes.xl,
-    color: colors.black,
-    flex: 1,
-  },
-  actionAmount: {
-    fontFamily: fonts.bodySemiBold,
-    fontSize: fontSizes.xl,
-    color: colors.green,
-  },
-  timingLabel: {
-    fontFamily: fonts.body,
-    fontSize: fontSizes.xs,
-    color: colors.gray400,
-    marginTop: spacing.sm,
-    alignSelf: 'flex-end',
   },
 });

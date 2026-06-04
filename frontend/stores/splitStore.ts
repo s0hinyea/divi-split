@@ -1,7 +1,13 @@
 import { create } from "zustand";
 import { supabase } from "../lib/supabase";
 
-export type ItemCategory = 'drink' | 'appetizer' | 'entree' | 'dessert' | 'side' | 'other';
+export type ItemCategory =
+    | "drink"
+    | "appetizer"
+    | "entree"
+    | "dessert"
+    | "side"
+    | "other";
 
 export type ReceiptItem = {
     name: string;
@@ -17,7 +23,7 @@ export type OCRResponse = {
     tax?: number;
     tip?: number;
     userItems?: ReceiptItem[];
-    confidence?: 'high' | 'low';
+    confidence?: "high" | "low";
 };
 
 export type Contact = {
@@ -37,7 +43,10 @@ interface SplitState {
     removeItem: (id: string) => void;
     splitItem: (id: string) => string[];
     setUserItems: (items: ReceiptItem[]) => void;
-    saveReceipt: (receiptName: string, receiptDate?: Date) => Promise<string | null>;
+    saveReceipt: (
+        receiptName: string,
+        receiptDate?: Date,
+    ) => Promise<string | null>;
     calculateTotal: (items: any[]) => number;
 
     selected: Contact[];
@@ -58,17 +67,27 @@ interface SplitState {
         receiptName: string,
         createdAt: string,
     ) => void;
-    updateReceipt: (receiptId: string, receiptName: string, receiptDate?: Date) => Promise<boolean>;
+    updateReceipt: (
+        receiptId: string,
+        receiptName: string,
+        receiptDate?: Date,
+    ) => Promise<boolean>;
 
     // Resume-split tracking
-    currentStep: 'contacts' | 'result' | 'assign' | 'review' | null;
+    currentStep: "contacts" | "result" | "assign" | "review" | null;
     resumeContactIndex: number;
-    setCurrentStep: (step: 'contacts' | 'result' | 'assign' | 'review' | null) => void;
+    setCurrentStep: (
+        step: "contacts" | "result" | "assign" | "review" | null,
+    ) => void;
     setResumeContactIndex: (index: number) => void;
 
     // Split evenly undo snapshot
-    splitEvenlySnapshot: { selected: Contact[]; userItems: ReceiptItem[] } | null;
-    setSplitEvenlySnapshot: (snap: { selected: Contact[]; userItems: ReceiptItem[] } | null) => void;
+    splitEvenlySnapshot:
+        | { selected: Contact[]; userItems: ReceiptItem[] }
+        | null;
+    setSplitEvenlySnapshot: (
+        snap: { selected: Contact[]; userItems: ReceiptItem[] } | null,
+    ) => void;
 
     resetStore: () => void;
     // Completion overlay
@@ -91,8 +110,8 @@ export const useSplitStore = create<SplitState>((set, get) => ({
     selected: [],
     showCompletion: false,
     editingReceiptId: null,
-    editingReceiptName: '',
-    editingReceiptCreatedAt: '',
+    editingReceiptName: "",
+    editingReceiptCreatedAt: "",
     currentStep: null,
     resumeContactIndex: 0,
 
@@ -117,7 +136,21 @@ export const useSplitStore = create<SplitState>((set, get) => ({
             const newItems = state.receiptData.items.map((
                 it,
             ) => (it.id === id ? item : it));
-            return { receiptData: { ...state.receiptData, items: newItems } };
+            const newSelected = state.selected.map((contact) => ({
+                ...contact,
+                items: contact.items.map((it) => (it.id === id ? item : it)),
+            }));
+            const newUserItems = (state.receiptData.userItems ?? []).map((
+                it,
+            ) => (it.id === id ? item : it));
+            return {
+                receiptData: {
+                    ...state.receiptData,
+                    items: newItems,
+                    userItems: newUserItems,
+                },
+                selected: newSelected,
+            };
         }),
 
     addItem: (item) =>
@@ -138,53 +171,61 @@ export const useSplitStore = create<SplitState>((set, get) => ({
 
     removeItem: (id) =>
         set((state) => {
-            const newItems = state.receiptData.items.filter((it) => it.id !== id);
-            const newUserItems = (state.receiptData.userItems ?? []).filter((it) => it.id !== id);
+            const newItems = state.receiptData.items.filter((it) =>
+                it.id !== id
+            );
+            const newUserItems = (state.receiptData.userItems ?? []).filter((
+                it,
+            ) => it.id !== id);
             const newSelected = state.selected.map((contact) => ({
                 ...contact,
                 items: contact.items.filter((it) => it.id !== id),
             }));
             return {
-                receiptData: { ...state.receiptData, items: newItems, userItems: newUserItems },
+                receiptData: {
+                    ...state.receiptData,
+                    items: newItems,
+                    userItems: newUserItems,
+                },
                 selected: newSelected,
             };
         }),
 
     splitItem: (id) => {
-            const state = get();
-            const index = state.receiptData.items.findIndex((it) => it.id === id);
-            if (index === -1) return [];
+        const state = get();
+        const index = state.receiptData.items.findIndex((it) => it.id === id);
+        if (index === -1) return [];
 
-            const originalItem = state.receiptData.items[index];
-            if (originalItem.price <= 0.01) return [];
+        const originalItem = state.receiptData.items[index];
+        if (originalItem.price <= 0.01) return [];
 
-            const rawHalf = originalItem.price / 2;
-            const half1 = Math.ceil(rawHalf * 100) / 100;
-            const half2 = Math.floor(rawHalf * 100) / 100;
+        const rawHalf = originalItem.price / 2;
+        const half1 = Math.ceil(rawHalf * 100) / 100;
+        const half2 = Math.floor(rawHalf * 100) / 100;
 
-            const getId = () => 
-                typeof crypto !== 'undefined' && crypto.randomUUID 
-                    ? crypto.randomUUID() 
-                    : Math.random().toString(36).substring(2, 10);
+        const getId = () =>
+            typeof crypto !== "undefined" && crypto.randomUUID
+                ? crypto.randomUUID()
+                : Math.random().toString(36).substring(2, 10);
 
-            const item1: ReceiptItem = {
-                id: getId(),
-                name: originalItem.name,
-                price: half1,
-            };
+        const item1: ReceiptItem = {
+            id: getId(),
+            name: originalItem.name,
+            price: half1,
+        };
 
-            const item2: ReceiptItem = {
-                id: getId(),
-                name: originalItem.name,
-                price: half2,
-            };
+        const item2: ReceiptItem = {
+            id: getId(),
+            name: originalItem.name,
+            price: half2,
+        };
 
-            const newItems = [...state.receiptData.items];
-            newItems.splice(index, 1, item1, item2);
+        const newItems = [...state.receiptData.items];
+        newItems.splice(index, 1, item1, item2);
 
-            set({ receiptData: { ...state.receiptData, items: newItems } });
-            return [item1.id, item2.id];
-        },
+        set({ receiptData: { ...state.receiptData, items: newItems } });
+        return [item1.id, item2.id];
+    },
 
     calculateTotal: (items: any[]) => {
         return items.reduce((sum, item) => sum + item.price, 0);
@@ -199,11 +240,12 @@ export const useSplitStore = create<SplitState>((set, get) => ({
                 total_amount: state.receiptData.total || 0,
                 tax_amount: state.receiptData.tax || 0,
                 tip_amount: state.receiptData.tip || 0,
-                created_at: receiptDate?.toISOString() || new Date().toISOString(),
+                created_at: receiptDate?.toISOString() ||
+                    new Date().toISOString(),
 
                 // All line items
                 items: (state.receiptData.items || []).map((item) => ({
-                    id: item.id,       // frontend id for mapping
+                    id: item.id, // frontend id for mapping
                     name: item.name,
                     price: item.price,
                 })),
@@ -291,16 +333,25 @@ export const useSplitStore = create<SplitState>((set, get) => ({
 
     clearSelected: () => set({ selected: [] }),
 
-    hydrateForEdit: (receiptId, receiptData, contacts, receiptName, createdAt) =>
-        set({
-            editingReceiptId: receiptId,
-            editingReceiptName: receiptName,
-            editingReceiptCreatedAt: createdAt,
-            receiptData,
-            selected: contacts,
-        }),
+    hydrateForEdit: (
+        receiptId,
+        receiptData,
+        contacts,
+        receiptName,
+        createdAt,
+    ) => set({
+        editingReceiptId: receiptId,
+        editingReceiptName: receiptName,
+        editingReceiptCreatedAt: createdAt,
+        receiptData,
+        selected: contacts,
+    }),
 
-    updateReceipt: async (receiptId: string, receiptName: string, receiptDate?: Date) => {
+    updateReceipt: async (
+        receiptId: string,
+        receiptName: string,
+        receiptDate?: Date,
+    ) => {
         const state = get();
         try {
             const payload = {
@@ -309,7 +360,8 @@ export const useSplitStore = create<SplitState>((set, get) => ({
                 total_amount: state.receiptData.total || 0,
                 tax_amount: state.receiptData.tax || 0,
                 tip_amount: state.receiptData.tip || 0,
-                created_at: receiptDate?.toISOString() || new Date().toISOString(),
+                created_at: receiptDate?.toISOString() ||
+                    new Date().toISOString(),
                 items: (state.receiptData.items || []).map((item) => ({
                     id: item.id,
                     name: item.name,
@@ -323,7 +375,9 @@ export const useSplitStore = create<SplitState>((set, get) => ({
                 })),
             };
 
-            const { data, error } = await supabase.rpc("update_receipt_split", { payload });
+            const { data, error } = await supabase.rpc("update_receipt_split", {
+                payload,
+            });
             if (error) throw error;
             console.log("Receipt updated atomically:", data);
             return true;
@@ -333,16 +387,17 @@ export const useSplitStore = create<SplitState>((set, get) => ({
         }
     },
 
-    resetStore: () => set({
-        receiptData: initialReceiptData,
-        selected: [],
-        editingReceiptId: null,
-        editingReceiptName: '',
-        editingReceiptCreatedAt: '',
-        currentStep: null,
-        resumeContactIndex: 0,
-        splitEvenlySnapshot: null,
-    }),
+    resetStore: () =>
+        set({
+            receiptData: initialReceiptData,
+            selected: [],
+            editingReceiptId: null,
+            editingReceiptName: "",
+            editingReceiptCreatedAt: "",
+            currentStep: null,
+            resumeContactIndex: 0,
+            splitEvenlySnapshot: null,
+        }),
 
     // Completion overlay actions
     triggerCompletion: () => set({ showCompletion: true }),

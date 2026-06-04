@@ -9,17 +9,24 @@ import {
   StyleSheet,
   TextInput,
   Image,
+  Alert,
 } from "react-native";
 import * as Contacts from "expo-contacts";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useOCR } from "../utils/OCRContext";
 import { useSplitStore, Contact } from '../stores/splitStore';
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Icon } from "react-native-paper";
 import { MaterialIcons } from "@expo/vector-icons";
-import { colors, fonts, fontSizes, spacing, radii, shadows } from '@/styles/theme';
+import { colors, fonts, fontSizes, spacing, radii } from '@/styles/theme';
+
+const CONTACTS_CACHE_KEY = 'divi_contacts_cache';
+const RECENTS_KEY = 'divi_recent_contacts';
+const MAX_RECENTS = 5;
 
 export default function ChooseContacts() {
   const [contacts, setContacts] = useState<Contact[]>([]);
+  const [recentContacts, setRecentContacts] = useState<Contact[]>([]);
   const selected = useSplitStore((state) => state.selected);
   const manageContacts = useSplitStore((state) => state.manageContacts);
   const [loading, setLoading] = useState(true);
@@ -32,43 +39,69 @@ export default function ChooseContacts() {
 
   useEffect(() => {
     setCurrentStep('contacts');
+    loadContacts();
+    loadRecents();
   }, []);
 
-  useEffect(() => {
-    (async () => {
-      const { status } = await Contacts.requestPermissionsAsync();
-      if (status === "granted") {
-        const { data } = await Contacts.getContactsAsync({
-          fields: [
-            Contacts.Fields.PhoneNumbers,
-            Contacts.Fields.Name,
-            Contacts.Fields.Image,
-            Contacts.Fields.ImageAvailable
-          ],
-        });
+  const loadRecents = async () => {
+    try {
+      const raw = await AsyncStorage.getItem(RECENTS_KEY);
+      if (raw) setRecentContacts(JSON.parse(raw));
+    } catch {}
+  };
 
-        const newData = data.map((contact) => ({
-          id: contact.id,
-          name: contact.name,
-          phoneNumber: contact.phoneNumbers
-            ? contact.phoneNumbers[0].number
-            : undefined,
-          image: contact.imageAvailable ? contact.image : undefined,
-          items: [],
-        })) as Contact[];
+  const saveRecents = async (selectedContacts: Contact[]) => {
+    try {
+      const raw = await AsyncStorage.getItem(RECENTS_KEY);
+      const existing: Contact[] = raw ? JSON.parse(raw) : [];
+      const merged = [
+        ...selectedContacts,
+        ...existing.filter(e => !selectedContacts.some(s => s.id === e.id)),
+      ].slice(0, MAX_RECENTS);
+      await AsyncStorage.setItem(RECENTS_KEY, JSON.stringify(merged.map(c => ({ ...c, items: [] }))));
+    } catch {}
+  };
 
-        setContacts(newData);
+  const loadContacts = async () => {
+    // Show cached list immediately so the screen is never blank
+    try {
+      const cached = await AsyncStorage.getItem(CONTACTS_CACHE_KEY);
+      if (cached) {
+        setContacts(JSON.parse(cached));
+        setLoading(false);
       }
-      setLoading(false);
-    })();
-  }, []);
+    } catch {}
 
-  const toggleContact = (contact: Contact) => {
-    manageContacts(contact);
+    // Refresh from OS in background
+    const { status } = await Contacts.requestPermissionsAsync();
+    if (status === "granted") {
+      const { data } = await Contacts.getContactsAsync({
+        fields: [
+          Contacts.Fields.PhoneNumbers,
+          Contacts.Fields.Name,
+          Contacts.Fields.Image,
+          Contacts.Fields.ImageAvailable,
+        ],
+      });
+      const newData = data.map((contact) => ({
+        id: contact.id,
+        name: contact.name,
+        phoneNumber: contact.phoneNumbers?.[0]?.number,
+        image: contact.imageAvailable ? contact.image : undefined,
+        items: [],
+      })) as Contact[];
+      setContacts(newData);
+      setLoading(false);
+      try {
+        await AsyncStorage.setItem(CONTACTS_CACHE_KEY, JSON.stringify(newData));
+      } catch {}
+    } else {
+      setLoading(false);
+    }
   };
 
   const filteredContacts = contacts
-    .filter((contact) => contact.name?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false)
+    .filter((c) => c.name?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false)
     .sort((a, b) => {
       const aSelected = selected.some((c) => c.id === a.id);
       const bSelected = selected.some((c) => c.id === b.id);
@@ -77,15 +110,69 @@ export default function ChooseContacts() {
       return 0;
     });
 
-  if (loading) {
+  // Only show recents section when not searching, and only for contacts that still exist
+  const visibleRecents = searchQuery
+    ? []
+    : recentContacts.filter(r => contacts.some(c => c.id === r.id));
+
+  // Deduplicate: hide recents from the main list to avoid showing them twice
+  const mainContacts = visibleRecents.length > 0
+    ? filteredContacts.filter(c => !visibleRecents.some(r => r.id === c.id))
+    : filteredContacts;
+
+  const handleContinue = () => {
+    saveRecents(selected);
+    if (receiptData?.items?.length === 0) {
+      Alert.alert(
+        "No Items Found",
+        "We couldn't detect any assignable items on this receipt. Please try scanning again.",
+        [{ text: "Go Home", onPress: () => { resetStore(); router.replace('/(tabs)'); } }]
+      );
+    } else {
+      router.push("/result?manual=1");
+    }
+  };
+
+  const renderContactItem = (item: Contact) => {
+    const isSelected = selected.some((c) => c.id === item.id);
+    return (
+      <TouchableOpacity
+        key={item.id}
+        style={[styles.contactItem, isSelected && styles.selectedContact]}
+        onPress={() => manageContacts(item)}
+        activeOpacity={0.7}
+      >
+        <View style={styles.avatarContainer}>
+          {item.image ? (
+            <Image source={{ uri: item.image.uri }} style={styles.avatarImage} />
+          ) : (
+            <Text style={styles.avatarText}>
+              {item.name ? item.name.charAt(0).toUpperCase() : '?'}
+            </Text>
+          )}
+        </View>
+        <View style={styles.contactInfo}>
+          <Text style={styles.contactName}>{item.name}</Text>
+          {item.phoneNumber && (
+            <Text style={styles.phoneNumber}>{item.phoneNumber}</Text>
+          )}
+        </View>
+        <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
+          {isSelected && <Icon source="check" size={16} color={colors.white} />}
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
+  const noContactsSelected = selected.length === 0;
+
+  if (loading && contacts.length === 0) {
     return (
       <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
         <ActivityIndicator size="large" color={colors.green} />
       </View>
     );
   }
-
-  const noContactsSelected = selected.length === 0;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -114,42 +201,18 @@ export default function ChooseContacts() {
       </View>
 
       <FlatList
-        data={filteredContacts}
+        data={mainContacts}
         keyExtractor={(item) => item.id!}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
-        renderItem={({ item }) => {
-          const isSelected = selected.some((contact) => contact.id === item.id);
-          return (
-            <TouchableOpacity
-              style={[
-                styles.contactItem,
-                isSelected && styles.selectedContact,
-              ]}
-              onPress={() => toggleContact(item)}
-              activeOpacity={0.7}
-            >
-              <View style={styles.avatarContainer}>
-                {item.image ? (
-                  <Image source={{ uri: item.image.uri }} style={styles.avatarImage} />
-                ) : (
-                  <Text style={styles.avatarText}>
-                    {item.name ? item.name.charAt(0).toUpperCase() : '?'}
-                  </Text>
-                )}
-              </View>
-              <View style={styles.contactInfo}>
-                <Text style={styles.contactName}>{item.name}</Text>
-                {item.phoneNumber && (
-                  <Text style={styles.phoneNumber}>{item.phoneNumber}</Text>
-                )}
-              </View>
-              <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
-                {isSelected && <Icon source="check" size={16} color={colors.white} />}
-              </View>
-            </TouchableOpacity>
-          );
-        }}
+        ListHeaderComponent={visibleRecents.length > 0 ? (
+          <View>
+            <Text style={styles.sectionLabel}>Recent</Text>
+            {visibleRecents.map(item => renderContactItem(item))}
+            <Text style={[styles.sectionLabel, { marginTop: spacing.md }]}>All Contacts</Text>
+          </View>
+        ) : null}
+        renderItem={({ item }) => renderContactItem(item)}
       />
 
       <View style={styles.footer}>
@@ -164,35 +227,19 @@ export default function ChooseContacts() {
               <Text style={styles.buttonText}>Go Home</Text>
             </TouchableOpacity>
           </View>
-        ) : (isProcessing || noContactsSelected) ? (
+        ) : isProcessing ? (
           <View style={styles.statusContainer}>
-            {isProcessing ? (
-              <>
-                <ActivityIndicator size="small" color={colors.green} />
-                <Text style={styles.statusText}>{status || "Processing receipt..."}</Text>
-              </>
-            ) : (
-              <Text style={styles.statusText}>Select at least one person</Text>
-            )}
+            <ActivityIndicator size="small" color={colors.green} />
+            <Text style={styles.statusText}>{status || "Processing receipt..."}</Text>
+          </View>
+        ) : noContactsSelected ? (
+          <View style={styles.statusContainer}>
+            <Text style={styles.statusText}>Select at least one person</Text>
           </View>
         ) : (
           <TouchableOpacity
             style={styles.continueButton}
-            onPress={() => {
-              if (receiptData?.items?.length === 0) {
-                import('react-native').then(({ Alert }) => {
-                  Alert.alert(
-                    "No Items Found",
-                    "We couldn't detect any assignable items on this receipt. Please try scanning again.",
-                    [
-                      { text: "Go Home", onPress: () => { resetStore(); router.replace('/(tabs)'); } }
-                    ]
-                  );
-                });
-              } else {
-                router.push("/result");
-              }
-            }}
+            onPress={handleContinue}
             activeOpacity={0.8}
           >
             <Text style={styles.buttonText}>Continue</Text>
@@ -217,7 +264,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontFamily: fonts.bodyBold,
     fontSize: 28,
-    color: colors.green, // Changed to green
+    color: colors.green,
   },
   headerSubtitle: {
     fontFamily: fonts.body,
@@ -244,9 +291,18 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.md,
     color: colors.black,
   },
+  sectionLabel: {
+    fontFamily: fonts.bodySemiBold,
+    fontSize: fontSizes.sm,
+    color: colors.gray400,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    marginBottom: spacing.sm,
+    marginLeft: 2,
+  },
   listContent: {
     paddingHorizontal: spacing.lg,
-    paddingBottom: 100, // Space for footer
+    paddingBottom: 120,
     gap: spacing.sm,
   },
   contactItem: {
@@ -262,9 +318,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 4,
     elevation: 2,
+    marginBottom: spacing.sm,
   },
   selectedContact: {
-    backgroundColor: `${colors.green}10`, // 10% opacity green
+    backgroundColor: `${colors.green}10`,
     borderColor: colors.green,
   },
   avatarContainer: {
@@ -275,7 +332,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: spacing.md,
-    overflow: 'hidden', // Ensure image stays within circle
+    overflow: 'hidden',
   },
   avatarImage: {
     width: '100%',
@@ -319,7 +376,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     padding: spacing.lg,
-    backgroundColor: colors.gray100, // Or white with top border
+    backgroundColor: colors.gray100,
     borderTopWidth: 1,
     borderTopColor: colors.gray200,
   },
@@ -336,6 +393,7 @@ const styles = StyleSheet.create({
     color: colors.gray500,
   },
   continueButton: {
+    flex: 1,
     flexDirection: 'row',
     backgroundColor: colors.black,
     height: 56,
@@ -343,11 +401,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     gap: spacing.sm,
-    shadowColor: colors.green,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
   },
   buttonText: {
     fontFamily: fonts.bodySemiBold,
