@@ -29,7 +29,7 @@ type Frequency = 'rarely' | 'monthly' | 'weekly' | 'daily';
 type WhoWith = 'friends' | 'roommates' | 'partner' | 'coworkers' | 'groups';
 type PainPoint = 'chasing' | 'calculating' | 'unequal' | 'awkward';
 
-const TOTAL_STEPS = 12;
+const TOTAL_STEPS = 9;
 
 // ── Content data ──────────────────────────────────────────────────────────────
 const PROFILES: Record<PainPoint, { name: string; emoji: string; stat: string; description: string }> = {
@@ -474,28 +474,8 @@ export default function Onboarding() {
 					</>
 				);
 
-			// Step 5: Symptoms
+			// Step 5: How Divi helps
 			case 5:
-				return (
-					<>
-						<Text style={styles.eyebrow}>SOUND FAMILIAR?</Text>
-						<Text style={styles.title}>You're probably dealing with this.</Text>
-						<View style={styles.symptomList}>
-							{symptoms.map((s, i) => (
-								<View key={i} style={styles.symptomRow}>
-									<View style={styles.symptomDot} />
-									<Text style={styles.symptomText}>{s}</Text>
-								</View>
-							))}
-						</View>
-						<TouchableOpacity style={styles.btn} onPress={advance} activeOpacity={0.8}>
-							<Text style={styles.btnText}>Yep, that's me</Text>
-						</TouchableOpacity>
-					</>
-				);
-
-			// Step 6: How Divi helps
-			case 6:
 				if (!howItHelps) return null;
 				return (
 					<>
@@ -516,72 +496,8 @@ export default function Onboarding() {
 					</>
 				);
 
-			// Step 7: Reviews
-			case 7:
-				return (
-					<>
-						<Text style={styles.eyebrow}>WHAT PEOPLE SAY</Text>
-						<Text style={styles.title}>They had the same problem.</Text>
-						<View style={styles.reviewList}>
-							{REVIEWS.map((r, i) => (
-								<View key={i} style={styles.reviewCard}>
-									<View style={styles.reviewHeader}>
-										<Text style={styles.reviewName}>{r.name}</Text>
-										<StarRow count={r.rating} />
-									</View>
-									<Text style={styles.reviewText}>"{r.text}"</Text>
-								</View>
-							))}
-						</View>
-						<TouchableOpacity style={styles.btn} onPress={advance} activeOpacity={0.8}>
-							<Text style={styles.btnText}>See how it works</Text>
-						</TouchableOpacity>
-					</>
-				);
-
-			// Step 8: Features
-			case 8:
-				return (
-					<>
-						<Text style={styles.eyebrow}>THE TOOL</Text>
-						<Text style={styles.title}>Built to handle every part of the split.</Text>
-						<View style={styles.featureList}>
-							{[
-								{
-									icon: 'camera-alt' as const,
-									label: 'Instant Receipt Scanning',
-									desc: 'Point your camera, get an itemized breakdown in seconds.',
-								},
-								{
-									icon: 'group' as const,
-									label: 'Assign Items by Person',
-									desc: 'Drag items to whoever ordered them. Fair every time.',
-								},
-								{
-									icon: 'send' as const,
-									label: 'One-tap Payment Requests',
-									desc: 'Venmo, CashApp, or Zelle links sent automatically.',
-								},
-							].map((f, i) => (
-								<View key={i} style={styles.featureRow}>
-									<View style={styles.featureIconBox}>
-										<MaterialIcons name={f.icon} size={22} color={colors.green} />
-									</View>
-									<View style={{ flex: 1 }}>
-										<Text style={styles.featureLabel}>{f.label}</Text>
-										<Text style={styles.featureDesc}>{f.desc}</Text>
-									</View>
-								</View>
-							))}
-						</View>
-						<TouchableOpacity style={styles.btn} onPress={advance} activeOpacity={0.8}>
-							<Text style={styles.btnText}>Build my plan</Text>
-						</TouchableOpacity>
-					</>
-				);
-
-			// Step 9: Custom plan
-			case 9:
+			// Step 6: Custom plan
+			case 6:
 				return (
 					<>
 						<Text style={styles.eyebrow}>YOUR PLAN</Text>
@@ -603,8 +519,8 @@ export default function Onboarding() {
 					</>
 				);
 
-			// Step 10: Create account
-			case 10: {
+			// Step 7: Create account
+			case 7: {
 				const nameValid = fullName.trim().length >= 2;
 				const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
 				const passValid = password.length >= 6;
@@ -668,8 +584,8 @@ export default function Onboarding() {
 				);
 			}
 
-			// Step 11: Username
-			case 11:
+			// Step 8: Username
+			case 8:
 				return (
 					<>
 						<Text style={styles.greeting}>Hey {firstName}!</Text>
@@ -728,8 +644,8 @@ export default function Onboarding() {
 					</>
 				);
 
-			// Step 12: Payment handles
-			case 12:
+			// Step 9: Payment handles
+			case 9:
 				return (
 					<>
 						<Text style={styles.title}>Connect your handles</Text>
@@ -817,7 +733,7 @@ export default function Onboarding() {
 											inputRange: [0, 1],
 											outputRange: ["0%", "100%"],
 										}),
-										backgroundColor: step === 11 && isUsernameTaken ? colors.error : colors.green,
+										backgroundColor: step === 8 && isUsernameTaken ? colors.error : colors.green,
 									},
 								]}
 							/>
