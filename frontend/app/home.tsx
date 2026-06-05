@@ -203,7 +203,7 @@ export default function Home() {
 					{/* Email */}
 					<TouchableOpacity
 						style={styles.emailButton}
-						onPress={() => router.push({ pathname: "/auth", params: { mode: "signup" } })}
+						onPress={() => router.push("/onboarding")}
 						activeOpacity={0.85}
 					>
 						<MaterialIcons name="email" size={18} color={BLACK} />

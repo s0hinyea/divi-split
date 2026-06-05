@@ -29,7 +29,7 @@ type Frequency = 'rarely' | 'monthly' | 'weekly' | 'daily';
 type WhoWith = 'friends' | 'roommates' | 'partner' | 'coworkers' | 'groups';
 type PainPoint = 'chasing' | 'calculating' | 'unequal' | 'awkward';
 
-const TOTAL_STEPS = 11;
+const TOTAL_STEPS = 12;
 
 // ── Content data ──────────────────────────────────────────────────────────────
 const PROFILES: Record<PainPoint, { name: string; emoji: string; stat: string; description: string }> = {
@@ -169,6 +169,14 @@ export default function Onboarding() {
 	const [whoWith, setWhoWith] = useState<WhoWith | null>(null);
 	const [painPoint, setPainPoint] = useState<PainPoint | null>(null);
 
+	// Account creation (step 10)
+	const [fullName, setFullName] = useState("");
+	const [email, setEmail] = useState("");
+	const [password, setPassword] = useState("");
+	const [showPassword, setShowPassword] = useState(false);
+	const [signUpLoading, setSignUpLoading] = useState(false);
+
+	// Profile setup (steps 11-12)
 	const [username, setUsername] = useState("");
 	const [venmo, setVenmo] = useState("");
 	const [cashapp, setCashapp] = useState("");
@@ -263,6 +271,36 @@ export default function Onboarding() {
 			'Track pending and settled amounts across all your receipts',
 		];
 	}
+
+	const performSignUp = async () => {
+		if (!fullName.trim() || !email.trim() || password.length < 6) return;
+		setSignUpLoading(true);
+		try {
+			const { data: { user }, error } = await supabase.auth.signUp({
+				email: email.trim().toLowerCase(),
+				password,
+				options: { data: { full_name: fullName.trim() } },
+			});
+			if (error) {
+				Alert.alert("Error", error.message);
+				return;
+			}
+			if (user) {
+				await supabase.from('profiles').upsert({
+					id: user.id,
+					email: email.trim().toLowerCase(),
+					full_name: fullName.trim(),
+					updated_at: new Date().toISOString(),
+				});
+				Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+				advance();
+			}
+		} catch (e: any) {
+			Alert.alert("Error", e?.message ?? "Could not create account.");
+		} finally {
+			setSignUpLoading(false);
+		}
+	};
 
 	const sanitizeHandle = (handle: string, prefix: string) => {
 		if (!handle.trim()) return null;
@@ -565,8 +603,73 @@ export default function Onboarding() {
 					</>
 				);
 
-			// Step 10: Username
-			case 10:
+			// Step 10: Create account
+			case 10: {
+				const nameValid = fullName.trim().length >= 2;
+				const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+				const passValid = password.length >= 6;
+				const canSubmit = nameValid && emailValid && passValid;
+				return (
+					<>
+						<Text style={styles.eyebrow}>ALMOST THERE</Text>
+						<Text style={styles.title}>Create your account</Text>
+						<Text style={styles.subtitle}>
+							Your personalized Divi plan is ready. Just need an account to save it.
+						</Text>
+						<View style={[styles.inputGroup, { marginBottom: 12 }]}>
+							<MaterialIcons name="person" size={20} color={colors.gray400} style={{ marginLeft: 15 }} />
+							<TextInput
+								style={[styles.input, { flex: 1, backgroundColor: 'transparent' }]}
+								placeholder="Full name"
+								value={fullName}
+								onChangeText={setFullName}
+								autoCapitalize="words"
+								textContentType="name"
+							/>
+						</View>
+						<View style={[styles.inputGroup, { marginBottom: 12 }]}>
+							<MaterialIcons name="email" size={20} color={colors.gray400} style={{ marginLeft: 15 }} />
+							<TextInput
+								style={[styles.input, { flex: 1, backgroundColor: 'transparent' }]}
+								placeholder="Email address"
+								value={email}
+								onChangeText={setEmail}
+								autoCapitalize="none"
+								keyboardType="email-address"
+								textContentType="emailAddress"
+							/>
+						</View>
+						<View style={styles.inputGroup}>
+							<MaterialIcons name="lock" size={20} color={colors.gray400} style={{ marginLeft: 15 }} />
+							<TextInput
+								style={[styles.input, { flex: 1, backgroundColor: 'transparent' }]}
+								placeholder="Password (min 6 characters)"
+								value={password}
+								onChangeText={setPassword}
+								secureTextEntry={!showPassword}
+								textContentType="newPassword"
+							/>
+							<TouchableOpacity onPress={() => setShowPassword(v => !v)} style={{ paddingRight: 15 }}>
+								<MaterialIcons name={showPassword ? "visibility-off" : "visibility"} size={20} color={colors.gray400} />
+							</TouchableOpacity>
+						</View>
+						<TouchableOpacity
+							style={[styles.btn, !canSubmit && styles.btnDisabled]}
+							onPress={performSignUp}
+							disabled={!canSubmit || signUpLoading}
+							activeOpacity={0.8}
+						>
+							{signUpLoading
+								? <ActivityIndicator color={colors.white} />
+								: <Text style={styles.btnText}>Create Account</Text>
+							}
+						</TouchableOpacity>
+					</>
+				);
+			}
+
+			// Step 11: Username
+			case 11:
 				return (
 					<>
 						<Text style={styles.greeting}>Hey {firstName}!</Text>
@@ -625,8 +728,8 @@ export default function Onboarding() {
 					</>
 				);
 
-			// Step 11: Payment handles
-			case 11:
+			// Step 12: Payment handles
+			case 12:
 				return (
 					<>
 						<Text style={styles.title}>Connect your handles</Text>
@@ -714,7 +817,7 @@ export default function Onboarding() {
 											inputRange: [0, 1],
 											outputRange: ["0%", "100%"],
 										}),
-										backgroundColor: step === 10 && isUsernameTaken ? colors.error : colors.green,
+										backgroundColor: step === 11 && isUsernameTaken ? colors.error : colors.green,
 									},
 								]}
 							/>
