@@ -15,6 +15,8 @@ import {
 } from "react-native";
 
 const ZelleLogo = require('@/assets/images/zelle.png');
+const CashAppLogo = require('@/assets/images/cashapp.png');
+const VenmoLogo = require('@/assets/images/venmo.png');
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { supabase } from "@/lib/supabase";
@@ -282,7 +284,18 @@ export default function Onboarding() {
 				options: { data: { full_name: fullName.trim() } },
 			});
 			if (error) {
-				Alert.alert("Error", error.message);
+				if (error.message.toLowerCase().includes("already registered") || error.message.toLowerCase().includes("already exists")) {
+					Alert.alert(
+						"Email already registered",
+						"An account with this email already exists.",
+						[
+							{ text: "Log In", onPress: () => router.replace({ pathname: "/auth", params: { mode: "login" } }) },
+							{ text: "Cancel", style: "cancel" },
+						]
+					);
+				} else {
+					Alert.alert("Error", error.message);
+				}
 				return;
 			}
 			if (user) {
@@ -480,7 +493,6 @@ export default function Onboarding() {
 				return (
 					<>
 						<Text style={styles.eyebrow}>HERE'S THE FIX</Text>
-						<Text style={styles.title}>{howItHelps.headline}</Text>
 						<Text style={styles.subtitle}>{howItHelps.body}</Text>
 						<View style={styles.checkList}>
 							{howItHelps.points.map((p, i) => (
@@ -653,7 +665,7 @@ export default function Onboarding() {
 							Speed up settlement. You can skip this and add them later in Settings.
 						</Text>
 						<View style={styles.inputGroup}>
-							<MaterialIcons name="payment" size={20} color={colors.gray400} style={{ marginLeft: 15 }} />
+							<Image source={VenmoLogo} style={{ width: 22, height: 22, marginLeft: 15 }} resizeMode="contain" />
 							<TextInput
 								style={[styles.input, { flex: 1, backgroundColor: "transparent" }]}
 								placeholder="Venmo @id"
@@ -664,7 +676,7 @@ export default function Onboarding() {
 							/>
 						</View>
 						<View style={[styles.inputGroup, { marginTop: 12 }]}>
-							<Feather name="dollar-sign" size={20} color={colors.gray400} style={{ marginLeft: 15 }} />
+							<Image source={CashAppLogo} style={{ width: 22, height: 22, marginLeft: 15 }} resizeMode="contain" />
 							<TextInput
 								style={[styles.input, { flex: 1, backgroundColor: "transparent" }]}
 								placeholder="CashApp $id"
