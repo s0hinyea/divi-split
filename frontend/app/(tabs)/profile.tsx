@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { View, StyleSheet, TouchableOpacity, ScrollView, Alert, TextInput, Image, RefreshControl, Linking, Keyboard } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, ScrollView, TextInput, Image, RefreshControl, Linking, Keyboard } from 'react-native';
 import { Text, ActivityIndicator } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -15,6 +15,7 @@ import { privacyPolicyUrl } from '@/constants/appConfig';
 import { usePaywall, FREE_SCAN_LIMIT } from '@/utils/usePaywall';
 import PaywallModal from '@/components/PaywallModal';
 import Constants from 'expo-constants';
+import { useCustomAlert } from '@/components/CustomAlert';
 
 const isExpoGo = Constants.appOwnership === 'expo';
 
@@ -197,6 +198,7 @@ function createStyles(C: ReturnType<typeof useThemeColors>) {
 }
 
 export default function Profile() {
+    const { showAlert } = useCustomAlert();
     const { session } = useSession();
     const { profile, loading, updateProfile, refreshProfile } = useProfile();
     const { isSubscribed, paywallVisible, currentPackage, purchaseError, showPaywall, hidePaywall, purchaseSubscription, restorePurchases, scansRemaining, clearMockSubscription } = usePaywall();
@@ -239,21 +241,21 @@ export default function Profile() {
             if (error) throw error;
             router.replace('/home');
         } catch (error) {
-            Alert.alert('Error signing out', getUserFacingErrorMessage(error, 'Unable to sign out right now.'));
+            showAlert({ title: 'Error signing out', message: getUserFacingErrorMessage(error, 'Unable to sign out right now.') });
         }
     };
 
     const handleMembershipPress = () => {
         if (isSubscribed) {
             if (isExpoGo) {
-                Alert.alert(
-                    'Developer Mode',
-                    'Would you like to clear your mock subscription to test the paywall again?',
-                    [
+                showAlert({
+                    title: 'Developer Mode',
+                    message: 'Would you like to clear your mock subscription to test the paywall again?',
+                    buttons: [
                         { text: 'Cancel', style: 'cancel' },
-                        { text: 'Unsubscribe (Reset)', style: 'destructive', onPress: clearMockSubscription }
-                    ]
-                );
+                        { text: 'Unsubscribe (Reset)', style: 'destructive', onPress: clearMockSubscription },
+                    ],
+                });
             }
         } else {
             showPaywall();
@@ -261,31 +263,31 @@ export default function Profile() {
     };
 
     const handleAccountDeletion = () => {
-        Alert.alert(
-            'Delete Account',
-            'This will permanently delete your account and all your receipts, contacts, and data. This cannot be undone.',
-            [
+        showAlert({
+            title: 'Delete Account',
+            message: 'This will permanently delete your account and all your receipts, contacts, and data. This cannot be undone.',
+            buttons: [
                 { text: 'Cancel', style: 'cancel' },
                 {
                     text: 'Delete My Account',
                     style: 'destructive',
                     onPress: () => {
-                        Alert.alert(
-                            'Are you sure?',
-                            'Your account and all data will be gone forever.',
-                            [
+                        showAlert({
+                            title: 'Are you sure?',
+                            message: 'Your account and all data will be gone forever.',
+                            buttons: [
                                 { text: 'Go Back', style: 'cancel' },
                                 {
                                     text: 'Yes, Delete',
                                     style: 'destructive',
                                     onPress: confirmAccountDeletion,
                                 },
-                            ]
-                        );
+                            ],
+                        });
                     },
                 },
-            ]
-        );
+            ],
+        });
     };
 
     const confirmAccountDeletion = async () => {
@@ -311,14 +313,14 @@ export default function Profile() {
             await supabase.auth.signOut();
             router.replace('/home');
         } catch (e: any) {
-            Alert.alert('Error', e.message ?? 'Something went wrong. Please try again.');
+            showAlert({ title: 'Error', message: e.message ?? 'Something went wrong. Please try again.' });
         }
     };
 
     const handleSave = async () => {
         const cleanUsername = formData.username ? formData.username.replace('@', '').trim().toLowerCase() : '';
         if (cleanUsername && cleanUsername.length < 3) {
-            Alert.alert('Invalid Username', 'Username must be at least 3 characters.');
+            showAlert({ title: 'Invalid Username', message: 'Username must be at least 3 characters.' });
             return;
         }
 
@@ -330,7 +332,7 @@ export default function Profile() {
                 .eq('username', cleanUsername)
                 .maybeSingle();
             if (existingUser) {
-                Alert.alert('Username taken', 'That username is already in use. Please choose a different one.');
+                showAlert({ title: 'Username taken', message: 'That username is already in use. Please choose a different one.' });
                 return;
             }
         }
@@ -341,9 +343,9 @@ export default function Profile() {
             const errorMsg = await updateProfile(dataToSave);
             if (!errorMsg) {
                 setIsEditing(false);
-                Alert.alert('Saved', 'Profile updated.');
+                showAlert({ title: 'Saved', message: 'Profile updated.' });
             } else {
-                Alert.alert('Update failed', errorMsg);
+                showAlert({ title: 'Update failed', message: errorMsg });
             }
         }
     };
@@ -352,7 +354,7 @@ export default function Profile() {
         try {
             const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
             if (!permissionResult.granted) {
-                Alert.alert('Permission required', 'Photo library access is needed to update your avatar.');
+                showAlert({ title: 'Permission required', message: 'Photo library access is needed to update your avatar.' });
                 return;
             }
             const result = await ImagePicker.launchImageLibraryAsync({
@@ -365,20 +367,20 @@ export default function Profile() {
             if (!result.canceled && result.assets[0].base64) {
                 const base64Data = `data:image/jpeg;base64,${result.assets[0].base64}`;
                 const errorMsg = await updateProfile({ avatar_url: base64Data });
-                if (errorMsg) Alert.alert('Upload failed', errorMsg);
+                if (errorMsg) showAlert({ title: 'Upload failed', message: errorMsg });
             }
         } catch (error) {
-            Alert.alert('Upload failed', getUserFacingErrorMessage(error, 'We could not open your photo library.'));
+            showAlert({ title: 'Upload failed', message: getUserFacingErrorMessage(error, 'We could not open your photo library.') });
         }
     };
 
     const openPrivacyPolicy = async () => {
         if (!privacyPolicyUrl) {
-            Alert.alert('Privacy policy missing', 'Set EXPO_PUBLIC_PRIVACY_POLICY_URL before submitting to Apple.');
+            showAlert({ title: 'Privacy policy missing', message: 'Set EXPO_PUBLIC_PRIVACY_POLICY_URL before submitting to Apple.' });
             return;
         }
         try { await Linking.openURL(privacyPolicyUrl); }
-        catch { Alert.alert('Link unavailable', 'We could not open the privacy policy right now.'); }
+        catch { showAlert({ title: 'Link unavailable', message: 'We could not open the privacy policy right now.' }); }
     };
 
     if (loading && !profile) {

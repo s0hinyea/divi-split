@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
 import {
-	Alert,
 	StyleSheet,
 	View,
 	AppState,
@@ -16,6 +15,7 @@ import { colors, fonts, spacing } from '@/styles/theme';
 import { MaterialIcons, Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { getUserFacingErrorMessage, hasInternetConnection } from '@/utils/network';
+import { useCustomAlert } from '@/components/CustomAlert';
 
 function FadeInView({ children, style }: { children: React.ReactNode; style?: object }) {
 	const opacity = useRef(new Animated.Value(0)).current;
@@ -50,22 +50,20 @@ function getPasswordStrength(p: string) {
 }
 
 export default function Auth({ initialMode }: AuthProps) {
-	// Sign-up Steps: 1: Name, 2: Email, 3: Password, 4: Username, 5: Payment Handles
+	const { showAlert } = useCustomAlert();
+	// Sign-up Steps: 1: Name, 2: Email, 3: Password
 	const [step, setStep] = useState(1);
 	const [fullName, setFullName] = useState("");
 	const [email, setEmail] = useState("");
 	const [password, setPassword] = useState("");
-	const [username, setUsername] = useState("");
-	const [venmo, setVenmo] = useState("");
-	const [cashapp, setCashapp] = useState("");
+
 	const [confirmPassword, setConfirmPassword] = useState("");
 	const [otpCode, setOtpCode] = useState("");
 	const [isAwaitingOtp, setIsAwaitingOtp] = useState(false);
 	const [cooldown, setCooldown] = useState(0);
 	const [loading, setLoading] = useState(false);
 	const [showPassword, setShowPassword] = useState(false);
-	const [checkingUsername, setCheckingUsername] = useState(false);
-	const [isUsernameTaken, setIsUsernameTaken] = useState(false);
+
 	const [errors, setErrors] = useState<Record<string, string>>({});
 	const [touched, setTouched] = useState<Record<string, boolean>>({});
 	const [loginError, setLoginError] = useState("");
@@ -87,7 +85,7 @@ export default function Auth({ initialMode }: AuthProps) {
 	}, [cooldown]);
 
 	useEffect(() => {
-		const target = isSignUp ? step / 5 : 1;
+		const target = isSignUp ? step / 3 : 1;
 		Animated.timing(progressAnim, { toValue: target, duration: 150, useNativeDriver: false }).start();
 	}, [step, isSignUp]);
 
@@ -103,14 +101,13 @@ export default function Auth({ initialMode }: AuthProps) {
 		special: /[^A-Za-z0-9]/.test(password),
 	};
 	const isPasswordValid = passwordChecks.length && passwordChecks.uppercase && passwordChecks.number;
-	const isUsernameValid = username.length >= 3 && username.length <= 20 && /^[a-z0-9_.]+$/.test(username) && !isUsernameTaken;
 
 	// Mark a field as touched (show errors after first interaction)
 	const touch = (field: string) => setTouched(prev => ({ ...prev, [field]: true }));
 
 	const requestPasswordReset = async () => {
 		if (!isValidEmail(email)) {
-			Alert.alert("Invalid Email", "Please enter a valid email address.");
+			showAlert({ title: "Invalid Email", message: "Please enter a valid email address." });
 			return;
 		}
 		setLoading(true);
@@ -118,15 +115,15 @@ export default function Auth({ initialMode }: AuthProps) {
 		try {
 			const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase());
 			if (error) {
-				Alert.alert("Error", error.message);
+				showAlert({ title: "Error", message: error.message });
 				return;
 			}
 
 			setCooldown(60);
 			setIsAwaitingOtp(true);
-			Alert.alert("Reset Code Sent ✉️", "Check your inbox for your reset code.");
+			showAlert({ title: "Reset Code Sent ✉️", message: "Check your inbox for your reset code." });
 		} catch (error) {
-			Alert.alert("Error", getUserFacingErrorMessage(error, "We couldn't send a reset code right now."));
+			showAlert({ title: "Error", message: getUserFacingErrorMessage(error, "We couldn't send a reset code right now.") });
 		} finally {
 			setLoading(false);
 		}
@@ -134,7 +131,7 @@ export default function Auth({ initialMode }: AuthProps) {
 
 	const verifyResetOtp = async () => {
 		if (!otpCode || otpCode.length < 6) {
-			Alert.alert("Invalid Code", "Please enter the code sent to your email.");
+			showAlert({ title: "Invalid Code", message: "Please enter the code sent to your email." });
 			return;
 		}
 		setLoading(true);
@@ -147,14 +144,14 @@ export default function Auth({ initialMode }: AuthProps) {
 			});
 
 			if (error) {
-				Alert.alert("Error", error.message);
+				showAlert({ title: "Error", message: error.message });
 				return;
 			}
 
 			setIsAwaitingOtp(false);
 			router.replace({ pathname: "/auth", params: { mode: "reset-password" } });
 		} catch (error) {
-			Alert.alert("Error", getUserFacingErrorMessage(error, "We couldn't verify that code right now."));
+			showAlert({ title: "Error", message: getUserFacingErrorMessage(error, "We couldn't verify that code right now.") });
 		} finally {
 			setLoading(false);
 		}
@@ -162,11 +159,11 @@ export default function Auth({ initialMode }: AuthProps) {
 
 	const updatePassword = async () => {
 		if (!isPasswordValid) {
-			Alert.alert("Invalid Password", "Password does not meet requirements.");
+			showAlert({ title: "Invalid Password", message: "Password does not meet requirements." });
 			return;
 		}
 		if (password !== confirmPassword) {
-			Alert.alert("Mismatch", "Passwords do not match.");
+			showAlert({ title: "Mismatch", message: "Passwords do not match." });
 			return;
 		}
 		setLoading(true);
@@ -174,14 +171,14 @@ export default function Auth({ initialMode }: AuthProps) {
 		try {
 			const { error } = await supabase.auth.updateUser({ password });
 			if (error) {
-				Alert.alert("Error", error.message);
+				showAlert({ title: "Error", message: error.message });
 				return;
 			}
 
-			Alert.alert("Success!", "Your password has been updated. You can now log in.");
+			showAlert({ title: "Success!", message: "Your password has been updated. You can now log in." });
 			router.replace({ pathname: "/auth", params: { mode: "login" } });
 		} catch (error) {
-			Alert.alert("Error", getUserFacingErrorMessage(error, "We couldn't update your password right now."));
+			showAlert({ title: "Error", message: getUserFacingErrorMessage(error, "We couldn't update your password right now.") });
 		} finally {
 			setLoading(false);
 		}
@@ -214,37 +211,6 @@ export default function Auth({ initialMode }: AuthProps) {
 		else setErrors(p => { const { password: _, ...rest } = p; return rest; });
 	}, [password, touched.password]);
 
-	// Username availability check
-	useEffect(() => {
-		if (username.length < 3) { setIsUsernameTaken(false); return; }
-		setCheckingUsername(true);
-		const timer = setTimeout(async () => {
-			try {
-				if (!(await hasInternetConnection())) {
-					setIsUsernameTaken(false);
-					return;
-				}
-
-				const { data, error } = await supabase
-					.from('profiles')
-					.select('id')
-					.eq('username', username.toLowerCase())
-					.maybeSingle();
-
-				if (error) {
-					throw error;
-				}
-
-				setIsUsernameTaken(!!data);
-			} catch (error) {
-				console.error('Username check failed:', error);
-				setIsUsernameTaken(false);
-			} finally {
-				setCheckingUsername(false);
-			}
-		}, 500);
-		return () => clearTimeout(timer);
-	}, [username]);
 
 	// ──── Step Navigation ───────────────────────────────────
 
@@ -275,12 +241,6 @@ export default function Auth({ initialMode }: AuthProps) {
 				return;
 			}
 		}
-		if (step === 4) {
-			if (!isUsernameValid || checkingUsername) {
-				Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-				return;
-			}
-		}
 		
 		Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 		setStep(s => s + 1);
@@ -299,12 +259,6 @@ export default function Auth({ initialMode }: AuthProps) {
 
 	// ──── Auth Actions ──────────────────────────────────────
 
-	const sanitizeHandle = (handle: string, prefix: string) => {
-		if (!handle.trim()) return null;
-		const cleaned = handle.replace(/[^a-zA-Z0-9_-]/g, '');
-		return cleaned ? `${prefix}${cleaned}` : null;
-	};
-
 	const performSignUp = async () => {
 		setLoading(true);
 		try {
@@ -314,57 +268,41 @@ export default function Auth({ initialMode }: AuthProps) {
 				options: {
 					data: {
 						full_name: fullName.trim(),
-						username: username.toLowerCase().trim(),
-						venmo_handle: sanitizeHandle(venmo, '@'),
-						cashapp_handle: sanitizeHandle(cashapp, '$'),
 					}
 				}
 			});
 
 			if (error) {
 				if (error.message.includes("already registered")) {
-					Alert.alert("Account Exists", "This email is already registered. Try logging in instead.", [
-						{ text: "Go to Login", onPress: () => router.replace({ pathname: "/auth", params: { mode: "login" } }) },
-						{ text: "Cancel", style: "cancel" },
-					]);
-				} else if (error.message.includes("unique") || error.message.includes("duplicate")) {
-					Alert.alert("Username Taken", "This username was just claimed. Please go back and pick another.");
+					showAlert({
+						title: "Account Exists",
+						message: "This email is already registered. Try logging in instead.",
+						buttons: [
+							{ text: "Go to Login", onPress: () => router.replace({ pathname: "/auth", params: { mode: "login" } }) },
+							{ text: "Cancel", style: "cancel" },
+						],
+					});
 				} else {
-					Alert.alert("Error", error.message);
+					showAlert({ title: "Error", message: error.message });
 				}
 			} else if (user) {
-				// Save profile data directly into the profiles table
-				// (Supabase Auth only stores it in raw_user_meta_data, which ProfileContext doesn't read)
-				const { error: profileError } = await supabase
+				// Seed profile row with just name + email (onboarding collects username + handles)
+				await supabase
 					.from('profiles')
 					.upsert({
 						id: user.id,
 						email: email.trim().toLowerCase(),
 						full_name: fullName.trim(),
-						username: username.toLowerCase().trim(),
-						venmo_handle: sanitizeHandle(venmo, '@'),
-						cashapp_handle: sanitizeHandle(cashapp, '$'),
 						updated_at: new Date().toISOString(),
-					});
-
-				if (profileError) {
-					console.warn('Profile upsert after signup failed:', profileError);
-					// Non-blocking - the account was still created successfully
-				}
+					})
+					.then(({ error: e }) => e && console.warn('Profile seed failed:', e));
 
 				Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-				if (user.email_confirmed_at) {
-					router.replace("/(tabs)");
-				} else {
-					Alert.alert(
-						"Check Your Email ✉️",
-						"We sent a verification link to your inbox. Once verified, come back and log in!",
-						[{ text: "Go to Login", onPress: () => router.replace({ pathname: "/auth", params: { mode: "login" } }) }]
-					);
-				}
+				// Route to / — index.tsx will redirect to /onboarding (no username yet)
+				router.replace("/");
 			}
 		} catch (error) {
-			Alert.alert("Error", getUserFacingErrorMessage(error, "We couldn't create your account right now."));
+			showAlert({ title: "Error", message: getUserFacingErrorMessage(error, "We couldn't create your account right now.") });
 		} finally {
 			setLoading(false);
 		}
@@ -374,13 +312,13 @@ export default function Auth({ initialMode }: AuthProps) {
 		try {
 			const { error } = await supabase.auth.resend({ type: 'signup', email: email.trim() });
 			if (error) {
-				Alert.alert("Error", error.message);
+				showAlert({ title: "Error", message: error.message });
 				return;
 			}
 
-			Alert.alert("Email Sent ✉️", "Check your inbox for a new verification link.");
+			showAlert({ title: "Email Sent ✉️", message: "Check your inbox for a new verification link." });
 		} catch (error) {
-			Alert.alert("Error", getUserFacingErrorMessage(error, "We couldn't resend the verification email right now."));
+			showAlert({ title: "Error", message: getUserFacingErrorMessage(error, "We couldn't resend the verification email right now.") });
 		}
 	};
 
@@ -439,7 +377,6 @@ export default function Auth({ initialMode }: AuthProps) {
 		if (step === 1) return !fullName.trim() || !isValidName(fullName);
 		if (step === 2) return !isValidEmail(email);
 		if (step === 3) return !isPasswordValid;
-		if (step === 4) return !isUsernameValid || checkingUsername;
 		return false;
 	};
 
@@ -454,7 +391,7 @@ export default function Auth({ initialMode }: AuthProps) {
 				</TouchableOpacity>
 				{isSignUp && (
 					<View style={styles.stepIndicator}>
-						<Text style={styles.stepText}>Step {step} of 5</Text>
+						<Text style={styles.stepText}>Step {step} of 3</Text>
 					</View>
 				)}
 			</View>
@@ -464,7 +401,7 @@ export default function Auth({ initialMode }: AuthProps) {
 				<View style={styles.progressTrack}>
 					<Animated.View style={[styles.progressBar, {
 						width: progressAnim.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }),
-						backgroundColor: isUsernameTaken && step === 4 ? colors.error : colors.green,
+						backgroundColor: colors.green,
 					}]} />
 				</View>
 			)}
@@ -531,7 +468,7 @@ export default function Auth({ initialMode }: AuthProps) {
 										onBlur={() => touch('password')}
 										secureTextEntry={!showPassword}
 										textContentType="newPassword"
-										onSubmitEditing={nextStep}
+										onSubmitEditing={performSignUp}
 									/>
 									<TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
 										<Feather name={showPassword ? "eye" : "eye-off"} size={20} color={colors.gray400} />
@@ -563,87 +500,14 @@ export default function Auth({ initialMode }: AuthProps) {
 							</>
 						)}
 
-						{/* Step 4: Username */}
-						{step === 4 && (
-							<>
-								<Text style={styles.title}>Unique handle</Text>
-								<Text style={styles.subtitle}>Your @id for bill splitting. 3-20 characters, letters, numbers, dots, underscores.</Text>
-								<View style={styles.inputGroup}>
-									<Text style={styles.prefix}>@</Text>
-									<TextInput
-										style={[styles.input, { flex: 1, paddingLeft: 35 }]}
-										placeholder="username"
-										value={username}
-										onChangeText={t => setUsername(t.toLowerCase().replace(/[^a-z0-9_.]/g, ''))}
-										autoCapitalize="none"
-										maxLength={20}
-										onSubmitEditing={nextStep}
-									/>
-									{checkingUsername && <ActivityIndicator style={styles.spinner} size="small" color={colors.gray400} />}
-									{!checkingUsername && username.length >= 3 && (
-										<MaterialIcons
-											name={isUsernameTaken ? "close" : "check-circle"}
-											size={20}
-											color={isUsernameTaken ? colors.error : colors.green}
-											style={styles.spinner}
-										/>
-									)}
-								</View>
-								{username.length > 0 && username.length < 3 && (
-									<Text style={styles.errorText}>Username must be at least 3 characters.</Text>
-								)}
-								{username.length >= 3 && !checkingUsername && (
-									<Text style={[styles.status, { color: isUsernameTaken ? colors.error : colors.green }]}>
-										{isUsernameTaken ? "This handle is taken." : "Handle available!"}
-									</Text>
-								)}
-							</>
-						)}
-
-						{/* Step 5: Payment Handles */}
-						{step === 5 && (
-							<>
-								<Text style={styles.title}>Connect handles</Text>
-								<Text style={styles.subtitle}>Speed up bill settlement. You can skip this and add them later in Settings.</Text>
-								<View style={styles.inputGroup}>
-									<MaterialIcons name="payment" size={20} color={colors.gray400} style={{ marginLeft: 15 }} />
-									<TextInput
-										style={[styles.input, { flex: 1, backgroundColor: 'transparent' }]}
-										placeholder="Venmo @id"
-										value={venmo}
-										onChangeText={setVenmo}
-										autoCapitalize="none"
-										maxLength={30}
-									/>
-								</View>
-								<View style={[styles.inputGroup, { marginTop: 16 }]}>
-									<Feather name="dollar-sign" size={20} color={colors.gray400} style={{ marginLeft: 15 }} />
-									<TextInput
-										style={[styles.input, { flex: 1, backgroundColor: 'transparent' }]}
-										placeholder="CashApp $id"
-										value={cashapp}
-										onChangeText={setCashapp}
-										autoCapitalize="none"
-										maxLength={30}
-									/>
-								</View>
-							</>
-						)}
-
 						{/* Continue / Create Account Button */}
 						<TouchableOpacity 
 							style={[styles.btn, isContinueDisabled() && styles.btnDisabled]} 
-							onPress={step === 5 ? performSignUp : nextStep}
+							onPress={step === 3 ? performSignUp : nextStep}
 							disabled={isContinueDisabled()}
 						>
-							{loading ? <ActivityIndicator color="#FFF" /> : <Text style={styles.btnText}>{step === 5 ? "Create Account" : "Continue"}</Text>}
+							{loading ? <ActivityIndicator color="#FFF" /> : <Text style={styles.btnText}>{step === 3 ? "Create Account" : "Continue"}</Text>}
 						</TouchableOpacity>
-
-						{step === 5 && (
-							<TouchableOpacity style={styles.skipBtn} onPress={performSignUp} disabled={loading}>
-								<Text style={styles.skipText}>Skip for now</Text>
-							</TouchableOpacity>
-						)}
 						
 						{step === 1 && (
 							<View style={styles.toggleRow}>

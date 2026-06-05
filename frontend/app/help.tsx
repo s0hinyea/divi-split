@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, LayoutAnimation, UIManager, Platform, Alert, Linking } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, LayoutAnimation, UIManager, Platform, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { colors, fonts, fontSizes, spacing, radii, shadows } from '@/styles/theme';
 import { privacyPolicyUrl } from '@/constants/appConfig';
+import { useCustomAlert } from '@/components/CustomAlert';
 
 // Enable LayoutAnimation for Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -40,20 +41,21 @@ const FAQItem = ({ question, answer }: { question: string, answer: string }) => 
 
 export default function HelpPage() {
   const router = useRouter();
+  const { showAlert } = useCustomAlert();
 
   const openPrivacyPolicy = async () => {
     if (!privacyPolicyUrl) {
-      Alert.alert(
-        'Privacy policy missing',
-        'Set EXPO_PUBLIC_PRIVACY_POLICY_URL to a public policy page before submitting to Apple.'
-      );
+      showAlert({
+        title: 'Privacy policy missing',
+        message: 'Set EXPO_PUBLIC_PRIVACY_POLICY_URL to a public policy page before submitting to Apple.',
+      });
       return;
     }
 
     try {
       await Linking.openURL(privacyPolicyUrl);
     } catch {
-      Alert.alert('Link unavailable', 'We could not open the privacy policy right now.');
+      showAlert({ title: 'Link unavailable', message: 'We could not open the privacy policy right now.' });
     }
   };
 

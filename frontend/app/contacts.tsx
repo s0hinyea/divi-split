@@ -9,7 +9,6 @@ import {
   StyleSheet,
   TextInput,
   Image,
-  Alert,
 } from "react-native";
 import * as Contacts from "expo-contacts";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -19,12 +18,14 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Icon } from "react-native-paper";
 import { MaterialIcons } from "@expo/vector-icons";
 import { colors, fonts, fontSizes, spacing, radii } from '@/styles/theme';
+import { useCustomAlert } from '@/components/CustomAlert';
 
 const CONTACTS_CACHE_KEY = 'divi_contacts_cache';
 const RECENTS_KEY = 'divi_recent_contacts';
 const MAX_RECENTS = 5;
 
 export default function ChooseContacts() {
+  const { showAlert } = useCustomAlert();
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [recentContacts, setRecentContacts] = useState<Contact[]>([]);
   const selected = useSplitStore((state) => state.selected);
@@ -132,11 +133,11 @@ export default function ChooseContacts() {
   const handleContinue = () => {
     saveRecents(selected);
     if (receiptData?.items?.length === 0) {
-      Alert.alert(
-        "No Items Found",
-        "We couldn't detect any assignable items on this receipt. Please try scanning again.",
-        [{ text: "Go Home", onPress: () => { resetStore(); router.replace('/(tabs)'); } }]
-      );
+      showAlert({
+        title: "No Items Found",
+        message: "We couldn't detect any assignable items on this receipt. Please try scanning again.",
+        buttons: [{ text: "Go Home", onPress: () => { resetStore(); router.replace('/(tabs)'); } }],
+      });
     } else {
       router.push("/result?manual=1");
     }

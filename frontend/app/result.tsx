@@ -2,7 +2,7 @@ import { useRouter } from 'expo-router';
 import { useState, useEffect, useRef } from 'react';
 import {
   View, TextInput, StyleSheet, TouchableOpacity, Pressable,
-  Modal, Text, Keyboard, Animated, Alert,
+  Modal, Text, Keyboard, Animated,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { ScrollView } from 'react-native-gesture-handler';
@@ -17,8 +17,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSplitStore, ReceiptItem, ItemCategory } from '../stores/splitStore';
 import { usePaywall } from '../utils/usePaywall';
 import PaywallModal from '../components/PaywallModal';
+import { useCustomAlert } from '@/components/CustomAlert';
 export default function OCRResults() {
   const router = useRouter();
+  const { showAlert } = useCustomAlert();
   const updateItem = useSplitStore((state) => state.updateItem);
   const removeItem = useSplitStore((state) => state.removeItem);
   const addItem = useSplitStore((state) => state.addItem);
@@ -395,7 +397,7 @@ export default function OCRResults() {
                   Keyboard.dismiss();
                   if (changing) finishChange();
                   if (displayItems.length === 0) {
-                    Alert.alert('No Items', 'Add at least one item before continuing.');
+                    showAlert({ title: 'No Items', message: 'Add at least one item before continuing.' });
                     return;
                   }
                   router.push('/assign?manual=1');

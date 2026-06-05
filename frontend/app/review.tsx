@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Modal, ActivityIndicator, TextInput, Platform, StyleSheet, Keyboard, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Modal, ActivityIndicator, TextInput, Platform, StyleSheet, Keyboard } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSplitStore, ReceiptItem } from '../stores/splitStore';
 import { useHistory } from '../utils/HistoryContext';
@@ -15,6 +15,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { allocateAmount } from '../utils/mathUtil';
 import { useToast } from '../components/ToastProvider';
+import { useCustomAlert } from '@/components/CustomAlert';
 
 export default function ReviewPage() {
   const router = useRouter();
@@ -41,6 +42,7 @@ export default function ReviewPage() {
   const [savedReceiptId, setSavedReceiptId] = useState<string | null>(null);
 
   const { showToast } = useToast();
+  const { showAlert } = useCustomAlert();
   const setCurrentStep = useSplitStore((state) => state.setCurrentStep);
 
   // Track original contact names so we can detect renames and offer to persist them
@@ -59,10 +61,10 @@ export default function ReviewPage() {
     if (!original || currentContact.name === original) return;
     if (!currentContact.phoneNumber || currentContact.phoneNumber === 'no-phone') return;
     const newName = currentContact.name;
-    Alert.alert(
-      'Save name?',
-      `Always call this contact "${newName}"?`,
-      [
+    showAlert({
+      title: 'Save name?',
+      message: `Always call this contact "${newName}"?`,
+      buttons: [
         { text: 'Just this split', style: 'cancel' },
         {
           text: 'Save for next time',
@@ -75,8 +77,8 @@ export default function ReviewPage() {
             originalNamesRef.current.set(contactId, newName);
           },
         },
-      ]
-    );
+      ],
+    });
   };
 
   useEffect(() => { setCurrentStep('review'); }, []);

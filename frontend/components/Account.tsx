@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
-import { StyleSheet, View, Alert } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { Button, TextInput } from "react-native-paper";
+import { useCustomAlert } from '@/components/CustomAlert';
 import { Session } from "@supabase/supabase-js";
 import { useRouter } from "expo-router";
 
 export default function Account({ session }: { session: Session }) {
+	const { showAlert } = useCustomAlert();
 	const [loading, setLoading] = useState(true);
 	const [username, setUsername] = useState("");
 	const [website, setWebsite] = useState("");
@@ -37,7 +39,7 @@ export default function Account({ session }: { session: Session }) {
 			}
 		} catch (error) {
 			if (error instanceof Error) {
-				Alert.alert(error.message);
+				showAlert({ title: error.message });
 			}
 		} finally {
 			setLoading(false);
@@ -72,7 +74,7 @@ export default function Account({ session }: { session: Session }) {
 			}
 		} catch (error) {
 			if (error instanceof Error) {
-				Alert.alert(error.message);
+				showAlert({ title: error.message });
 			}
 		} finally {
 			setLoading(false);
@@ -86,7 +88,7 @@ export default function Account({ session }: { session: Session }) {
 			router.replace("/home");
 		} catch (error) {
 			if (error instanceof Error) {
-				Alert.alert(error.message);
+				showAlert({ title: error.message });
 			}
 		} finally {
 			setLoading(false);

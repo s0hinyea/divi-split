@@ -6,7 +6,6 @@ import {
 	TouchableOpacity,
 	StyleSheet,
 	ActivityIndicator,
-	Alert,
 	Animated,
 	KeyboardAvoidingView,
 	Platform,
@@ -25,6 +24,7 @@ import { useSession } from "@/utils/SessionContext";
 import { colors, fonts, fontSizes, spacing, radii } from "@/styles/theme";
 import { MaterialIcons, Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import { useCustomAlert } from '@/components/CustomAlert';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 type Frequency = 'rarely' | 'monthly' | 'weekly' | 'daily';
@@ -165,6 +165,7 @@ export default function Onboarding() {
 	const router = useRouter();
 	const { session } = useSession();
 	const { updateProfile } = useProfile();
+	const { showAlert } = useCustomAlert();
 
 	const [step, setStep] = useState(1);
 	const [frequency, setFrequency] = useState<Frequency | null>(null);
@@ -285,16 +286,16 @@ export default function Onboarding() {
 			});
 			if (error) {
 				if (error.message.toLowerCase().includes("already registered") || error.message.toLowerCase().includes("already exists")) {
-					Alert.alert(
-						"Email already registered",
-						"An account with this email already exists.",
-						[
+					showAlert({
+						title: "Email already registered",
+						message: "An account with this email already exists.",
+						buttons: [
 							{ text: "Log In", onPress: () => router.replace({ pathname: "/auth", params: { mode: "login" } }) },
 							{ text: "Cancel", style: "cancel" },
-						]
-					);
+						],
+					});
 				} else {
-					Alert.alert("Error", error.message);
+					showAlert({ title: "Error", message: error.message });
 				}
 				return;
 			}
@@ -309,7 +310,7 @@ export default function Onboarding() {
 				advance();
 			}
 		} catch (e: any) {
-			Alert.alert("Error", e?.message ?? "Could not create account.");
+			showAlert({ title: "Error", message: e?.message ?? "Could not create account." });
 		} finally {
 			setSignUpLoading(false);
 		}
@@ -330,7 +331,7 @@ export default function Onboarding() {
 				cashapp_handle: sanitizeHandle(cashapp, "$"),
 				zelle_number: zelle.trim() || null,
 			});
-			if (err) { Alert.alert("Error", err); return; }
+			if (err) { showAlert({ title: "Error", message: err }); return; }
 			Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 			router.replace("/(tabs)");
 		} finally {

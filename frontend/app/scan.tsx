@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Alert, Linking } from 'react-native';
+import { View, Text, StyleSheet, Linking } from 'react-native';
 import { useRouter } from 'expo-router';
 import { handleOCR } from '../utils/ocrUtil';
 import { useSplitStore } from '../stores/splitStore';
@@ -8,6 +8,7 @@ import { ActivityIndicator } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { useToast } from '@/components/ToastProvider';
+import { useCustomAlert } from '@/components/CustomAlert';
 
 export default function Scan() {
   const router = useRouter();
@@ -15,6 +16,7 @@ export default function Scan() {
   const updateReceiptData = useSplitStore((state) => state.updateReceiptData);
   const { setIsProcessing, setStatus, setError, startOCR } = useOCR();
   const { showToast } = useToast();
+  const { showAlert } = useCustomAlert();
 
   useEffect(() => {
     const timer = setTimeout(() => launchCamera(), 100);
@@ -28,14 +30,14 @@ export default function Scan() {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
       setLaunching(false);
-      Alert.alert(
-        'Camera Access Required',
-        'Divi needs camera access to scan receipts. Please enable it in Settings.',
-        [
+      showAlert({
+        title: 'Camera Access Required',
+        message: 'Divi needs camera access to scan receipts. Please enable it in Settings.',
+        buttons: [
           { text: 'Cancel', style: 'cancel', onPress: () => router.back() },
           { text: 'Open Settings', onPress: () => Linking.openSettings() },
-        ]
-      );
+        ],
+      });
       return;
     }
 
@@ -58,9 +60,11 @@ export default function Scan() {
       }
     } catch (error: any) {
       console.error('🔴 [Scanner] Error:', error?.message);
-      Alert.alert('Scanner Error', error?.message || 'Something went wrong.', [
-        { text: 'OK', onPress: () => router.back() },
-      ]);
+      showAlert({
+        title: 'Scanner Error',
+        message: error?.message || 'Something went wrong.',
+        buttons: [{ text: 'OK', onPress: () => router.back() }],
+      });
     } finally {
       setLaunching(false);
     }

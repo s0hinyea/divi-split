@@ -1,4 +1,4 @@
-import { View, StyleSheet, TouchableOpacity, Dimensions, Alert, ActivityIndicator } from "react-native";
+import { View, StyleSheet, TouchableOpacity, Dimensions, ActivityIndicator } from "react-native";
 import { useRouter } from "expo-router";
 import { Text } from "react-native-paper";
 import { LinearGradient } from "expo-linear-gradient";
@@ -6,6 +6,7 @@ import { colors, fonts, fontSizes, spacing } from '@/styles/theme';
 import Svg, { Path } from "react-native-svg";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import DiviLogo from "@/components/DiviLogo";
+import { useCustomAlert } from '@/components/CustomAlert';
 import { useState } from "react";
 import * as AppleAuthentication from "expo-apple-authentication";
 import { supabase } from "@/lib/supabase";
@@ -52,6 +53,7 @@ function ZigzagEdge({ width }: { width: number }) {
 
 export default function Home() {
 	const router = useRouter();
+	const { showAlert } = useCustomAlert();
 	const [loadingApple, setLoadingApple] = useState(false);
 	const [loadingGoogle, setLoadingGoogle] = useState(false);
 
@@ -99,7 +101,7 @@ export default function Home() {
 			router.replace("/");
 		} catch (e: any) {
 			if (e.code !== "ERR_REQUEST_CANCELED") {
-				Alert.alert("Sign In Failed", e.message ?? "Something went wrong.");
+				showAlert({ title: "Sign In Failed", message: e.message ?? "Something went wrong." });
 			}
 		} finally {
 			setLoadingApple(false);
@@ -108,7 +110,7 @@ export default function Home() {
 
 	const handleGoogleSignIn = async () => {
 		if (!GoogleSignin) {
-			Alert.alert("Not Available", "Google Sign-In is not available in Expo Go. Use Apple Sign-In for development.");
+			showAlert({ title: "Not Available", message: "Google Sign-In is not available in Expo Go. Use Apple Sign-In for development." });
 			return;
 		}
 		setLoadingGoogle(true);
@@ -136,7 +138,7 @@ export default function Home() {
 			router.replace("/");
 		} catch (e: any) {
 			if (e.code !== statusCodes.SIGN_IN_CANCELLED) {
-				Alert.alert("Sign In Failed", e.message ?? "Something went wrong.");
+				showAlert({ title: "Sign In Failed", message: e.message ?? "Something went wrong." });
 			}
 		} finally {
 			setLoadingGoogle(false);
