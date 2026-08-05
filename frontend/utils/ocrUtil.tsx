@@ -138,6 +138,7 @@ export const handleOCR = async (
 			throw new Error('UNRECOGNIZED');
 		}
 	} catch (err: any) {
+		if (__DEV__) console.error('[OCR] Error:', err);
 		const message = err?.message || '';
 
 		let title = 'Scan Failed';
