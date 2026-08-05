@@ -156,6 +156,9 @@ export const handleOCR = async (
 		} else if (message === 'UNRECOGNIZED') {
 			title = 'Processing Error';
 			body = 'We received an unexpected response from the server. Please try scanning again.';
+		} else if (message.includes('429') || message.includes('credits') || message.includes('quota') || message.includes('rate limit')) {
+			title = 'Service Unavailable';
+			body = 'Our scanning service is temporarily unavailable. Please try again in a few minutes.';
 		} else if (message.includes('session') || message.includes('Unauthorized') || message.includes('auth')) {
 			title = 'Session Expired';
 			body = 'Your login session has expired. Please sign in again.';
