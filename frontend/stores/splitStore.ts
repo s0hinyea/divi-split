@@ -41,7 +41,7 @@ interface SplitState {
     addItem: (item: ReceiptItem) => void;
     insertItemAt: (index: number, item: ReceiptItem) => void;
     removeItem: (id: string) => void;
-    splitItem: (id: string) => string[];
+    splitItem: (id: string, count?: number) => string[];
     setUserItems: (items: ReceiptItem[]) => void;
     saveReceipt: (
         receiptName: string,
@@ -191,7 +191,7 @@ export const useSplitStore = create<SplitState>((set, get) => ({
             };
         }),
 
-    splitItem: (id) => {
+    splitItem: (id, count = 2) => {
         const state = get();
         const index = state.receiptData.items.findIndex((it) => it.id === id);
         if (index === -1) return [];
@@ -199,32 +199,28 @@ export const useSplitStore = create<SplitState>((set, get) => ({
         const originalItem = state.receiptData.items[index];
         if (originalItem.price <= 0.01) return [];
 
-        const rawHalf = originalItem.price / 2;
-        const half1 = Math.ceil(rawHalf * 100) / 100;
-        const half2 = Math.floor(rawHalf * 100) / 100;
-
         const getId = () =>
             typeof crypto !== "undefined" && crypto.randomUUID
                 ? crypto.randomUUID()
                 : Math.random().toString(36).substring(2, 10);
 
-        const item1: ReceiptItem = {
-            id: getId(),
-            name: originalItem.name,
-            price: half1,
-        };
+        // Distribute cents evenly, giving the remainder to the first items
+        const totalCents = Math.round(originalItem.price * 100);
+        const baseCents = Math.floor(totalCents / count);
+        const remainder = totalCents - baseCents * count;
 
-        const item2: ReceiptItem = {
+        const splitItems: ReceiptItem[] = Array.from({ length: count }, (_, i) => ({
             id: getId(),
             name: originalItem.name,
-            price: half2,
-        };
+            price: (i < remainder ? baseCents + 1 : baseCents) / 100,
+            category: originalItem.category,
+        }));
 
         const newItems = [...state.receiptData.items];
-        newItems.splice(index, 1, item1, item2);
+        newItems.splice(index, 1, ...splitItems);
 
         set({ receiptData: { ...state.receiptData, items: newItems } });
-        return [item1.id, item2.id];
+        return splitItems.map(it => it.id);
     },
 
     calculateTotal: (items: any[]) => {

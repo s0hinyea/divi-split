@@ -8,6 +8,7 @@ import { colors, fonts, fontSizes, spacing, radii } from '@/styles/theme';
 import { MaterialIcons } from '@expo/vector-icons';
 import { usePaywall } from '../utils/usePaywall';
 import PaywallModal from '../components/PaywallModal';
+import * as Haptics from 'expo-haptics';
 
 export default function AssignAmounts() {
   const router = useRouter();
@@ -19,8 +20,10 @@ export default function AssignAmounts() {
   const setCurrentStep = useSplitStore((state) => state.setCurrentStep);
   const setResumeContactIndex = useSplitStore((state) => state.setResumeContactIndex);
 
+  const splitItem = useSplitStore((state) => state.splitItem);
   const paywall = usePaywall();
   const [showSplitEvenlyModal, setShowSplitEvenlyModal] = useState(false);
+  const [splitTarget, setSplitTarget] = useState<ReceiptItem | null>(null);
 
   const [currentContactIndex, setCurrentContactIndex] = useState(() => {
     if (params.initialIndex) {
@@ -66,6 +69,20 @@ export default function AssignAmounts() {
   const hasCategoryData = useMemo(() => available.some(it => it.category != null), [available]);
 
   const contactTotal = currentContact?.items?.reduce((sum, item) => sum + item.price, 0) ?? 0;
+
+  const maxSplitCount = Math.max(2, selected.length + 1);
+
+  const handleLongPress = useCallback((item: ReceiptItem) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setSplitTarget(item);
+  }, []);
+
+  const handleSplit = useCallback((count: number) => {
+    if (!splitTarget) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    splitItem(splitTarget.id, count);
+    setSplitTarget(null);
+  }, [splitTarget, splitItem]);
 
   const toggleItem = useCallback((item: ReceiptItem) => {
     if (currentContact) manageItems(item, currentContact);
@@ -179,6 +196,8 @@ export default function AssignAmounts() {
                         key={item.id}
                         style={({ pressed }) => [styles.itemCard, sel && styles.selectedItemCard, pressed && styles.itemCardPressed]}
                         onPress={() => toggleItem(item)}
+                        onLongPress={() => handleLongPress(item)}
+                        delayLongPress={600}
                       >
                         <View style={styles.itemInfo}>
                           <Text style={[styles.itemName, sel && styles.selectedItemText]}>{item.name}</Text>
@@ -201,6 +220,8 @@ export default function AssignAmounts() {
                   key={item.id}
                   style={({ pressed }) => [styles.itemCard, sel && styles.selectedItemCard, pressed && styles.itemCardPressed]}
                   onPress={() => toggleItem(item)}
+                  onLongPress={() => handleLongPress(item)}
+                  delayLongPress={600}
                 >
                   <View style={styles.itemInfo}>
                     <Text style={[styles.itemName, sel && styles.selectedItemText]}>{item.name}</Text>
@@ -253,6 +274,43 @@ export default function AssignAmounts() {
             </View>
           </View>
         </BlurView>
+      </Modal>
+
+      <Modal
+        visible={splitTarget !== null}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setSplitTarget(null)}
+      >
+        <TouchableOpacity style={styles.splitBackdrop} activeOpacity={1} onPress={() => setSplitTarget(null)}>
+          <TouchableOpacity activeOpacity={1} style={styles.splitSheet} onPress={() => {}}>
+            <View style={styles.splitHandle} />
+            <Text style={styles.splitItemName} numberOfLines={1}>{splitTarget?.name}</Text>
+            <Text style={styles.splitSubtitle}>${splitTarget?.price.toFixed(2)} total - split how many ways?</Text>
+
+            <View style={styles.splitOptionsRow}>
+              {Array.from({ length: maxSplitCount - 1 }, (_, i) => i + 2).map(count => {
+                const perPerson = splitTarget ? splitTarget.price / count : 0;
+                return (
+                  <TouchableOpacity
+                    key={count}
+                    style={styles.splitOption}
+                    onPress={() => handleSplit(count)}
+                    activeOpacity={0.75}
+                  >
+                    <Text style={styles.splitOptionCount}>{count}</Text>
+                    <Text style={styles.splitOptionPrice}>${perPerson.toFixed(2)}</Text>
+                    <Text style={styles.splitOptionEach}>each</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <TouchableOpacity onPress={() => setSplitTarget(null)} style={styles.splitCancel}>
+              <Text style={styles.splitCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </TouchableOpacity>
       </Modal>
 
       <PaywallModal
@@ -435,6 +493,82 @@ const styles = StyleSheet.create({
     fontFamily: fonts.body,
     color: colors.gray500,
     marginTop: spacing.xl,
+  },
+
+  // Split modal
+  splitBackdrop: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.4)',
+  },
+  splitSheet: {
+    backgroundColor: colors.white,
+    borderTopLeftRadius: radii.xl,
+    borderTopRightRadius: radii.xl,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.md,
+    paddingBottom: 40,
+    alignItems: 'center',
+  },
+  splitHandle: {
+    width: 36,
+    height: 4,
+    borderRadius: radii.full,
+    backgroundColor: colors.gray200,
+    marginBottom: spacing.lg,
+  },
+  splitItemName: {
+    fontFamily: fonts.bodyBold,
+    fontSize: fontSizes.lg,
+    color: colors.black,
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+  splitSubtitle: {
+    fontFamily: fonts.body,
+    fontSize: fontSizes.sm,
+    color: colors.gray500,
+    textAlign: 'center',
+    marginBottom: spacing.xl,
+  },
+  splitOptionsRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginBottom: spacing.lg,
+  },
+  splitOption: {
+    flex: 1,
+    backgroundColor: colors.black,
+    borderRadius: radii.lg,
+    paddingVertical: spacing.md,
+    alignItems: 'center',
+    gap: 2,
+    minWidth: 64,
+  },
+  splitOptionCount: {
+    fontFamily: fonts.display,
+    fontSize: 28,
+    color: colors.white,
+    lineHeight: 32,
+  },
+  splitOptionPrice: {
+    fontFamily: fonts.bodySemiBold,
+    fontSize: fontSizes.sm,
+    color: colors.green,
+  },
+  splitOptionEach: {
+    fontFamily: fonts.body,
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.4)',
+  },
+  splitCancel: {
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.xl,
+  },
+  splitCancelText: {
+    fontFamily: fonts.bodySemiBold,
+    fontSize: fontSizes.sm,
+    color: colors.gray400,
   },
   modalOverlay: {
     flex: 1,
