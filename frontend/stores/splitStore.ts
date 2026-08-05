@@ -267,10 +267,10 @@ export const useSplitStore = create<SplitState>((set, get) => ({
 
             if (error) throw error;
 
-            console.log("Receipt saved atomically:", data);
+            if (__DEV__) console.log("Receipt saved atomically:", data);
             return (data as any)?.receipt_id ?? null;
         } catch (error) {
-            console.error("Save receipt error:", error);
+            if (__DEV__) console.error("Save receipt error:", error);
             return null;
         }
     },
@@ -379,10 +379,10 @@ export const useSplitStore = create<SplitState>((set, get) => ({
                 payload,
             });
             if (error) throw error;
-            console.log("Receipt updated atomically:", data);
+            if (__DEV__) console.log("Receipt updated atomically:", data);
             return true;
         } catch (error) {
-            console.error("Update receipt error:", error);
+            if (__DEV__) console.error("Update receipt error:", error);
             return false;
         }
     },

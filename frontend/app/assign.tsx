@@ -260,7 +260,10 @@ export default function AssignAmounts() {
         onClose={paywall.hidePaywall}
         onSubscribe={paywall.purchaseSubscription}
         onRestore={paywall.restorePurchases}
-        currentPackage={paywall.currentPackage}
+        monthlyPackage={paywall.monthlyPackage}
+        yearlyPackage={paywall.yearlyPackage}
+        selectedPlan={paywall.selectedPlan}
+        onSelectPlan={paywall.setSelectedPlan}
         purchaseError={paywall.purchaseError}
         scanCount={paywall.scanCount}
       />

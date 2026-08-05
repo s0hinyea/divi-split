@@ -64,7 +64,6 @@ export default function ChooseContacts() {
   };
 
   const loadContacts = async () => {
-    // Show cached list immediately so the screen is never blank
     try {
       const cached = await AsyncStorage.getItem(CONTACTS_CACHE_KEY);
       if (cached) {
@@ -73,7 +72,6 @@ export default function ChooseContacts() {
       }
     } catch {}
 
-    // Refresh from OS in background
     const { status } = await Contacts.requestPermissionsAsync();
     if (status === "granted") {
       const { data } = await Contacts.getContactsAsync({
