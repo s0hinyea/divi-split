@@ -11,7 +11,7 @@ import PaywallModal from '../components/PaywallModal';
 
 export default function AssignAmounts() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ manual?: string }>();
+  const params = useLocalSearchParams<{ manual?: string; initialIndex?: string }>();
   const selected = useSplitStore((state) => state.selected);
   const manageItems = useSplitStore((state) => state.manageItems);
   const receiptData = useSplitStore((state) => state.receiptData);
@@ -201,8 +201,6 @@ export default function AssignAmounts() {
                   key={item.id}
                   style={({ pressed }) => [styles.itemCard, sel && styles.selectedItemCard, pressed && styles.itemCardPressed]}
                   onPress={() => toggleItem(item)}
-                  onLongPress={() => handleLongPress(item)}
-                  delayLongPress={600}
                 >
                   <View style={styles.itemInfo}>
                     <Text style={[styles.itemName, sel && styles.selectedItemText]}>{item.name}</Text>
