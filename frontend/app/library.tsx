@@ -2,13 +2,14 @@ import * as ImagePicker from 'expo-image-picker';
 import { useState, useCallback, useRef } from 'react';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from 'expo-router';
-import { Alert, View, Text } from 'react-native';
+import { View, Text } from 'react-native';
 import { ActivityIndicator } from 'react-native-paper';
 import { handleOCR } from '../utils/ocrUtil';
 import { useSplitStore } from '../stores/splitStore';
 import { useOCR } from '../utils/OCRContext';
 import { colors } from '@/styles/theme';
 import { useToast } from '@/components/ToastProvider';
+import { useCustomAlert } from '@/components/CustomAlert';
 
 export default function PickPhoto() {
   const router = useRouter();
@@ -17,6 +18,7 @@ export default function PickPhoto() {
   const updateReceiptData = useSplitStore((state) => state.updateReceiptData);
   const { setIsProcessing, setStatus, setError, startOCR } = useOCR();
   const { showToast } = useToast();
+  const { showAlert } = useCustomAlert();
 
   const pickFromGallery = async () => {
     if (galleryActive.current) return;
@@ -25,8 +27,11 @@ export default function PickPhoto() {
     try {
       const permissionRes = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!permissionRes.granted) {
-        Alert.alert("Gallery access permission required");
-        router.back();
+        showAlert({
+          title: 'Photo Access Required',
+          message: 'Divi needs photo library access to scan receipts. Please enable it in Settings.',
+          buttons: [{ text: 'OK', onPress: () => router.back() }],
+        });
         return;
       }
 
@@ -47,9 +52,12 @@ export default function PickPhoto() {
       await handleOCR(asset.uri, updateReceiptData, setIsProcessing, setStatus, setError, router, showToast, signal);
       setLoading(false);
     } catch (error) {
-      console.error("Gallery picker error:", error);
-      Alert.alert("Error", "There was a problem accessing the gallery");
-      router.back();
+      if (__DEV__) console.error('[Library] Gallery picker error:', error);
+      showAlert({
+        title: 'Gallery Error',
+        message: 'There was a problem accessing your photo library.',
+        buttons: [{ text: 'OK', onPress: () => router.back() }],
+      });
     } finally {
       galleryActive.current = false;
     }

@@ -56,5 +56,6 @@ eas.json
 
 # Markdown files
 *.md
+!README.md
 # ios/android are committed so EAS skips prebuild and uses the correct native target name
 app.json

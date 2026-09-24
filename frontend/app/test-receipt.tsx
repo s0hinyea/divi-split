@@ -17,6 +17,11 @@ export default function TestReceipt() {
 
   useFocusEffect(
     useCallback(() => {
+      if (!__DEV__) {
+        router.replace('/(tabs)');
+        return;
+      }
+
       let cancelled = false;
 
       const run = async () => {

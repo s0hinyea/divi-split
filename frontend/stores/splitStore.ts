@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { supabase } from "../lib/supabase";
+import { splitAmountIntoCents } from "../utils/moneySplit";
 
 export type ItemCategory =
     | "drink"
@@ -41,7 +42,7 @@ interface SplitState {
     addItem: (item: ReceiptItem) => void;
     insertItemAt: (index: number, item: ReceiptItem) => void;
     removeItem: (id: string) => void;
-    splitItem: (id: string) => string[];
+    splitItem: (id: string, count?: number) => string[];
     setUserItems: (items: ReceiptItem[]) => void;
     saveReceipt: (
         receiptName: string,
@@ -83,10 +84,18 @@ interface SplitState {
 
     // Split evenly undo snapshot
     splitEvenlySnapshot:
-        | { selected: Contact[]; userItems: ReceiptItem[] }
+        | {
+            selected: Contact[];
+            userItems: ReceiptItem[];
+            receiptItems: ReceiptItem[];
+        }
         | null;
     setSplitEvenlySnapshot: (
-        snap: { selected: Contact[]; userItems: ReceiptItem[] } | null,
+        snap: {
+            selected: Contact[];
+            userItems: ReceiptItem[];
+            receiptItems: ReceiptItem[];
+        } | null,
     ) => void;
 
     resetStore: () => void;
@@ -191,40 +200,34 @@ export const useSplitStore = create<SplitState>((set, get) => ({
             };
         }),
 
-    splitItem: (id) => {
+    splitItem: (id, count = 2) => {
         const state = get();
         const index = state.receiptData.items.findIndex((it) => it.id === id);
         if (index === -1) return [];
 
         const originalItem = state.receiptData.items[index];
-        if (originalItem.price <= 0.01) return [];
-
-        const rawHalf = originalItem.price / 2;
-        const half1 = Math.ceil(rawHalf * 100) / 100;
-        const half2 = Math.floor(rawHalf * 100) / 100;
+        const totalCents = Math.round(originalItem.price * 100);
+        if (!Number.isInteger(count) || count < 2 || count > totalCents) return [];
 
         const getId = () =>
             typeof crypto !== "undefined" && crypto.randomUUID
                 ? crypto.randomUUID()
                 : Math.random().toString(36).substring(2, 10);
 
-        const item1: ReceiptItem = {
-            id: getId(),
-            name: originalItem.name,
-            price: half1,
-        };
+        const allocatedCents = splitAmountIntoCents(originalItem.price, count);
 
-        const item2: ReceiptItem = {
+        const splitItems: ReceiptItem[] = Array.from({ length: count }, (_, i) => ({
             id: getId(),
             name: originalItem.name,
-            price: half2,
-        };
+            price: allocatedCents[i] / 100,
+            category: originalItem.category,
+        }));
 
         const newItems = [...state.receiptData.items];
-        newItems.splice(index, 1, item1, item2);
+        newItems.splice(index, 1, ...splitItems);
 
         set({ receiptData: { ...state.receiptData, items: newItems } });
-        return [item1.id, item2.id];
+        return splitItems.map(it => it.id);
     },
 
     calculateTotal: (items: any[]) => {
@@ -267,10 +270,10 @@ export const useSplitStore = create<SplitState>((set, get) => ({
 
             if (error) throw error;
 
-            console.log("Receipt saved atomically:", data);
+            if (__DEV__) console.log("Receipt saved atomically:", data);
             return (data as any)?.receipt_id ?? null;
         } catch (error) {
-            console.error("Save receipt error:", error);
+            if (__DEV__) console.error("Save receipt error:", error);
             return null;
         }
     },
@@ -379,10 +382,10 @@ export const useSplitStore = create<SplitState>((set, get) => ({
                 payload,
             });
             if (error) throw error;
-            console.log("Receipt updated atomically:", data);
+            if (__DEV__) console.log("Receipt updated atomically:", data);
             return true;
         } catch (error) {
-            console.error("Update receipt error:", error);
+            if (__DEV__) console.error("Update receipt error:", error);
             return false;
         }
     },

@@ -49,7 +49,7 @@ export default function Scan() {
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const scannedUri = result.assets[0].uri;
-        console.log('🟢 [Scanner] Photo taken:', scannedUri);
+        if (__DEV__) console.log('[Scanner] Photo taken:', scannedUri);
         // Pass to OCR pipeline natively handles image paths
         const signal = startOCR();
         await handleOCR(scannedUri, updateReceiptData, setIsProcessing, setStatus, setError, router, showToast, signal);
@@ -59,7 +59,7 @@ export default function Scan() {
         else router.replace('/(tabs)');
       }
     } catch (error: any) {
-      console.error('🔴 [Scanner] Error:', error?.message);
+      if (__DEV__) console.error('[Scanner] Error:', error?.message);
       showAlert({
         title: 'Scanner Error',
         message: error?.message || 'Something went wrong.',

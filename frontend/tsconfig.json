@@ -14,5 +14,13 @@
     "**/*.tsx",
     ".expo/types/**/*.ts",
     "expo-env.d.ts"
+  ],
+  "exclude": [
+    "assets/new_logo/**",
+    "components/Collapsible.tsx",
+    "components/ExternalLink.tsx",
+    "components/HelloWave.tsx",
+    "components/ParallaxScrollView.tsx",
+    "components/ui/**"
   ]
 }

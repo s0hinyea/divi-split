@@ -18,6 +18,7 @@ import { useSplitStore, ReceiptItem, ItemCategory } from '../stores/splitStore';
 import { usePaywall } from '../utils/usePaywall';
 import PaywallModal from '../components/PaywallModal';
 import { useCustomAlert } from '@/components/CustomAlert';
+import { getMaxNonZeroSplitCount, getSplitPriceRange } from '@/utils/moneySplit';
 export default function OCRResults() {
   const router = useRouter();
   const { showAlert } = useCustomAlert();
@@ -28,6 +29,8 @@ export default function OCRResults() {
   const updateReceiptData = useSplitStore((state) => state.updateReceiptData);
   const receiptData = useSplitStore((state) => state.receiptData);
   const setCurrentStep = useSplitStore((state) => state.setCurrentStep);
+  const selected = useSplitStore((state) => state.selected);
+  const maxSplitCount = selected.length > 0 ? selected.length + 1 : 8;
   const { addChange, undoChange, clearChanges, changes } = useChange();
 
   const paywall = usePaywall();
@@ -61,9 +64,10 @@ export default function OCRResults() {
   const [editingTax, setEditingTax] = useState<boolean>(false);
   const [tipInput, setTipInput] = useState<string>('');
   const [editingTip, setEditingTip] = useState<boolean>(false);
-  const [splitTarget, setSplitTarget] = useState<string | null>(null);
-  const splitProgress = useRef(new Animated.Value(0)).current;
-  const splitTimeoutRef = useRef<any>(null);
+  const [splitModalItem, setSplitModalItem] = useState<ReceiptItem | null>(null);
+  const availableSplitCount = splitModalItem
+    ? getMaxNonZeroSplitCount(splitModalItem.price, maxSplitCount)
+    : 0;
 
   useEffect(() => {
     return () => { clearChanges(); };
@@ -113,26 +117,21 @@ export default function OCRResults() {
 
   function handleLongPress(item: ReceiptItem) {
     if (item.price <= 0.01) return;
-    setSplitTarget(item.id);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    Animated.timing(splitProgress, { toValue: 1, duration: 2500, useNativeDriver: false }).start();
-    splitTimeoutRef.current = setTimeout(() => {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-      const currentItems = useSplitStore.getState().receiptData.items;
-      const originalItem = currentItems.find(it => it.id === item.id);
-      const originalIndex = currentItems.findIndex(it => it.id === item.id);
-      const childIds = splitItemStore(item.id);
-      if (originalItem && childIds.length === 2) {
-        addChange({ type: 'SPLIT', id: item.id, previous: originalItem, splitChildIds: childIds, index: originalIndex });
-      }
-      clearSplitState();
-    }, 2500);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setSplitModalItem(item);
   }
 
-  function clearSplitState() {
-    if (splitTimeoutRef.current) { clearTimeout(splitTimeoutRef.current); splitTimeoutRef.current = null; }
-    setSplitTarget(null);
-    splitProgress.setValue(0);
+  function handleSplit(count: number) {
+    if (!splitModalItem) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const currentItems = useSplitStore.getState().receiptData.items;
+    const originalItem = currentItems.find(it => it.id === splitModalItem.id);
+    const originalIndex = currentItems.findIndex(it => it.id === splitModalItem.id);
+    const childIds = splitItemStore(splitModalItem.id, count);
+    if (originalItem && childIds.length > 0) {
+      addChange({ type: 'SPLIT', id: splitModalItem.id, previous: originalItem, splitChildIds: childIds, index: originalIndex });
+    }
+    setSplitModalItem(null);
   }
 
   function addNewItem() {
@@ -297,12 +296,11 @@ export default function OCRResults() {
                           <Pressable
                             onPress={() => startChange(item.id)}
                             onLongPress={() => handleLongPress(item)}
-                            onPressOut={() => { if (splitTarget) clearSplitState(); }}
-                            delayLongPress={500}
+                            delayLongPress={600}
                             style={({ pressed }) => [
                               styles.itemRow,
-                              splitTarget === item.id && { backgroundColor: `${colors.green}10`, borderColor: colors.green },
-                              (pressed && !splitTarget) && { backgroundColor: `${colors.green}18`, borderColor: colors.green },
+                              splitModalItem?.id === item.id && { backgroundColor: `${colors.green}10`, borderColor: colors.green },
+                              pressed && { backgroundColor: `${colors.green}18`, borderColor: colors.green },
                             ]}
                           >
                             <Text style={styles.itemName}>{item.name}</Text>
@@ -346,12 +344,11 @@ export default function OCRResults() {
                     <Pressable
                       onPress={() => startChange(item.id)}
                       onLongPress={() => handleLongPress(item)}
-                      onPressOut={() => { if (splitTarget) clearSplitState(); }}
-                      delayLongPress={500}
+                      delayLongPress={600}
                       style={({ pressed }) => [
                         styles.itemRow,
-                        splitTarget === item.id && { backgroundColor: `${colors.green}10`, borderColor: colors.green },
-                        (pressed && !splitTarget) && { backgroundColor: `${colors.green}18`, borderColor: colors.green },
+                        splitModalItem?.id === item.id && { backgroundColor: `${colors.green}10`, borderColor: colors.green },
+                        pressed && { backgroundColor: `${colors.green}18`, borderColor: colors.green },
                       ]}
                     >
                       <Text style={styles.itemName}>{item.name}</Text>
@@ -365,18 +362,50 @@ export default function OCRResults() {
         </Pressable>
       </ScrollView>
 
-      <View style={styles.fixedFooter}>
-        {splitTarget ? (
-          <View style={styles.splitProgressContainer}>
-            <Text style={styles.totalLabel}>Splitting Item...</Text>
-            <View style={styles.progressBarBackground}>
-              <Animated.View style={[styles.progressBarFill, {
-                width: splitProgress.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] })
-              }]} />
+      <Modal
+        visible={splitModalItem !== null}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setSplitModalItem(null)}
+      >
+        <TouchableOpacity style={styles.splitBackdrop} activeOpacity={1} onPress={() => setSplitModalItem(null)}>
+          <TouchableOpacity activeOpacity={1} style={styles.splitSheet} onPress={() => {}}>
+            <View style={styles.splitHandle} />
+            <Text style={styles.splitItemName} numberOfLines={1}>{splitModalItem?.name}</Text>
+            <Text style={styles.splitSubtitle}>${splitModalItem?.price.toFixed(2)} total - split how many ways?</Text>
+
+            <View style={styles.splitOptionsRow}>
+              {Array.from({ length: Math.max(0, availableSplitCount - 1) }, (_, i) => i + 2).map(count => {
+                const { minimumCents, maximumCents } = getSplitPriceRange(splitModalItem?.price ?? 0, count);
+                const splitPrice = minimumCents === maximumCents
+                  ? `$${(minimumCents / 100).toFixed(2)}`
+                  : `$${(minimumCents / 100).toFixed(2)}–$${(maximumCents / 100).toFixed(2)}`;
+                return (
+                  <TouchableOpacity
+                    key={count}
+                    style={styles.splitOption}
+                    onPress={() => handleSplit(count)}
+                    activeOpacity={0.75}
+                  >
+                    <Text style={styles.splitOptionCount}>{count}</Text>
+                    <Text style={styles.splitOptionPrice}>{splitPrice}</Text>
+                    <Text style={styles.splitOptionEach}>
+                      {minimumCents === maximumCents ? 'each' : 'per part'}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
-          </View>
-        ) : (
-          <>
+
+            <TouchableOpacity onPress={() => setSplitModalItem(null)} style={styles.splitCancel}>
+              <Text style={styles.splitCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
+
+      <View style={styles.fixedFooter}>
+        <>
             {items.length > 0 && (
               <View style={styles.totalContainer}>
                 <Text style={styles.totalLabel}>Total</Text>
@@ -414,7 +443,6 @@ export default function OCRResults() {
               </TouchableOpacity>
             </View>
           </>
-        )}
       </View>
 
       <Modal animationType="fade" transparent visible={adding} onRequestClose={() => isAdding(false)}>
@@ -450,8 +478,12 @@ export default function OCRResults() {
         onClose={paywall.hidePaywall}
         onSubscribe={paywall.purchaseSubscription}
         onRestore={paywall.restorePurchases}
-        currentPackage={paywall.currentPackage}
+        monthlyPackage={paywall.monthlyPackage}
+        yearlyPackage={paywall.yearlyPackage}
+        selectedPlan={paywall.selectedPlan}
+        onSelectPlan={paywall.setSelectedPlan}
         purchaseError={paywall.purchaseError}
+        scanCount={paywall.scanCount}
       />
     </SafeAreaView>
   );
@@ -593,7 +625,34 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 5,
   },
-  splitProgressContainer: { justifyContent: 'center', paddingVertical: spacing.sm },
+  splitBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' },
+  splitSheet: {
+    backgroundColor: colors.white,
+    borderTopLeftRadius: radii.xl,
+    borderTopRightRadius: radii.xl,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.md,
+    paddingBottom: 40,
+    alignItems: 'center',
+  },
+  splitHandle: { width: 36, height: 4, borderRadius: radii.full, backgroundColor: colors.gray200, marginBottom: spacing.lg },
+  splitItemName: { fontFamily: fonts.bodyBold, fontSize: fontSizes.lg, color: colors.black, textAlign: 'center', marginBottom: 4 },
+  splitSubtitle: { fontFamily: fonts.body, fontSize: fontSizes.sm, color: colors.gray500, textAlign: 'center', marginBottom: spacing.xl },
+  splitOptionsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.lg, justifyContent: 'center' },
+  splitOption: {
+    backgroundColor: colors.black,
+    borderRadius: radii.lg,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    alignItems: 'center',
+    gap: 2,
+    minWidth: 72,
+  },
+  splitOptionCount: { fontFamily: fonts.display, fontSize: 28, color: colors.white, lineHeight: 32 },
+  splitOptionPrice: { fontFamily: fonts.bodySemiBold, fontSize: fontSizes.sm, color: colors.green },
+  splitOptionEach: { fontFamily: fonts.body, fontSize: 11, color: 'rgba(255,255,255,0.4)' },
+  splitCancel: { paddingVertical: spacing.sm, paddingHorizontal: spacing.xl },
+  splitCancelText: { fontFamily: fonts.bodySemiBold, fontSize: fontSizes.sm, color: colors.gray400 },
   progressBarBackground: {
     height: 12,
     backgroundColor: colors.gray200,
