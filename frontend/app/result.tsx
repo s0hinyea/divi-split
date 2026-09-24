@@ -18,6 +18,7 @@ import { useSplitStore, ReceiptItem, ItemCategory } from '../stores/splitStore';
 import { usePaywall } from '../utils/usePaywall';
 import PaywallModal from '../components/PaywallModal';
 import { useCustomAlert } from '@/components/CustomAlert';
+import { getMaxNonZeroSplitCount, getSplitPriceRange } from '@/utils/moneySplit';
 export default function OCRResults() {
   const router = useRouter();
   const { showAlert } = useCustomAlert();
@@ -64,6 +65,9 @@ export default function OCRResults() {
   const [tipInput, setTipInput] = useState<string>('');
   const [editingTip, setEditingTip] = useState<boolean>(false);
   const [splitModalItem, setSplitModalItem] = useState<ReceiptItem | null>(null);
+  const availableSplitCount = splitModalItem
+    ? getMaxNonZeroSplitCount(splitModalItem.price, maxSplitCount)
+    : 0;
 
   useEffect(() => {
     return () => { clearChanges(); };
@@ -371,8 +375,11 @@ export default function OCRResults() {
             <Text style={styles.splitSubtitle}>${splitModalItem?.price.toFixed(2)} total - split how many ways?</Text>
 
             <View style={styles.splitOptionsRow}>
-              {Array.from({ length: maxSplitCount - 1 }, (_, i) => i + 2).map(count => {
-                const perPerson = splitModalItem ? splitModalItem.price / count : 0;
+              {Array.from({ length: Math.max(0, availableSplitCount - 1) }, (_, i) => i + 2).map(count => {
+                const { minimumCents, maximumCents } = getSplitPriceRange(splitModalItem?.price ?? 0, count);
+                const splitPrice = minimumCents === maximumCents
+                  ? `$${(minimumCents / 100).toFixed(2)}`
+                  : `$${(minimumCents / 100).toFixed(2)}–$${(maximumCents / 100).toFixed(2)}`;
                 return (
                   <TouchableOpacity
                     key={count}
@@ -381,8 +388,10 @@ export default function OCRResults() {
                     activeOpacity={0.75}
                   >
                     <Text style={styles.splitOptionCount}>{count}</Text>
-                    <Text style={styles.splitOptionPrice}>${perPerson.toFixed(2)}</Text>
-                    <Text style={styles.splitOptionEach}>each</Text>
+                    <Text style={styles.splitOptionPrice}>{splitPrice}</Text>
+                    <Text style={styles.splitOptionEach}>
+                      {minimumCents === maximumCents ? 'each' : 'per part'}
+                    </Text>
                   </TouchableOpacity>
                 );
               })}

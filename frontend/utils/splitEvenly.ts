@@ -1,4 +1,5 @@
 import type { ReceiptItem } from '@/stores/splitStore';
+import { splitAmountIntoCents } from '@/utils/moneySplit';
 
 export type EvenSplitResult = {
   items: ReceiptItem[];
@@ -27,16 +28,15 @@ export function splitItemsEvenly(
 
   items.forEach((item, itemIndex) => {
     const totalCents = Math.round(item.price * 100);
-    const baseCents = Math.floor(totalCents / participantCount);
     const remainder = totalCents % participantCount;
-    const extraRecipients = new Set<number>();
-
-    for (let offset = 0; offset < remainder; offset += 1) {
-      extraRecipients.add((remainderCursor + offset) % participantCount);
-    }
+    const allocatedCentsByParticipant = splitAmountIntoCents(
+      item.price,
+      participantCount,
+      remainderCursor,
+    );
 
     for (let participantIndex = 0; participantIndex < participantCount; participantIndex += 1) {
-      const allocatedCents = baseCents + (extraRecipients.has(participantIndex) ? 1 : 0);
+      const allocatedCents = allocatedCentsByParticipant[participantIndex];
       if (allocatedCents === 0) continue;
 
       const child: ReceiptItem = {

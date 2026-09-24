@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { supabase } from "../lib/supabase";
+import { splitAmountIntoCents } from "../utils/moneySplit";
 
 export type ItemCategory =
     | "drink"
@@ -205,22 +206,20 @@ export const useSplitStore = create<SplitState>((set, get) => ({
         if (index === -1) return [];
 
         const originalItem = state.receiptData.items[index];
-        if (originalItem.price <= 0.01) return [];
+        const totalCents = Math.round(originalItem.price * 100);
+        if (!Number.isInteger(count) || count < 2 || count > totalCents) return [];
 
         const getId = () =>
             typeof crypto !== "undefined" && crypto.randomUUID
                 ? crypto.randomUUID()
                 : Math.random().toString(36).substring(2, 10);
 
-        // Distribute cents evenly, giving the remainder to the first items
-        const totalCents = Math.round(originalItem.price * 100);
-        const baseCents = Math.floor(totalCents / count);
-        const remainder = totalCents - baseCents * count;
+        const allocatedCents = splitAmountIntoCents(originalItem.price, count);
 
         const splitItems: ReceiptItem[] = Array.from({ length: count }, (_, i) => ({
             id: getId(),
             name: originalItem.name,
-            price: (i < remainder ? baseCents + 1 : baseCents) / 100,
+            price: allocatedCents[i] / 100,
             category: originalItem.category,
         }));
 
