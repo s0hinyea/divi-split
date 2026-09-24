@@ -83,10 +83,18 @@ interface SplitState {
 
     // Split evenly undo snapshot
     splitEvenlySnapshot:
-        | { selected: Contact[]; userItems: ReceiptItem[] }
+        | {
+            selected: Contact[];
+            userItems: ReceiptItem[];
+            receiptItems: ReceiptItem[];
+        }
         | null;
     setSplitEvenlySnapshot: (
-        snap: { selected: Contact[]; userItems: ReceiptItem[] } | null,
+        snap: {
+            selected: Contact[];
+            userItems: ReceiptItem[];
+            receiptItems: ReceiptItem[];
+        } | null,
     ) => void;
 
     resetStore: () => void;

@@ -8,6 +8,7 @@ import { colors, fonts, fontSizes, spacing, radii } from '@/styles/theme';
 import { MaterialIcons } from '@expo/vector-icons';
 import { usePaywall } from '../utils/usePaywall';
 import PaywallModal from '../components/PaywallModal';
+import { splitItemsEvenly } from '@/utils/splitEvenly';
 
 export default function AssignAmounts() {
   const router = useRouter();
@@ -94,25 +95,31 @@ export default function AssignAmounts() {
     const allItems = 'items' in store.receiptData
       ? store.receiptData.items.filter(item => !/tax/i.test(item.name))
       : [];
-    const subtotal = allItems.reduce((sum, item) => sum + item.price, 0);
-    const N = store.selected.length + 1;
-    const sharePerPerson = Math.round((subtotal / N) * 100) / 100;
-    const userShare = Math.round((subtotal - sharePerPerson * store.selected.length) * 100) / 100;
+    const participantCount = store.selected.length + 1;
+    const { items: splitItems, participantItems } = splitItemsEvenly(
+      allItems,
+      participantCount,
+    );
 
     store.setSplitEvenlySnapshot({
       selected: JSON.parse(JSON.stringify(store.selected)),
       userItems: [...(store.receiptData.userItems ?? [])],
+      receiptItems: [...store.receiptData.items],
     });
 
-    useSplitStore.setState({
-      selected: store.selected.map(contact => ({
+    useSplitStore.setState((state) => ({
+      receiptData: {
+        ...state.receiptData,
+        items: splitItems,
+        userItems: participantItems[participantCount - 1],
+      },
+      selected: store.selected.map((contact, index) => ({
         ...contact,
-        items: [{ id: `even_${contact.id}`, name: 'Even split', price: sharePerPerson }],
+        items: participantItems[index],
       })),
-    });
-    setUserItems([{ id: 'even_user', name: 'Even split', price: userShare }]);
+    }));
     router.push('/review');
-  }, [setUserItems, router]);
+  }, [router]);
 
   const nextContact = async () => {
     const isLastContact = currentContactIndex + 1 === selected.length;
