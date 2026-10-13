@@ -178,9 +178,31 @@ Run these from `frontend/` unless noted otherwise.
 | `npm run typecheck` | Run TypeScript without emitting files |
 | `npm run test:ci` | Run the Jest suite once |
 | `npm run check` | Run typechecking and unit tests |
+| `npx expo-doctor@latest` | Validate Expo, React Native, and native-module compatibility |
 | `node tests/scripts/ocr-pipeline.integration.test.js` | Run live OCR integration tests from the repository root |
 
 The OCR integration suite calls an Edge Function and may consume OpenAI credits. Set `SUPABASE_URL` to target a different project and `TEST_JWT` when the endpoint requires a real access token.
+
+## iOS release workflow
+
+Divi intentionally commits `frontend/ios`, so EAS compiles that native project instead of regenerating it with Expo Prebuild. The Android project is ignored and generated from `app.json`. iOS capability or permission changes must therefore be reflected in both `app.json` and the committed iOS project. Expo Doctor's native-config sync warning is disabled for this documented hybrid workflow.
+
+- The public app version is `expo.version` and is mirrored by the native iOS `MARKETING_VERSION`.
+- EAS is the source of truth for the private iOS build number and increments it for every production build.
+- All iOS profiles use the SDK 55 build image so development, preview, and production compile with the same SDK-compatible toolchain.
+
+Before the first build on a new EAS project, initialize the remote iOS build number to the highest number already used in App Store Connect. For the currently configured project this baseline is 59.
+
+From `frontend/`, validate and create a TestFlight candidate:
+
+```bash
+npm run check
+npx expo-doctor@latest
+eas build --platform ios --profile production
+eas submit --platform ios --profile production --latest
+```
+
+EAS Submit uploads the binary to App Store Connect and TestFlight. It does not submit the app for public App Review; promote a tested build manually in App Store Connect.
 
 ## Deploying the backend
 

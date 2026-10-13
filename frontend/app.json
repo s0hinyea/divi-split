@@ -8,19 +8,14 @@
     "icon": "./assets/images/icon.png",
     "scheme": "divi",
     "userInterfaceStyle": "light",
-    "newArchEnabled": false,
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.sohi.divi",
-      "buildNumber": "59",
-      "infoDictionary": {
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
         "NSCameraUsageDescription": "Divi needs access to your camera to scan receipts.",
         "NSPhotoLibraryUsageDescription": "Divi needs access to your photos so you can upload receipts.",
         "NSContactsUsageDescription": "Divi needs access to your contacts to quickly assign items to friends.",
-        "NSMicrophoneUsageDescription": "Divi needs access to your microphone for voice-assisted splitting."
-      },
-      "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false,
         "NSUserActivityTypes": [
           "INSendMessageIntent"
         ]
@@ -35,7 +30,9 @@
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.READ_CONTACTS",
-        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.READ_EXTERNAL_STORAGE"
+      ],
+      "blockedPermissions": [
         "android.permission.RECORD_AUDIO",
         "android.permission.WRITE_CONTACTS"
       ]
@@ -59,15 +56,11 @@
       "expo-web-browser",
       "expo-font",
       [
-        "expo-camera",
-        {
-          "cameraPermission": "Divi needs access to your camera to scan receipts."
-        }
-      ],
-      [
         "expo-image-picker",
         {
-          "photosPermission": "Divi needs access to your photos so you can upload receipts."
+          "photosPermission": "Divi needs access to your photos so you can upload receipts.",
+          "cameraPermission": "Divi needs access to your camera to scan receipts.",
+          "microphonePermission": false
         }
       ],
       [
@@ -81,13 +74,9 @@
         {
           "android": {
             "minSdkVersion": 24
-          },
-          "ios": {
-            "cppLanguageStandard": "c++17"
           }
         }
       ],
-      "expo-audio",
       "expo-asset",
       "expo-apple-authentication",
       [

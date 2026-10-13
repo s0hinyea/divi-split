@@ -1,26 +1,29 @@
 {
   "cli": {
     "version": ">= 12.5.0",
-    "appVersionSource": "local"
+    "appVersionSource": "remote"
   },
   "build": {
     "development": {
       "developmentClient": true,
       "distribution": "internal",
       "ios": {
-        "image": "macos-sonoma-14.6-xcode-16.1"
+        "image": "sdk-55"
       }
     },
     "preview": {
       "distribution": "internal",
       "android": {
         "buildType": "apk"
+      },
+      "ios": {
+        "image": "sdk-55"
       }
     },
     "production": {
       "autoIncrement": true,
       "ios": {
-        "image": "latest"
+        "image": "sdk-55"
       }
     }
   },
