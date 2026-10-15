@@ -7,8 +7,8 @@
 
   Divi is a mobile bill-splitting app that turns a receipt photo into an editable, itemized split. Assign items to friends, divide shared dishes down to the cent, distribute tax and tip, and send payment requests—all from one flow.
 
-  ![Expo](https://img.shields.io/badge/Expo-55-000020?logo=expo&logoColor=white)
-  ![React Native](https://img.shields.io/badge/React_Native-0.83-61DAFB?logo=react&logoColor=111827)
+  ![Expo](https://img.shields.io/badge/Expo-54-000020?logo=expo&logoColor=white)
+  ![React Native](https://img.shields.io/badge/React_Native-0.81-61DAFB?logo=react&logoColor=111827)
   ![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?logo=typescript&logoColor=white)
   ![Supabase](https://img.shields.io/badge/Supabase-Postgres_%2B_Edge_Functions-3FCF8E?logo=supabase&logoColor=white)
 </div>
@@ -46,14 +46,14 @@ Receipt images are resized and compressed before upload. The OCR function return
 
 | Area | Technology |
 | --- | --- |
-| Mobile app | React Native, Expo 55, Expo Router |
+| Mobile app | React Native 0.81, Expo 54, Expo Router |
 | Language | TypeScript |
 | State | Zustand and React Context |
 | Backend | Supabase Edge Functions on Deno |
 | Database and auth | Supabase Postgres and Supabase Auth |
 | AI | OpenAI vision, chat, and transcription APIs |
 | Payments | Shareable requests with Venmo, Cash App, and Zelle links |
-| Subscriptions | RevenueCat |
+| Subscriptions | Temporarily unavailable in the current test build; purchase integration is a release blocker |
 | Monitoring | Sentry |
 | Testing | Jest and a Node-based OCR integration suite |
 
@@ -104,7 +104,6 @@ EXPO_PUBLIC_SUPABASE_ANON_KEY=your-local-anon-key
 # Optional integrations
 EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=
 EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID=
-EXPO_PUBLIC_REVENUECAT_API_KEY=
 EXPO_PUBLIC_SENTRY_DSN=
 EXPO_PUBLIC_PAY_BASE_URL=
 EXPO_PUBLIC_PRIVACY_POLICY_URL=
@@ -159,7 +158,6 @@ After the native app is installed, use `npm start` for subsequent Metro sessions
 | `OPENAI_API_KEY` | Backend | Receipt OCR, AI assistant, and voice transcription |
 | `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` | No | Google sign-in web client |
 | `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID` | No | Google sign-in iOS client |
-| `EXPO_PUBLIC_REVENUECAT_API_KEY` | No | Subscription and entitlement checks |
 | `EXPO_PUBLIC_SENTRY_DSN` | No | Mobile error reporting |
 | `EXPO_PUBLIC_PAY_BASE_URL` | No | Base URL for shareable payment pages |
 | `EXPO_PUBLIC_PRIVACY_POLICY_URL` | No | Privacy-policy link shown in the app |
@@ -185,24 +183,23 @@ The OCR integration suite calls an Edge Function and may consume OpenAI credits.
 
 ## iOS release workflow
 
-Divi intentionally commits `frontend/ios`, so EAS compiles that native project instead of regenerating it with Expo Prebuild. The Android project is ignored and generated from `app.json`. iOS capability or permission changes must therefore be reflected in both `app.json` and the committed iOS project. Expo Doctor's native-config sync warning is disabled for this documented hybrid workflow.
+The active iOS release path is **Xcode Archive → App Store Connect → TestFlight**. Build 67, uploaded from Xcode on 15 October 2026, launched on the test iPhone. Earlier EAS production builds crashed at launch; their exact difference from the Xcode build is still under investigation. EAS remains configured in `frontend/eas.json` but is not part of the current iOS release procedure. It is not needed to submit Divi to the App Store.
 
-- The public app version is `expo.version` and is mirrored by the native iOS `MARKETING_VERSION`.
-- EAS is the source of truth for the private iOS build number and increments it for every production build.
-- All iOS profiles use the SDK 55 build image so development, preview, and production compile with the same SDK-compatible toolchain.
+The public version is `expo.version` in `frontend/app.json` and `MARKETING_VERSION` in the committed native iOS project; keep both equal. The private iOS build number is `CURRENT_PROJECT_VERSION` in **both Debug and Release** settings of `frontend/ios/Divi.xcodeproj/project.pbxproj`. The last uploaded and installed build is **67**. The repository is set to **68**, the next candidate. Before each later upload, check the highest build number already in App Store Connect, set the native project to the next unused number, and commit that change with the app code.
 
-Before the first build on a new EAS project, initialize the remote iOS build number to the highest number already used in App Store Connect. For the currently configured project this baseline is 59.
+Xcode's **Manage version and build numbers** option changed the build-67 archive from 59 to 67 during upload without changing the repository. For future uploads, turn that option **off** and verify the final upload summary shows the same build number as the project. If Xcode's standard distribution path does not let you change it, use **Custom** distribution for an App Store Connect upload and disable that option there. Expo's `app.json` has no separate `ios.buildNumber` because this committed native project supplies the build number.
 
-From `frontend/`, validate and create a TestFlight candidate:
+Release checklist:
 
-```bash
-npm run check
-npx expo-doctor@latest
-eas build --platform ios --profile production
-eas submit --platform ios --profile production --latest
-```
+1. Record the Git commit and `git status`. Resolve or document local changes before archiving. Confirm that the ignored `frontend/.env` points to the intended production Supabase project and includes the required public client settings; a local Xcode archive embeds values from the local build environment. Keep private keys out of `EXPO_PUBLIC_*` variables.
+2. From `frontend/`, run `npm run check`. Confirm there is adequate free disk space for Xcode to archive and re-sign the app.
+3. Open `frontend/ios/Divi.xcworkspace` in Xcode. Select the **Divi** scheme and **Any iOS Device (arm64)**. The scheme's **Archive** action must use **Release**. Choose **Product → Archive**.
+4. In Organizer, select the new archive and **Validate App**. Choose **Distribute App → TestFlight & App Store → Upload**. Turn off **Manage version and build numbers**, keep symbol upload enabled, and confirm the displayed version, build number, bundle ID `com.sohi.divi`, and Apple team before uploading.
+5. Wait for Apple processing, install that exact build number from TestFlight, and test launch plus the receipt flow on a physical iPhone. Record the archive path, uploaded build number, Git commit, and test result. Keep the previous working archive until the new candidate passes.
 
-EAS Submit uploads the binary to App Store Connect and TestFlight. It does not submit the app for public App Review; promote a tested build manually in App Store Connect.
+An upload makes a build available for TestFlight after processing. Public App Store release is a separate App Store Connect review step. The current build cannot be treated as the final public candidate while subscriptions and restore are disabled. The [working build-67 baseline](docs/ios-working-baseline-2026-10-15.md) records the evidence and remaining gaps.
+
+Apple documents the archive and upload choices in [Distributing your app for beta testing and releases](https://developer.apple.com/documentation/xcode/distributing-your-app-for-beta-testing-and-releases); its [build upload guide](https://developer.apple.com/help/app-store-connect/manage-builds/upload-builds/) explains processing and version numbers.
 
 ## Deploying the backend
 
