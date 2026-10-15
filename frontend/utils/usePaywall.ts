@@ -1,20 +1,29 @@
 import { useEffect, useState, useCallback } from 'react';
-import Purchases, { LOG_LEVEL, PurchasesPackage } from 'react-native-purchases';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import { supabase } from '@/lib/supabase';
 
-const RC_API_KEY = process.env.EXPO_PUBLIC_REVENUECAT_API_KEY ?? '';
-const ENTITLEMENT_ID = 'Divi Pro';
 const SCAN_COUNT_KEY = '@divi_scan_count';
 const MOCK_SUBSCRIBED_KEY = '@divi_mock_subscribed';
-export const FREE_SCAN_LIMIT = 3;
+export const FREE_SCAN_LIMIT = 5;
 
 const isExpoGo = Constants.appOwnership === 'expo';
-let rcConfigured = false;
 
-const MOCK_PACKAGE = {
-  identifier: 'monthly_pro',
+type PurchasesPackage = {
+  identifier: string;
+  packageType: 'MONTHLY' | 'ANNUAL';
+  product: {
+    identifier: string;
+    description: string;
+    title: string;
+    price: number;
+    priceString: string;
+    currencyCode: string;
+  };
+};
+
+const MOCK_MONTHLY: PurchasesPackage = {
+  identifier: '$rc_monthly',
   packageType: 'MONTHLY',
   product: {
     identifier: 'com.sohi.divi.pro.monthly',
@@ -24,14 +33,20 @@ const MOCK_PACKAGE = {
     priceString: '$4.99',
     currencyCode: 'USD',
   },
-} as any;
+};
 
-function configureRC() {
-  if (rcConfigured || !RC_API_KEY || isExpoGo) return;
-  Purchases.setLogLevel(LOG_LEVEL.ERROR);
-  Purchases.configure({ apiKey: RC_API_KEY });
-  rcConfigured = true;
-}
+const MOCK_YEARLY: PurchasesPackage = {
+  identifier: '$rc_annual',
+  packageType: 'ANNUAL',
+  product: {
+    identifier: 'com.sohi.divi.pro.yearly',
+    description: 'Divi Pro Yearly',
+    title: 'Divi Pro',
+    price: 29.99,
+    priceString: '$29.99',
+    currencyCode: 'USD',
+  },
+};
 
 async function getUserId(): Promise<string | null> {
   const { data } = await supabase.auth.getUser();
@@ -58,16 +73,18 @@ export function usePaywall() {
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [paywallVisible, setPaywallVisible] = useState(false);
-  const [currentPackage, setCurrentPackage] = useState<PurchasesPackage | null>(null);
+  const [monthlyPackage, setMonthlyPackage] = useState<PurchasesPackage | null>(null);
+  const [yearlyPackage, setYearlyPackage] = useState<PurchasesPackage | null>(null);
+  const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'yearly'>('yearly');
   const [purchaseError, setPurchaseError] = useState<string | null>(null);
   const [scanCount, setScanCount] = useState(0);
   const [userId, setUserId] = useState<string | null>(null);
 
   const scansRemaining = Math.max(0, FREE_SCAN_LIMIT - scanCount);
 
-  useEffect(() => {
-    configureRC();
+  const currentPackage = selectedPlan === 'yearly' ? yearlyPackage : monthlyPackage;
 
+  useEffect(() => {
     const init = async () => {
       try {
         if (isExpoGo) {
@@ -77,7 +94,8 @@ export function usePaywall() {
           ]);
           setScanCount(storedCount ? parseInt(storedCount, 10) : 0);
           setIsSubscribed(storedSub === 'true');
-          setCurrentPackage(MOCK_PACKAGE);
+          setMonthlyPackage(MOCK_MONTHLY);
+          setYearlyPackage(MOCK_YEARLY);
           setIsLoading(false);
           return;
         }
@@ -85,24 +103,12 @@ export function usePaywall() {
         const uid = await getUserId();
         setUserId(uid);
 
-        const [customerInfo, offerings, serverCount] = await Promise.all([
-          Purchases.getCustomerInfo(),
-          Purchases.getOfferings(),
-          uid ? fetchServerScanCount(uid) : Promise.resolve(0),
-        ]);
-
-        setIsSubscribed(
-          customerInfo.entitlements.active[ENTITLEMENT_ID] !== undefined
-        );
+        const serverCount = uid ? await fetchServerScanCount(uid) : 0;
         setScanCount(serverCount);
-
-        const pkg =
-          offerings.current?.monthly ??
-          offerings.current?.availablePackages[0] ??
-          null;
-        setCurrentPackage(pkg);
+        setMonthlyPackage(MOCK_MONTHLY);
+        setYearlyPackage(MOCK_YEARLY);
       } catch (e) {
-        console.warn('RevenueCat init error:', e);
+        if (__DEV__) console.warn('Paywall initialization error:', e);
       } finally {
         setIsLoading(false);
       }
@@ -144,17 +150,7 @@ export function usePaywall() {
       return;
     }
 
-    try {
-      const { customerInfo } = await Purchases.purchasePackage(currentPackage);
-      if (customerInfo.entitlements.active[ENTITLEMENT_ID] !== undefined) {
-        setIsSubscribed(true);
-        setPaywallVisible(false);
-      }
-    } catch (e: any) {
-      if (!e.userCancelled) {
-        setPurchaseError(e.message ?? 'Purchase failed. Please try again.');
-      }
-    }
+    setPurchaseError('Subscriptions are temporarily unavailable in this test build.');
   }, [currentPackage]);
 
   const restorePurchases = useCallback(async (): Promise<boolean> => {
@@ -168,21 +164,8 @@ export function usePaywall() {
       return true;
     }
 
-    try {
-      const customerInfo = await Purchases.restorePurchases();
-      const restored =
-        customerInfo.entitlements.active[ENTITLEMENT_ID] !== undefined;
-      if (restored) {
-        setIsSubscribed(true);
-        setPaywallVisible(false);
-      } else {
-        setPurchaseError('No active subscription found.');
-      }
-      return restored;
-    } catch (e: any) {
-      setPurchaseError(e.message ?? 'Restore failed. Please try again.');
-      return false;
-    }
+    setPurchaseError('Restore is temporarily unavailable in this test build.');
+    return false;
   }, []);
 
   const clearMockSubscription = useCallback(async () => {
@@ -209,7 +192,11 @@ export function usePaywall() {
     isSubscribed,
     isLoading,
     paywallVisible,
+    monthlyPackage,
+    yearlyPackage,
     currentPackage,
+    selectedPlan,
+    setSelectedPlan,
     purchaseError,
     attemptAgentUse,
     hidePaywall,

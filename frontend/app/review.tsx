@@ -29,7 +29,6 @@ export default function ReviewPage() {
   const resetStore = useSplitStore((state) => state.resetStore);
   const splitEvenlySnapshot = useSplitStore((state) => state.splitEvenlySnapshot);
   const setSplitEvenlySnapshot = useSplitStore((state) => state.setSplitEvenlySnapshot);
-  const setUserItems = useSplitStore((state) => state.setUserItems);
   const editingReceiptId = useSplitStore((state) => state.editingReceiptId);
   const editingReceiptName = useSplitStore((state) => state.editingReceiptName);
   const editingReceiptCreatedAt = useSplitStore((state) => state.editingReceiptCreatedAt);
@@ -402,8 +401,14 @@ export default function ReviewPage() {
             <TouchableOpacity
               onPress={() => {
                 if (splitEvenlySnapshot) {
-                  useSplitStore.setState({ selected: splitEvenlySnapshot.selected });
-                  setUserItems(splitEvenlySnapshot.userItems);
+                  useSplitStore.setState((state) => ({
+                    selected: splitEvenlySnapshot.selected,
+                    receiptData: {
+                      ...state.receiptData,
+                      items: splitEvenlySnapshot.receiptItems,
+                      userItems: splitEvenlySnapshot.userItems,
+                    },
+                  }));
                   setSplitEvenlySnapshot(null);
                 }
                 router.back();

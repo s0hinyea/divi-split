@@ -1,2 +1,27 @@
-# Only exclude android
+# Dependencies and generated Expo output
+node_modules/
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# Local environment files must never be uploaded to EAS.
+# Production values are configured in the EAS production environment.
+.env
+.env.*
+
+# Local native build artifacts (the committed iOS project is still uploaded)
 android/
+ios/Pods/
+ios/build/
+ios/DerivedData/
+
+# Logs, caches, signing material, and OS metadata
+coverage/
+*.log
+*.pem
+*.p8
+*.p12
+*.key
+*.mobileprovision
+.DS_Store

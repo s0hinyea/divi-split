@@ -56,15 +56,12 @@ export const handleOCR = async (
 		router.push("/contacts");
 
 		setStatus("Compressing image...");
-		console.time('[ocr] image compression');
 		const manipulatedImage = await ImageManipulator.manipulateAsync(
 			imageUri,
-			[{ resize: { width: 2048 } }],
-			{ compress: 0.85, format: ImageManipulator.SaveFormat.JPEG, base64: true }
+			[{ resize: { width: 1200 } }],
+			{ compress: 0.72, format: ImageManipulator.SaveFormat.JPEG, base64: true }
 		);
 		const base64DataUrl = `data:image/jpeg;base64,${manipulatedImage.base64}`;
-		console.timeEnd('[ocr] image compression');
-		console.log(`[ocr] base64 size: ${(base64DataUrl.length / 1024).toFixed(1)}KB`);
 
 		if (signal?.aborted) return;
 
@@ -72,7 +69,6 @@ export const handleOCR = async (
 		const cacheKey = makeOcrCacheKey(base64DataUrl);
 		const cachedResult = await getCachedOcr(cacheKey);
 		if (cachedResult) {
-			console.log('[ocr] cache hit, skipping edge function call');
 			setStatus("Extracting items...");
 			cachedResult.items = cachedResult.items.filter((item: any) => item.price > 0);
 			updateReceiptData(cachedResult);
@@ -85,14 +81,12 @@ export const handleOCR = async (
 		}
 
 		setStatus("Analyzing receipt...");
-		console.time('[ocr] ocr-vision edge function');
 		const { data: extractedData, error } = await supabase.functions.invoke('ocr-vision', {
 			body: { image: base64DataUrl },
 			headers: {
 				Authorization: `Bearer ${session.access_token}`,
 			},
 		});
-		console.timeEnd('[ocr] ocr-vision edge function');
 
 		// 1. Handle network-level or 500-level errors
 		if (error) {
@@ -128,7 +122,6 @@ export const handleOCR = async (
 		}
 
 		setStatus("Extracting items...");
-		console.log(`[ocr] items extracted: ${extractedData?.items?.length ?? 0}, confidence: ${extractedData?.confidence ?? 'unknown'}`);
 
 		if (extractedData && "items" in extractedData && extractedData.items.length > 0) {
 			// Filter out $0 items (promo lines, headers, etc.)
@@ -145,7 +138,7 @@ export const handleOCR = async (
 			throw new Error('UNRECOGNIZED');
 		}
 	} catch (err: any) {
-		console.error("🚨 Full OCR Error:", err);
+		if (__DEV__) console.error('[OCR] Error:', err);
 		const message = err?.message || '';
 
 		let title = 'Scan Failed';
@@ -163,6 +156,9 @@ export const handleOCR = async (
 		} else if (message === 'UNRECOGNIZED') {
 			title = 'Processing Error';
 			body = 'We received an unexpected response from the server. Please try scanning again.';
+		} else if (message.includes('429') || message.includes('credits') || message.includes('quota') || message.includes('rate limit')) {
+			title = 'Service Unavailable';
+			body = 'Our scanning service is temporarily unavailable. Please try again in a few minutes.';
 		} else if (message.includes('session') || message.includes('Unauthorized') || message.includes('auth')) {
 			title = 'Session Expired';
 			body = 'Your login session has expired. Please sign in again.';

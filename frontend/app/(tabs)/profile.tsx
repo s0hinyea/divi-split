@@ -201,7 +201,7 @@ export default function Profile() {
     const { showAlert } = useCustomAlert();
     const { session } = useSession();
     const { profile, loading, updateProfile, refreshProfile } = useProfile();
-    const { isSubscribed, paywallVisible, currentPackage, purchaseError, showPaywall, hidePaywall, purchaseSubscription, restorePurchases, scansRemaining, clearMockSubscription } = usePaywall();
+    const { isSubscribed, paywallVisible, monthlyPackage, yearlyPackage, selectedPlan, setSelectedPlan, purchaseError, showPaywall, hidePaywall, purchaseSubscription, restorePurchases, scansRemaining, clearMockSubscription } = usePaywall();
     const router = useRouter();
     const C = useThemeColors();
     const styles = useMemo(() => createStyles(C), [C]);
@@ -544,7 +544,10 @@ export default function Profile() {
                 onClose={hidePaywall}
                 onSubscribe={purchaseSubscription}
                 onRestore={restorePurchases}
-                currentPackage={currentPackage}
+                monthlyPackage={monthlyPackage}
+                yearlyPackage={yearlyPackage}
+                selectedPlan={selectedPlan}
+                onSelectPlan={setSelectedPlan}
                 purchaseError={purchaseError}
                 scanCount={scansRemaining <= 0 ? FREE_SCAN_LIMIT : FREE_SCAN_LIMIT - scansRemaining}
             />

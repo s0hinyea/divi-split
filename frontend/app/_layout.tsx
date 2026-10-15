@@ -22,36 +22,27 @@ import { SessionProvider, useSession } from "@/utils/SessionContext";
 import { AppThemeProvider, useIsDark } from "@/utils/ThemeContext";
 import { ToastProvider } from "@/components/ToastProvider";
 import { CustomAlertProvider } from "@/components/CustomAlert";
-import { registerForPushNotifications, configureNotificationHandler } from "@/utils/pushNotifications";
 import * as Sentry from '@sentry/react-native';
 
-Sentry.init({
-  dsn: 'https://a2211e219fc861d96b1686219f2f84e1@o4511491273457664.ingest.us.sentry.io/4511491274702848',
+// Monitoring must never prevent the app from opening. Keep the launch-time
+// configuration deliberately small; optional integrations can be added back
+// after the production startup path is proven stable.
+try {
+  Sentry.init({
+    dsn: process.env.EXPO_PUBLIC_SENTRY_DSN,
+    enabled: Boolean(process.env.EXPO_PUBLIC_SENTRY_DSN),
+    sendDefaultPii: false,
+  });
+} catch (error) {
+  console.error('[startup] Sentry initialization failed:', error);
+}
 
-  // Adds more context data to events (IP address, cookies, user, etc.)
-  // For more information, visit: https://docs.sentry.io/platforms/react-native/data-management/data-collected/
-  sendDefaultPii: true,
-
-  // Enable Logs
-  enableLogs: true,
-
-  // Configure Session Replay
-  replaysSessionSampleRate: 0.1,
-  replaysOnErrorSampleRate: 1,
-  integrations: [Sentry.mobileReplayIntegration(), Sentry.feedbackIntegration()],
-
-  // uncomment the line below to enable Spotlight (https://spotlightjs.com)
-  // spotlight: __DEV__,
-});
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync().catch(() => {
   /* Ignore - native splash screen may not be registered yet in Expo Go */
 });
 
-configureNotificationHandler();
-
-
-export default Sentry.wrap(function RootLayout() {
+export default function RootLayout() {
   const [loaded] = useFonts({
     SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
     // Inter - modern UI font
@@ -70,6 +61,19 @@ export default Sentry.wrap(function RootLayout() {
     "WorkSans-Medium": require("../assets/fonts/WorkSans-Medium.ttf"),
   });
 
+  // Notifications are optional infrastructure. Load them only after React has
+  // mounted so a native notification problem cannot crash the launch path.
+  useEffect(() => {
+    import("@/utils/pushNotifications")
+      .then(({ configureNotificationHandler }) => {
+        configureNotificationHandler();
+      })
+      .catch((error) => {
+        console.error('[startup] Notification setup failed:', error);
+        Sentry.captureException(error);
+      });
+  }, []);
+
   if (!loaded) {
     return null;
   }
@@ -85,7 +89,7 @@ export default Sentry.wrap(function RootLayout() {
       </SessionProvider>
     </AppThemeProvider>
   );
-});
+}
 
 /**
  * Gates the splash screen until fonts, auth, profile, AND history data are all
@@ -102,9 +106,14 @@ function AppReadyGate({ loaded }: { loaded: boolean }) {
   // Register for push notifications once user is signed in
   useEffect(() => {
     if (session?.user?.id) {
-      registerForPushNotifications(session.user.id).catch(() => {
-        /* Non-fatal: push notifications are optional */
-      });
+      import("@/utils/pushNotifications")
+        .then(({ registerForPushNotifications }) =>
+          registerForPushNotifications(session.user.id)
+        )
+        .catch((error) => {
+          console.error('[startup] Push registration failed:', error);
+          Sentry.captureException(error);
+        });
     }
   }, [session?.user?.id]);
 

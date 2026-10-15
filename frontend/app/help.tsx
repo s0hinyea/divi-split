@@ -70,7 +70,7 @@ export default function HelpPage() {
     },
     {
       question: "How do I split a shared item?",
-      answer: "On the Modify Receipt screen, press and hold any item for about 3 seconds. You'll see a green progress bar fill up with haptic feedback. When it completes, the item is split into two equal halves that you can assign to different people. You can split items as many times as needed."
+      answer: "On the Modify Receipt screen, press and hold an item. Choose how many portions you need, and Divi will create that many separate items for you to assign. If the price cannot divide perfectly, Divi distributes the extra penny without changing the original total."
     },
     {
       question: "Can I undo a delete or split?",
@@ -78,7 +78,7 @@ export default function HelpPage() {
     },
     {
       question: "What if multiple people shared the same item?",
-      answer: "You have two options: use the long-press split gesture to divide the item into halves first, or on the Assign screen, tap the same item for every person who shared it. Divi will automatically divide the cost equally among everyone assigned to it."
+      answer: "You have two options: press and hold the item on the Modify Receipt screen and choose the number of portions, or on the Assign screen, assign the same item to every person who shared it. Divi will divide the cost without losing any pennies."
     },
     {
       question: "How do I set up my payment links?",
