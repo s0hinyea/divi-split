@@ -53,7 +53,7 @@ Receipt images are resized and compressed before upload. The OCR function return
 | Database and auth | Supabase Postgres and Supabase Auth |
 | AI | OpenAI vision, chat, and transcription APIs |
 | Payments | Shareable requests with Venmo, Cash App, and Zelle links |
-| Subscriptions | Temporarily unavailable in the current test build; purchase integration is a release blocker |
+| Subscriptions | RevenueCat / Apple In-App Purchase; purchase and restore require TestFlight validation |
 | Monitoring | Sentry |
 | Testing | Jest and a Node-based OCR integration suite |
 
@@ -104,6 +104,7 @@ EXPO_PUBLIC_SUPABASE_ANON_KEY=your-local-anon-key
 # Optional integrations
 EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=
 EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID=
+EXPO_PUBLIC_REVENUECAT_API_KEY=
 EXPO_PUBLIC_SENTRY_DSN=
 EXPO_PUBLIC_PAY_BASE_URL=
 EXPO_PUBLIC_PRIVACY_POLICY_URL=
@@ -158,6 +159,7 @@ After the native app is installed, use `npm start` for subsequent Metro sessions
 | `OPENAI_API_KEY` | Backend | Receipt OCR, AI assistant, and voice transcription |
 | `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` | No | Google sign-in web client |
 | `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID` | No | Google sign-in iOS client |
+| `EXPO_PUBLIC_REVENUECAT_API_KEY` | iOS subscriptions | RevenueCat public Apple SDK key; never use a secret API key |
 | `EXPO_PUBLIC_SENTRY_DSN` | No | Mobile error reporting |
 | `EXPO_PUBLIC_PAY_BASE_URL` | No | Base URL for shareable payment pages |
 | `EXPO_PUBLIC_PRIVACY_POLICY_URL` | No | Privacy-policy link shown in the app |
@@ -197,7 +199,15 @@ Release checklist:
 4. In Organizer, select the new archive and **Validate App**. Choose **Distribute App → TestFlight & App Store → Upload**. Turn off **Manage version and build numbers**, keep symbol upload enabled, and confirm the displayed version, build number, bundle ID `com.sohi.divi`, and Apple team before uploading.
 5. Wait for Apple processing, install that exact build number from TestFlight, and test launch plus the receipt flow on a physical iPhone. Record the archive path, uploaded build number, Git commit, and test result. Keep the previous working archive until the new candidate passes.
 
-An upload makes a build available for TestFlight after processing. Public App Store release is a separate App Store Connect review step. The current build cannot be treated as the final public candidate while subscriptions and restore are disabled. The [working build-67 baseline](docs/ios-working-baseline-2026-10-15.md) records the evidence and remaining gaps.
+An upload makes a build available for TestFlight after processing. Public App Store release is a separate App Store Connect review step. The working build 67 has subscriptions disabled. The next candidate includes RevenueCat, but is **not** a validated subscription release until its Apple products, RevenueCat offering and `Divi Pro` entitlement, purchase, restore, and subscription expiry have been tested in TestFlight. TestFlight purchases use Apple's sandbox and do not charge the tester. The [working build-67 baseline](docs/ios-working-baseline-2026-10-15.md) records the evidence and remaining gaps.
+
+Subscription gate for the next candidate:
+
+1. In App Store Connect, confirm the Paid Apps Agreement, tax/banking setup, and monthly/yearly products are ready under bundle ID `com.sohi.divi`. In RevenueCat, confirm the Apple products are attached to the current offering and grant the entitlement named exactly `Divi Pro`.
+2. Confirm the Xcode target shows **In-App Purchase** under Signing & Capabilities and that the local `EXPO_PUBLIC_REVENUECAT_API_KEY` is the Apple **public** SDK key for that RevenueCat app.
+3. On the precise TestFlight build, verify launch, real localized prices, purchase, Pro access after relaunch, restore after reinstall, and access removal after sandbox expiry. Check that signing into a different Divi account does not inherit the first account's Pro status. Also verify canceling a purchase leaves the account free. Do not promote the build if any check fails.
+
+See [Apple's TestFlight in-app purchase testing guide](https://developer.apple.com/help/app-store-connect/test-a-beta-version/testing-subscriptions-and-in-app-purchases-in-testflight/) and [RevenueCat's iOS setup guide](https://www.revenuecat.com/docs/getting-started/installation/ios) for the required store-side setup.
 
 Apple documents the archive and upload choices in [Distributing your app for beta testing and releases](https://developer.apple.com/documentation/xcode/distributing-your-app-for-beta-testing-and-releases); its [build upload guide](https://developer.apple.com/help/app-store-connect/manage-builds/upload-builds/) explains processing and version numbers.
 

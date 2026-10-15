@@ -16,8 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, fonts, fontSizes, spacing, radii } from '@/styles/theme';
 import { FREE_SCAN_LIMIT } from '@/utils/usePaywall';
 import DiviLogo from '@/components/DiviLogo';
-
-type PurchasesPackage = any;
+import type { PurchasesPackage } from 'react-native-purchases';
 
 type Props = {
   visible: boolean;
@@ -89,11 +88,10 @@ export default function PaywallModal({
     outputRange: [0, 1],
   });
 
-  const monthlyPrice = monthlyPackage?.product?.priceString ?? '$4.99';
-  const yearlyPrice = yearlyPackage?.product?.priceString ?? '$29.99';
-  const yearlyPerMonth = yearlyPackage?.product?.price
-    ? `$${(yearlyPackage.product.price / 12).toFixed(2)}/mo`
-    : '$2.50/mo';
+  const monthlyPrice = monthlyPackage?.product.priceString ?? 'Unavailable';
+  const yearlyPrice = yearlyPackage?.product.priceString ?? 'Unavailable';
+  const selectedPackage = selectedPlan === 'yearly' ? yearlyPackage : monthlyPackage;
+  const selectedPrice = selectedPlan === 'yearly' ? yearlyPrice : monthlyPrice;
 
   const scansUsed = Math.min(scanCount, FREE_SCAN_LIMIT);
 
@@ -199,9 +197,6 @@ export default function PaywallModal({
               <Text style={[styles.toggleLabel, selectedPlan === 'yearly' && styles.toggleLabelActive]}>
                 Yearly
               </Text>
-              <View style={styles.saveBadge}>
-                <Text style={styles.saveText}>Save 50%</Text>
-              </View>
             </TouchableOpacity>
           </View>
 
@@ -215,7 +210,7 @@ export default function PaywallModal({
             ) : (
               <>
                 <Text style={styles.priceMain}>{yearlyPrice}</Text>
-                <Text style={styles.pricePeriod}>per year · {yearlyPerMonth}</Text>
+                <Text style={styles.pricePeriod}>per year</Text>
               </>
             )}
           </View>
@@ -238,16 +233,16 @@ export default function PaywallModal({
 
           {/* CTA */}
           <TouchableOpacity
-            style={[styles.cta, (purchasing || restoring) && styles.ctaDisabled]}
+            style={[styles.cta, (purchasing || restoring || !selectedPackage) && styles.ctaDisabled]}
             onPress={handleSubscribe}
-            disabled={purchasing || restoring}
+            disabled={purchasing || restoring || !selectedPackage}
             activeOpacity={0.88}
           >
             {purchasing ? (
               <ActivityIndicator color={colors.white} />
             ) : (
               <Text style={styles.ctaText}>
-                {selectedPlan === 'yearly' ? `Get Divi Pro · ${yearlyPrice}/yr` : `Get Divi Pro · ${monthlyPrice}/mo`}
+                {selectedPackage ? `Get Divi Pro · ${selectedPrice}/${selectedPlan === 'yearly' ? 'yr' : 'mo'}` : 'Plan unavailable'}
               </Text>
             )}
           </TouchableOpacity>
@@ -409,18 +404,6 @@ const styles = StyleSheet.create({
     color: colors.black,
     fontFamily: fonts.bodySemiBold,
   },
-  saveBadge: {
-    backgroundColor: colors.greenLight,
-    borderRadius: radii.full,
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-  },
-  saveText: {
-    fontFamily: fonts.bodySemiBold,
-    fontSize: 10,
-    color: colors.green,
-  },
-
   // Price
   priceSection: {
     alignItems: 'center',
