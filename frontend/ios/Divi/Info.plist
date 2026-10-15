@@ -78,6 +78,8 @@
 		<string>INSendMessageIntent</string>
 		<string>$(PRODUCT_BUNDLE_IDENTIFIER).expo.index_route</string>
 	</array>
+	<key>RCTNewArchEnabled</key>
+	<false/>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>remote-notification</string>
