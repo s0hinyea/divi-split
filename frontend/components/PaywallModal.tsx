@@ -62,19 +62,25 @@ export default function PaywallModal({
   scanCount,
 }: Props) {
   const slideAnim = useRef(new Animated.Value(0)).current;
+  const [show, setShow] = useState(false);
   const [purchasing, setPurchasing] = useState(false);
   const [restoring, setRestoring] = useState(false);
 
   useEffect(() => {
     if (visible) {
+      setShow(true);
       Animated.spring(slideAnim, {
         toValue: 1,
         useNativeDriver: true,
         tension: 60,
         friction: 14,
       }).start();
-    } else {
-      slideAnim.setValue(0);
+    } else if (show) {
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 280,
+        useNativeDriver: true,
+      }).start(() => setShow(false));
     }
   }, [visible]);
 
@@ -111,9 +117,9 @@ export default function PaywallModal({
 
   return (
     <Modal
-      visible={visible}
+      visible={show}
       transparent
-      animationType="fade"
+      animationType="none"
       statusBarTranslucent
       onRequestClose={onClose}
     >

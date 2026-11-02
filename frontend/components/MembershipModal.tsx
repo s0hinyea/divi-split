@@ -63,11 +63,24 @@ function parseSubscriptionInfo(customerInfo: any): SubscriptionInfo {
 export default function MembershipModal({ visible, onClose }: Props) {
   const insets = useSafeAreaInsets();
   const slideAnim = useRef(new Animated.Value(0)).current;
+  const [show, setShow] = useState(false);
   const [loading, setLoading] = useState(false);
   const [info, setInfo] = useState<SubscriptionInfo | null>(null);
 
+  const handleClose = () => {
+    Animated.timing(slideAnim, {
+      toValue: 0,
+      duration: 280,
+      useNativeDriver: true,
+    }).start(() => {
+      setShow(false);
+      onClose();
+    });
+  };
+
   useEffect(() => {
     if (visible) {
+      setShow(true);
       Animated.spring(slideAnim, {
         toValue: 1,
         useNativeDriver: true,
@@ -87,9 +100,15 @@ export default function MembershipModal({ visible, onClose }: Props) {
           .catch(() => setInfo(null))
           .finally(() => setLoading(false))
       );
-    } else {
-      slideAnim.setValue(0);
-      setInfo(null);
+    } else if (show) {
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 280,
+        useNativeDriver: true,
+      }).start(() => {
+        setShow(false);
+        setInfo(null);
+      });
     }
   }, [visible]);
 
@@ -104,11 +123,11 @@ export default function MembershipModal({ visible, onClose }: Props) {
 
   return (
     <Modal
-      visible={visible}
+      visible={show}
       transparent
-      animationType="fade"
+      animationType="none"
       statusBarTranslucent
-      onRequestClose={onClose}
+      onRequestClose={handleClose}
     >
       <Animated.View style={[styles.root, { opacity, transform: [{ translateY }] }]}>
 
@@ -139,7 +158,7 @@ export default function MembershipModal({ visible, onClose }: Props) {
           <SafeAreaView edges={['top']} style={styles.heroSafe}>
             <TouchableOpacity
               style={[styles.closeBtn, { top: insets.top + 12 }]}
-              onPress={onClose}
+              onPress={handleClose}
               hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
             >
               <Ionicons name="close" size={22} color="rgba(255,255,255,0.6)" />
