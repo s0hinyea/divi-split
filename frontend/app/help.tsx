@@ -62,19 +62,27 @@ export default function HelpPage() {
   const faqs = [
     {
       question: "How does Divi work?",
-      answer: "Divi makes splitting expenses effortless. Tap the plus button to scan a receipt using your camera's document scanner; it automatically detects edges and crops the receipt for you. Divi's AI reads every item, lets you adjust prices or names, and then you assign each item to people from your contacts. Tax and tip are distributed proportionally, and Divi generates a summary you can text to your group with one tap."
+      answer: "Tap the plus button, then choose Camera to scan a receipt or Gallery to upload a photo. Divi's AI reads every item on the receipt, then you assign each item to people from your contacts. Tax and tip are distributed proportionally, and Divi generates a summary you can text to your group with one tap."
     },
     {
-      question: "What is the AI Assistant?",
-      answer: "Look for the sparkle (✦) button on the Assign and Review screens. Tapping it opens Divi's AI Assistant, a chat-powered helper that can assign items, move items between people, rename things, and adjust tax or tip for you. Just tell it what you need in plain English, like 'Give the steak to John' or 'Split the appetizer evenly.'"
+      question: "How many free scans do I get?",
+      answer: "Every account gets 5 free AI scans. The scan sheet always shows how many you have left. When you use your last free scan, Divi will show you upgrade options before your next scan."
+    },
+    {
+      question: "What is Divi Pro?",
+      answer: "Divi Pro gives you unlimited receipt scans. You can subscribe monthly or yearly directly inside the app. Go to the Profile tab and tap Membership to see the current plans, or restore a previous purchase."
+    },
+    {
+      question: "What counts as a used scan?",
+      answer: "Only a successful scan that actually finds items on your receipt uses one of your free scans. If the image is not a receipt, the scan fails, or you cancel partway through, your count is not affected."
     },
     {
       question: "How do I split a shared item?",
-      answer: "On the Modify Receipt screen, press and hold an item. Choose how many portions you need, and Divi will create that many separate items for you to assign. If the price cannot divide perfectly, Divi distributes the extra penny without changing the original total."
+      answer: "On the Modify Receipt screen, press and hold any item for about half a second. A prompt will appear asking how many ways to split it. Divi creates that many separate portions so you can assign them individually. If the price cannot divide perfectly, the extra penny is distributed without changing the original total."
     },
     {
       question: "Can I undo a delete or split?",
-      answer: "Yes! After deleting or splitting an item, an 'Undo' button appears at the bottom of the screen. Tapping it restores the item to its exact original position in the list, not just tacked on at the end."
+      answer: "Yes. After deleting or splitting an item, an Undo button appears at the bottom of the screen. Tapping it restores the item to its exact original position in the list."
     },
     {
       question: "What if multiple people shared the same item?",
@@ -82,27 +90,27 @@ export default function HelpPage() {
     },
     {
       question: "How do I set up my payment links?",
-      answer: "Go to the Profile tab and enter your Venmo, Cash App, or Zelle handles. When you send the final split summary via SMS, Divi will automatically include convenient, clickable payment links so your friends can pay you back in one tap."
+      answer: "Go to the Profile tab and enter your Venmo, Cash App, or Zelle handles. When you send the final split summary via SMS, Divi will automatically include clickable payment links so your friends can pay you back in one tap."
     },
     {
       question: "Can I view or edit past receipts?",
-      answer: "Yes! Go to the History tab to see all your saved splits. Tap or swipe on any receipt to view the full breakdown. You can also re-edit a past split: reassign items, update contacts, and resend the SMS summary."
+      answer: "Yes. Go to the History tab to see all your saved splits. Tap any receipt to view the full breakdown. You can also re-edit a past split, reassign items, update contacts, and resend the summary."
     },
     {
       question: "Is the receipt scanning accurate?",
-      answer: "Divi uses advanced AI vision with built-in validation. It checks whether the image is actually a receipt before processing, warns you if the photo is too dark or overexposed, and cross-checks the item totals against the receipt's reported total. That said, always double-check the items on the Modify Receipt screen before proceeding."
+      answer: "Divi uses AI vision with built-in validation. It confirms the image is actually a receipt before processing, and on the Review screen it flags a warning if the scanned items do not add up to the receipt total. Always double-check the items on the Modify Receipt screen before proceeding."
     },
     {
       question: "Can I manually add or edit items?",
-      answer: "Yes! On the Modify Receipt screen right after scanning, you can tap any item to edit its name or price, swipe left to delete it, or tap the plus (+) button at the bottom right to manually add a new item."
+      answer: "Yes. On the Modify Receipt screen, tap any item to edit its name or price, swipe left to delete it, or tap the plus button at the bottom right to add a new item manually."
     },
     {
       question: "How are tax and tip calculated?",
-      answer: "Divi uses the 'Largest Remainder Method' (Penny Allocation) to distribute tax proportionally based on each person's subtotal, and tip evenly across all participants. This ensures mathematically perfect distribution, with no rounding errors or lost pennies!"
+      answer: "Tax is distributed proportionally based on each person's subtotal using penny-safe allocation, so no one is over- or under-charged by a cent. Tip is split evenly across all participants."
     },
     {
       question: "Can I edit contact names before sending?",
-      answer: "Absolutely. On the final Review screen, tap anybody's name in their breakdown card to edit it. This way, even if you have a friend saved as 'John (From Work)', they won't receive a group text with that label."
+      answer: "Yes. On the final Review screen, tap anyone's name in their breakdown card to rename them. Changes are local to this split only and do not affect your contacts."
     }
   ];
 
