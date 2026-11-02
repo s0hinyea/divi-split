@@ -92,6 +92,21 @@ export default function TabsLayout() {
 
     const handleOptionPress = async (option: 'scan' | 'library') => {
         if (checkingAccess) return;
+
+        // Use cached status if already known — avoids a network round-trip on every tap
+        if (paywall.scanCountKnown) {
+            if (!paywall.isSubscribed && paywall.scansRemaining === 0) {
+                hideScanModal();
+                setTimeout(paywall.showPaywall, 250);
+                return;
+            }
+            setSelectedOption(option);
+            hideScanModal();
+            setTimeout(() => router.push(option === 'scan' ? '/scan' : '/library'), 150);
+            return;
+        }
+
+        // Status unknown — fetch once before proceeding
         setCheckingAccess(true);
         try {
             const access = await paywall.refreshScanStatus();
@@ -107,13 +122,8 @@ export default function TabsLayout() {
             setCheckingAccess(false);
         }
         setSelectedOption(option);
-        setTimeout(() => {
-            hideScanModal();
-            setTimeout(() => {
-                if (option === 'scan') router.push('/scan');
-                else router.push('/library');
-            }, 100);
-        }, 150);
+        hideScanModal();
+        setTimeout(() => router.push(option === 'scan' ? '/scan' : '/library'), 150);
     };
 
     const bottomSheetHeight = Math.min(screenHeight * 0.48, 360);
