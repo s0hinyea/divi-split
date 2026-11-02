@@ -14,6 +14,7 @@ import { getUserFacingErrorMessage } from '@/utils/network';
 import { privacyPolicyUrl } from '@/constants/appConfig';
 import { usePaywall, FREE_SCAN_LIMIT } from '@/utils/usePaywall';
 import PaywallModal from '@/components/PaywallModal';
+import MembershipModal from '@/components/MembershipModal';
 import Constants from 'expo-constants';
 import { useCustomAlert } from '@/components/CustomAlert';
 
@@ -207,6 +208,7 @@ export default function Profile() {
     const C = useThemeColors();
     const styles = useMemo(() => createStyles(C), [C]);
     const [refreshing, setRefreshing] = useState(false);
+    const [membershipModalVisible, setMembershipModalVisible] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [formData, setFormData] = useState({
         full_name: '',
@@ -258,17 +260,7 @@ export default function Profile() {
                     ],
                 });
             } else {
-                showAlert({
-                    title: 'Divi Pro',
-                    message: 'You have an active Divi Pro subscription with unlimited scans. To manage or cancel your subscription, visit your Apple ID settings.',
-                    buttons: [
-                        { text: 'Done', style: 'cancel' },
-                        {
-                            text: 'Manage',
-                            onPress: () => Linking.openURL('https://apps.apple.com/account/subscriptions'),
-                        },
-                    ],
-                });
+                setMembershipModalVisible(true);
             }
         } else {
             showPaywall();
@@ -565,6 +557,10 @@ export default function Profile() {
                 onSelectPlan={setSelectedPlan}
                 purchaseError={purchaseError}
                 scanCount={scansRemaining <= 0 ? FREE_SCAN_LIMIT : FREE_SCAN_LIMIT - scansRemaining}
+            />
+            <MembershipModal
+                visible={membershipModalVisible}
+                onClose={() => setMembershipModalVisible(false)}
             />
         </SafeAreaView>
     );
