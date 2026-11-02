@@ -203,7 +203,9 @@ Deno.serve(async (req) => {
             `You are an expert receipt parser. Analyze the image and extract structured receipt data according to the schema.
 - If the image is NOT a valid receipt (e.g. a person, wall, blank image), set is_receipt to false.
 - Do NOT include 'Subtotal', 'Tax', 'Tip', or 'Total' as items.
-- Price MUST be the LINE TOTAL for that item.
+- Price MUST be the LINE TOTAL (the total cost for all units of that item combined), never the unit price.
+- Quantity rules: A number printed BEFORE or AFTER an item name is the quantity purchased. Set the quantity field to that number. NEVER duplicate an item in the array to represent quantity — use the quantity field instead. Example: "2 APPLE 1.00" means quantity=2, price=1.00 (line total). "APPLE x2 1.00" also means quantity=2, price=1.00.
+- If no quantity is shown, set quantity to 1.
 - Categorize every item: drink (any beverage), appetizer (starters/small plates), entree (main courses), side (fries/rice/extras), dessert (sweets), other (fees/add-ons/unclear).`,
         },
         {
