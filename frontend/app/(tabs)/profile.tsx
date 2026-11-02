@@ -264,7 +264,7 @@ export default function Profile() {
                     buttons: [
                         { text: 'Done', style: 'cancel' },
                         {
-                            text: 'Manage Subscription',
+                            text: 'Manage',
                             onPress: () => Linking.openURL('https://apps.apple.com/account/subscriptions'),
                         },
                     ],
