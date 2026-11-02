@@ -204,8 +204,8 @@ Deno.serve(async (req) => {
 - If the image is NOT a valid receipt (e.g. a person, wall, blank image), set is_receipt to false.
 - Do NOT include 'Subtotal', 'Tax', 'Tip', or 'Total' as items.
 - Price MUST be the LINE TOTAL (the total cost for all units of that item combined), never the unit price.
-- Quantity rules: A number printed BEFORE or AFTER an item name is the quantity purchased. Set the quantity field to that number. NEVER duplicate an item in the array to represent quantity — use the quantity field instead. Example: "2 APPLE 1.00" means quantity=2, price=1.00 (line total). "APPLE x2 1.00" also means quantity=2, price=1.00.
-- If no quantity is shown, set quantity to 1.
+- Quantity rules: A number printed BEFORE or AFTER an item name is the quantity purchased. Set the quantity field to that number. NEVER duplicate an item in the array to represent quantity — use the quantity field instead. Example: "2 APPLE 1.00" means quantity=2, price=1.00 (line total). "APPLE x2 1.00" also means quantity=2, price=1.00. If no quantity is shown, set quantity to 1.
+- The total, tax, and tip fields MUST be copied from the printed text on the receipt. Do NOT compute or estimate them from the items — read the exact numbers printed next to the words "Total", "Tax", and "Tip". If a field is not printed, use 0.
 - Categorize every item: drink (any beverage), appetizer (starters/small plates), entree (main courses), side (fries/rice/extras), dessert (sweets), other (fees/add-ons/unclear).`,
         },
         {
@@ -376,6 +376,24 @@ Deno.serve(async (req) => {
       return json({ error: "NO_ITEMS" }, 422);
     }
 
+    // ── Duplicate name detection ─────────────────────────────
+    // If the AI listed the same item multiple times with qty=1 instead of
+    // using the quantity field, the name count will exceed 1. Flag as low
+    // confidence regardless of whether the math check passes.
+    const nameCounts = new Map<string, number>();
+    for (const item of expandedItems) {
+      const key = item.name.toLowerCase().trim();
+      nameCounts.set(key, (nameCounts.get(key) ?? 0) + 1);
+    }
+    const hasDuplicateNames = [...nameCounts.values()].some((n) => n > 1);
+    if (hasDuplicateNames) {
+      const dupes = [...nameCounts.entries()]
+        .filter(([, n]) => n > 1)
+        .map(([name, n]) => `${name}×${n}`)
+        .join(", ");
+      console.warn(`[OCR] Duplicate item names detected: ${dupes}`);
+    }
+
     // ── Math validation ──────────────────────────────────────
     const itemsSum = expandedItems.reduce(
       (sum, item) => sum + item.price,
@@ -387,17 +405,17 @@ Deno.serve(async (req) => {
       ? Math.abs(computedTotal - reportedTotal) / reportedTotal
       : 0;
 
-    // If items + tax + tip differs from reported total by >10%, flag it
-    const confidence = discrepancy > 0.10 ? "low" : "high";
+    // Flag low confidence if math is off by >10% OR duplicate names were found
+    const confidence = (discrepancy > 0.10 || hasDuplicateNames) ? "low" : "high";
     if (confidence === "low") {
       console.warn(
-        `[OCR] Math mismatch: items(${itemsSum.toFixed(2)}) + tax(${
+        `[OCR] Low confidence — math mismatch: items(${itemsSum.toFixed(2)}) + tax(${
           (result.tax || 0).toFixed(2)
         }) + tip(${(result.tip || 0).toFixed(2)}) = ${
           computedTotal.toFixed(2)
-        }, but total = ${reportedTotal.toFixed(2)} (${
+        }, reported total = ${reportedTotal.toFixed(2)} (${
           (discrepancy * 100).toFixed(1)
-        }% off)`,
+        }% off), duplicates=${hasDuplicateNames}`,
       );
     }
 
