@@ -8,6 +8,8 @@ import { fonts, spacing, radii, colors, shadows } from '@/styles/theme';
 import { useThemeColors } from '@/utils/ThemeContext';
 import { useSplitStore } from '@/stores/splitStore';
 import { useCustomAlert } from '@/components/CustomAlert';
+import { usePaywall } from '@/utils/usePaywall';
+import PaywallModal from '@/components/PaywallModal';
 
 const { height: screenHeight } = Dimensions.get('window');
 
@@ -28,6 +30,8 @@ export default function TabsLayout() {
     const C = useThemeColors();
     const [scanModalVisible, setScanModalVisible] = useState(false);
     const [selectedOption, setSelectedOption] = useState<'scan' | 'library' | null>(null);
+    const [checkingAccess, setCheckingAccess] = useState(false);
+    const paywall = usePaywall();
     const slideAnim = useRef(new Animated.Value(0)).current;
 
     const currentStep = useSplitStore((state) => state.currentStep);
@@ -41,6 +45,7 @@ export default function TabsLayout() {
 
     const showScanModal = () => {
         setScanModalVisible(true);
+        paywall.refreshScanStatus().catch(() => {});
         Animated.spring(slideAnim, {
             toValue: 1,
             useNativeDriver: true,
@@ -85,7 +90,22 @@ export default function TabsLayout() {
         }
     };
 
-    const handleOptionPress = (option: 'scan' | 'library') => {
+    const handleOptionPress = async (option: 'scan' | 'library') => {
+        if (checkingAccess) return;
+        setCheckingAccess(true);
+        try {
+            const access = await paywall.refreshScanStatus();
+            if (!access.isPro && access.scansRemaining === 0) {
+                hideScanModal();
+                setTimeout(paywall.showPaywall, 250);
+                return;
+            }
+        } catch {
+            showAlert({ title: 'Unable to check scans', message: 'We could not verify your scan allowance. Check your connection and try again.', buttons: [{ text: 'OK' }] });
+            return;
+        } finally {
+            setCheckingAccess(false);
+        }
         setSelectedOption(option);
         setTimeout(() => {
             hideScanModal();
@@ -96,7 +116,7 @@ export default function TabsLayout() {
         }, 150);
     };
 
-    const bottomSheetHeight = screenHeight * 0.30;
+    const bottomSheetHeight = Math.min(screenHeight * 0.48, 360);
 
     return (
         <>
@@ -194,6 +214,18 @@ export default function TabsLayout() {
                                 <View style={[styles.handle, { backgroundColor: C.gray300 }]} />
 
                                 <Text style={[styles.sheetTitle, { color: C.black }]}>Add a receipt</Text>
+                                <View style={[styles.allowanceBadge, { backgroundColor: C.gray100 }]}>
+                                    <MaterialIcons name={paywall.isSubscribed ? 'all-inclusive' : 'auto-awesome'} size={18} color={C.green} />
+                                    <Text style={[styles.allowanceText, { color: C.black }]}>
+                                        {paywall.scanStatusError
+                                            ? 'Can’t check scans · choose a source to retry'
+                                            : checkingAccess || !paywall.scanCountKnown
+                                            ? 'Checking your scans…'
+                                            : paywall.isSubscribed
+                                                ? 'Divi Pro · unlimited scans'
+                                                : `${paywall.scansRemaining} of 5 free scans left`}
+                                    </Text>
+                                </View>
 
                                 <View style={styles.sheetOptionsRow}>
                                     <TouchableOpacity
@@ -203,6 +235,7 @@ export default function TabsLayout() {
                                             selectedOption === 'scan' && styles.sheetOptionCardSelected,
                                         ]}
                                         onPress={() => handleOptionPress('scan')}
+                                        disabled={checkingAccess}
                                         activeOpacity={0.7}
                                     >
                                         <View style={[styles.sheetOptionIcon, { backgroundColor: selectedOption === 'scan' ? colors.greenLight : C.gray100 }]}>
@@ -218,6 +251,7 @@ export default function TabsLayout() {
                                             selectedOption === 'library' && styles.sheetOptionCardSelected,
                                         ]}
                                         onPress={() => handleOptionPress('library')}
+                                        disabled={checkingAccess}
                                         activeOpacity={0.7}
                                     >
                                         <View style={[styles.sheetOptionIcon, { backgroundColor: selectedOption === 'library' ? colors.greenLight : C.gray100 }]}>
@@ -226,12 +260,25 @@ export default function TabsLayout() {
                                         <Text style={[styles.sheetOptionText, { color: C.black }]}>Pick from{'\n'}gallery</Text>
                                     </TouchableOpacity>
                                 </View>
+                                <Text style={[styles.allowanceNote, { color: C.gray500 }]}>Only successfully read receipts use a free scan.</Text>
 
                             </Animated.View>
                         </TouchableWithoutFeedback>
                     </View>
                 </TouchableWithoutFeedback>
             </Modal>
+            <PaywallModal
+                visible={paywall.paywallVisible}
+                onClose={paywall.hidePaywall}
+                onSubscribe={paywall.purchaseSubscription}
+                onRestore={paywall.restorePurchases}
+                monthlyPackage={paywall.monthlyPackage}
+                yearlyPackage={paywall.yearlyPackage}
+                selectedPlan={paywall.selectedPlan}
+                onSelectPlan={paywall.setSelectedPlan}
+                purchaseError={paywall.purchaseError}
+                scanCount={paywall.scanCount}
+            />
         </>
     );
 }
@@ -298,6 +345,13 @@ const styles = StyleSheet.create({
         fontSize: 18,
         marginBottom: spacing.md,
     },
+    allowanceBadge: {
+        alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center',
+        gap: spacing.sm, borderRadius: radii.full, paddingHorizontal: spacing.md,
+        paddingVertical: spacing.sm, marginBottom: spacing.md,
+    },
+    allowanceText: { fontFamily: fonts.bodySemiBold, fontSize: 13 },
+    allowanceNote: { fontFamily: fonts.body, fontSize: 12, marginTop: spacing.md, textAlign: 'center' },
     sheetOptionsRow: {
         flexDirection: 'row',
         gap: spacing.md,

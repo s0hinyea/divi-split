@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, StyleSheet, TouchableOpacity, ScrollView, TextInput, Image, RefreshControl, Linking, Keyboard } from 'react-native';
 import { Text, ActivityIndicator } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { MaterialIcons } from '@expo/vector-icons';
 import { fonts, fontSizes, spacing, radii, shadows, colors } from '@/styles/theme';
@@ -201,7 +201,8 @@ export default function Profile() {
     const { showAlert } = useCustomAlert();
     const { session } = useSession();
     const { profile, loading, updateProfile, refreshProfile } = useProfile();
-    const { isSubscribed, paywallVisible, monthlyPackage, yearlyPackage, selectedPlan, setSelectedPlan, purchaseError, showPaywall, hidePaywall, purchaseSubscription, restorePurchases, scansRemaining, clearMockSubscription } = usePaywall();
+    const { isSubscribed, paywallVisible, monthlyPackage, yearlyPackage, selectedPlan, setSelectedPlan, purchaseError, showPaywall, hidePaywall, purchaseSubscription, restorePurchases, refreshScanStatus, scansRemaining, scanCountKnown, scanStatusError, clearMockSubscription } = usePaywall();
+    useFocusEffect(useCallback(() => { refreshScanStatus().catch(() => {}); }, [refreshScanStatus]));
     const router = useRouter();
     const C = useThemeColors();
     const styles = useMemo(() => createStyles(C), [C]);
@@ -500,7 +501,7 @@ export default function Profile() {
                         <View style={{ flex: 1 }}>
                             <Text style={styles.settingLabel}>Divi Pro</Text>
                             <Text style={{ fontFamily: fonts.body, fontSize: fontSizes.xs, color: isSubscribed ? colors.green : C.gray500 }}>
-                                {isSubscribed ? 'Active subscription' : `${scansRemaining} free AI scan${scansRemaining !== 1 ? 's' : ''} remaining`}
+                                {scanStatusError ? 'Scan allowance unavailable' : isSubscribed ? 'Unlimited scans with Divi Pro' : scanCountKnown ? `${scansRemaining} free AI scan${scansRemaining !== 1 ? 's' : ''} remaining` : 'Checking scan allowance…'}
                             </Text>
                         </View>
                         {!isSubscribed && <MaterialIcons name="chevron-right" size={22} color={C.gray300} />}

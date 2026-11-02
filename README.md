@@ -160,11 +160,20 @@ After the native app is installed, use `npm start` for subsequent Metro sessions
 | `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` | No | Google sign-in web client |
 | `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID` | No | Google sign-in iOS client |
 | `EXPO_PUBLIC_REVENUECAT_API_KEY` | iOS subscriptions | RevenueCat public Apple SDK key; never use a secret API key |
+| `REVENUECAT_SECRET_API_KEY` | Backend | RevenueCat secret API key for authoritative Pro checks in `ocr-vision`; set only as a Supabase Edge Function secret |
 | `EXPO_PUBLIC_SENTRY_DSN` | No | Mobile error reporting |
 | `EXPO_PUBLIC_PAY_BASE_URL` | No | Base URL for shareable payment pages |
 | `EXPO_PUBLIC_PRIVACY_POLICY_URL` | No | Privacy-policy link shown in the app |
 
 Hosted Supabase deployments also provide `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` to Edge Functions. Keep all non-public values in Supabase secrets or an ignored local environment file.
+
+### Scan allowance rollout
+
+The mobile app displays five lifetime free scans, but only the server authorizes and records them. A successful receipt with priced items consumes one scan. A non-receipt, empty result, or server failure does not. Pro access is checked server-side against the `Divi Pro` RevenueCat entitlement. A 12-requests-per-minute per-user burst limit protects the OCR service for both free and Pro accounts. The client never receives the RevenueCat secret or the Supabase service-role key.
+
+Deploy in this order: apply `20261017_secure_scan_quota.sql`, set the `REVENUECAT_SECRET_API_KEY` Supabase Edge Function secret, deploy `ocr-vision`, then install a new mobile build. Until the secret is configured, the new function deliberately refuses scanning rather than guessing subscription state. Do not put this secret in `frontend/.env`, GitHub, or any `EXPO_PUBLIC_*` setting.
+
+Before shipping, test on the exact TestFlight build: a new account sees five remaining; each readable receipt reduces the number by one; a blank image or server error does not; the sixth free attempt opens the paywall and a direct function call is denied; two simultaneous attempts at the last slot cannot both succeed; a sandbox Pro purchase allows scans after the free allowance is gone; restore and expiry change access correctly; switching accounts does not transfer allowance or Pro. Verify RevenueCat and OpenAI error paths are retryable. This checklist needs a live Supabase project and Apple sandbox; unit tests alone do not prove it.
 
 ## Useful commands
 

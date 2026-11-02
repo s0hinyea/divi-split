@@ -4,40 +4,6 @@ import { supabase } from "@/lib/supabase";
 import * as ImageManipulator from 'expo-image-manipulator';
 import { isNetworkError } from "@/utils/network";
 import { ToastType } from "@/components/ToastProvider";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-
-const OCR_CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
-const OCR_CACHE_PREFIX = "ocr_cache_v1_";
-
-function makeOcrCacheKey(base64: string): string {
-  // Fingerprint: first 200 + last 200 chars + total length
-  const head = base64.slice(0, 200);
-  const tail = base64.slice(-200);
-  return OCR_CACHE_PREFIX + `${base64.length}_${head}_${tail}`.replace(/[^a-zA-Z0-9]/g, "").slice(0, 100);
-}
-
-async function getCachedOcr(key: string): Promise<OCRResponse | null> {
-  try {
-    const raw = await AsyncStorage.getItem(key);
-    if (!raw) return null;
-    const { data, cachedAt } = JSON.parse(raw);
-    if (Date.now() - cachedAt > OCR_CACHE_TTL_MS) {
-      AsyncStorage.removeItem(key).catch(() => {});
-      return null;
-    }
-    return data as OCRResponse;
-  } catch {
-    return null;
-  }
-}
-
-async function setCachedOcr(key: string, data: OCRResponse): Promise<void> {
-  try {
-    await AsyncStorage.setItem(key, JSON.stringify({ data, cachedAt: Date.now() }));
-  } catch {
-    // Cache write failure is non-fatal
-  }
-}
 
 export const handleOCR = async (
 	imageUri: string,
@@ -64,16 +30,6 @@ export const handleOCR = async (
 		const base64DataUrl = `data:image/jpeg;base64,${manipulatedImage.base64}`;
 
 		if (signal?.aborted) return;
-
-		// Check OCR cache before hitting the edge function
-		const cacheKey = makeOcrCacheKey(base64DataUrl);
-		const cachedResult = await getCachedOcr(cacheKey);
-		if (cachedResult) {
-			setStatus("Extracting items...");
-			cachedResult.items = cachedResult.items.filter((item: any) => item.price > 0);
-			updateReceiptData(cachedResult);
-			return;
-		}
 
 		const { data: { session }, error: refreshError } = await supabase.auth.refreshSession();
 		if (refreshError || !session) {
@@ -103,6 +59,9 @@ export const handleOCR = async (
 			if (errorMessage === 'NOT_RECEIPT' || errorMessage.includes('NOT_RECEIPT')) {
 				throw new Error('NOT_RECEIPT:' + (notReceiptReason || 'This image does not appear to be a receipt.'));
 			}
+			if (errorMessage === 'SCAN_LIMIT_REACHED') throw new Error('SCAN_LIMIT_REACHED');
+			if (errorMessage === 'SCAN_RATE_LIMITED') throw new Error('SCAN_RATE_LIMITED');
+			if (errorMessage === 'NO_ITEMS') throw new Error('NO_ITEMS');
 			if (errorMessage.includes('timed out') || errorMessage.includes('timeout') || errorMessage.includes('non-2xx')) {
 				// If we get a generic non-2xx but no context, it's likely a 500 or 401
 				if (errorMessage.includes('non-2xx')) {
@@ -118,6 +77,7 @@ export const handleOCR = async (
 			if (extractedData.error === 'NOT_RECEIPT') {
 				throw new Error('NOT_RECEIPT:' + (extractedData.reason || 'This image does not appear to be a receipt.'));
 			}
+			if (extractedData.error === 'SCAN_LIMIT_REACHED') throw new Error('SCAN_LIMIT_REACHED');
 			throw new Error(extractedData.error);
 		}
 
@@ -127,7 +87,6 @@ export const handleOCR = async (
 			// Filter out $0 items (promo lines, headers, etc.)
 			extractedData.items = extractedData.items.filter((item: any) => item.price > 0);
 			updateReceiptData(extractedData);
-			setCachedOcr(cacheKey, extractedData).catch(() => {});
 
 			// confidence field is stored in receiptData; review screen shows inline Level 4 warning
 		} else if (extractedData && "items" in extractedData && extractedData.items.length === 0) {
@@ -156,6 +115,12 @@ export const handleOCR = async (
 		} else if (message === 'UNRECOGNIZED') {
 			title = 'Processing Error';
 			body = 'We received an unexpected response from the server. Please try scanning again.';
+		} else if (message === 'SCAN_LIMIT_REACHED') {
+			title = 'Free Scans Used';
+			body = 'You have used your five free scans. Divi Pro gives you unlimited scans; open Membership to see plans or restore a purchase.';
+		} else if (message === 'SCAN_RATE_LIMITED') {
+			title = 'Too Many Scans';
+			body = 'You have scanned several receipts in a short time. Please wait a minute, then try again.';
 		} else if (message.includes('429') || message.includes('credits') || message.includes('quota') || message.includes('rate limit')) {
 			title = 'Service Unavailable';
 			body = 'Our scanning service is temporarily unavailable. Please try again in a few minutes.';

@@ -248,7 +248,7 @@ export default function PaywallModal({
           </TouchableOpacity>
 
           <Text style={styles.trustText}>
-            {selectedPlan === 'yearly' ? 'Billed annually · Cancel anytime' : 'Billed monthly · Cancel anytime'}
+            {selectedPlan === 'yearly' ? 'Renews yearly · Cancel renewal anytime' : 'Renews monthly · Cancel renewal anytime'}
           </Text>
 
           <TouchableOpacity onPress={handleRestore} disabled={purchasing || restoring} style={styles.restoreBtn}>

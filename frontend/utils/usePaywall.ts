@@ -83,20 +83,19 @@ const MOCK_YEARLY: PurchasesPackage = {
   },
 } as PurchasesPackage;
 
-async function fetchServerScanCount(userId: string): Promise<number> {
-  const { data } = await supabase
-    .from('profiles')
-    .select('ai_scan_count')
-    .eq('id', userId)
-    .single();
-  return data?.ai_scan_count ?? 0;
-}
+type ScanStatus = { isPro: boolean; scansUsed: number; scansRemaining: number | null };
 
-async function incrementServerScanCount(userId: string, newCount: number): Promise<void> {
-  await supabase
-    .from('profiles')
-    .update({ ai_scan_count: newCount })
-    .eq('id', userId);
+async function fetchScanStatus(): Promise<ScanStatus> {
+  const { data: { session }, error: authError } = await supabase.auth.getSession();
+  if (authError || !session) throw new Error('Please sign in to scan a receipt.');
+  const { data, error } = await supabase.functions.invoke('ocr-vision', {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${session.access_token}` },
+  });
+  if (error || typeof data?.scansUsed !== 'number' || typeof data?.isPro !== 'boolean') {
+    throw new Error('Could not check your scan allowance. Please try again.');
+  }
+  return data as ScanStatus;
 }
 
 export function usePaywall() {
@@ -110,10 +109,37 @@ export function usePaywall() {
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'yearly'>('yearly');
   const [purchaseError, setPurchaseError] = useState<string | null>(null);
   const [scanCount, setScanCount] = useState(0);
+  const [scanCountKnown, setScanCountKnown] = useState(false);
+  const [scanStatusError, setScanStatusError] = useState(false);
 
   const scansRemaining = Math.max(0, FREE_SCAN_LIMIT - scanCount);
 
   const currentPackage = selectedPlan === 'yearly' ? yearlyPackage : monthlyPackage;
+
+  const refreshScanStatus = useCallback(async (): Promise<ScanStatus> => {
+    if (isExpoGo) {
+      const [storedCount, storedSub] = await Promise.all([
+        AsyncStorage.getItem(SCAN_COUNT_KEY), AsyncStorage.getItem(MOCK_SUBSCRIBED_KEY),
+      ]);
+      const count = Number(storedCount || 0);
+      setScanCount(count);
+      setScanCountKnown(true);
+      setScanStatusError(false);
+      return { isPro: storedSub === 'true', scansUsed: count, scansRemaining: Math.max(0, FREE_SCAN_LIMIT - count) };
+    }
+    setScanCountKnown(false);
+    setScanStatusError(false);
+    try {
+      const status = await fetchScanStatus();
+      setScanCount(status.scansUsed);
+      setScanCountKnown(true);
+      setIsSubscribed(status.isPro);
+      return status;
+    } catch (error) {
+      setScanStatusError(true);
+      throw error;
+    }
+  }, []);
 
   useEffect(() => {
     if (sessionLoading) return;
@@ -129,6 +155,8 @@ export function usePaywall() {
       setMonthlyPackage(null);
       setYearlyPackage(null);
       setPurchaseError(null);
+      setScanCountKnown(false);
+      setScanStatusError(false);
       try {
         if (isExpoGo) {
           const [storedCount, storedSub] = await Promise.all([
@@ -136,6 +164,8 @@ export function usePaywall() {
             AsyncStorage.getItem(MOCK_SUBSCRIBED_KEY),
           ]);
           setScanCount(storedCount ? parseInt(storedCount, 10) : 0);
+          setScanCountKnown(true);
+          setScanStatusError(false);
           setIsSubscribed(storedSub === 'true');
           setMonthlyPackage(MOCK_MONTHLY);
           setYearlyPackage(MOCK_YEARLY);
@@ -143,23 +173,26 @@ export function usePaywall() {
           return;
         }
 
+        if (userId) {
+          try { await refreshScanStatus(); }
+          catch (error) { if (__DEV__) console.warn('Scan status error:', error); }
+        }
         sdk = await getPurchasesForUser(userId);
         if (!active) return;
         sdk.addCustomerInfoUpdateListener(onCustomerInfo);
 
-        const [customerInfo, serverCount] = await Promise.all([
+        const [customerInfo] = await Promise.all([
           sdk.getCustomerInfo(),
-          userId ? fetchServerScanCount(userId) : Promise.resolve(0),
         ]);
         if (!active) return;
         onCustomerInfo(customerInfo);
-        setScanCount(serverCount);
         try {
           const offerings = await sdk.getOfferings();
           if (!active) return;
           const packages = getSubscriptionPackages(offerings);
           setMonthlyPackage(packages.monthly);
           setYearlyPackage(packages.yearly);
+          if (!packages.yearly && packages.monthly) setSelectedPlan('monthly');
           if (!packages.monthly && !packages.yearly) {
             setPurchaseError('Subscription plans are unavailable. Please try again later.');
           }
@@ -180,28 +213,7 @@ export function usePaywall() {
       active = false;
       sdk?.removeCustomerInfoUpdateListener(onCustomerInfo);
     };
-  }, [sessionLoading, userId]);
-
-  const attemptAgentUse = useCallback(async (): Promise<boolean> => {
-    if (isSubscribed) return true;
-
-    const newCount = scanCount + 1;
-
-    if (newCount > FREE_SCAN_LIMIT) {
-      setPaywallVisible(true);
-      return false;
-    }
-
-    setScanCount(newCount);
-
-    if (isExpoGo) {
-      await AsyncStorage.setItem(SCAN_COUNT_KEY, String(newCount));
-    } else if (userId) {
-      await incrementServerScanCount(userId, newCount);
-    }
-
-    return true;
-  }, [isSubscribed, scanCount, userId]);
+  }, [sessionLoading, userId, refreshScanStatus]);
 
   const purchaseSubscription = useCallback(async () => {
     setPurchaseError(null);
@@ -277,6 +289,8 @@ export function usePaywall() {
 
   return {
     scanCount,
+    scanCountKnown,
+    scanStatusError,
     scansRemaining,
     isSubscribed,
     isLoading,
@@ -287,7 +301,7 @@ export function usePaywall() {
     selectedPlan,
     setSelectedPlan,
     purchaseError,
-    attemptAgentUse,
+    refreshScanStatus,
     hidePaywall,
     showPaywall,
     purchaseSubscription,
