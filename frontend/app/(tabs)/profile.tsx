@@ -257,6 +257,18 @@ export default function Profile() {
                         { text: 'Unsubscribe (Reset)', style: 'destructive', onPress: clearMockSubscription },
                     ],
                 });
+            } else {
+                showAlert({
+                    title: 'Divi Pro',
+                    message: 'You have an active Divi Pro subscription with unlimited scans. To manage or cancel your subscription, visit your Apple ID settings.',
+                    buttons: [
+                        { text: 'Done', style: 'cancel' },
+                        {
+                            text: 'Manage Subscription',
+                            onPress: () => Linking.openURL('https://apps.apple.com/account/subscriptions'),
+                        },
+                    ],
+                });
             }
         } else {
             showPaywall();
@@ -504,8 +516,10 @@ export default function Profile() {
                                 {scanStatusError ? 'Scan allowance unavailable' : isSubscribed ? 'Unlimited scans with Divi Pro' : scanCountKnown ? `${scansRemaining} free AI scan${scansRemaining !== 1 ? 's' : ''} remaining` : 'Checking scan allowance…'}
                             </Text>
                         </View>
-                        {!isSubscribed && <MaterialIcons name="chevron-right" size={22} color={C.gray300} />}
-                        {isSubscribed && <MaterialIcons name="check-circle" size={20} color={colors.green} />}
+                        {isSubscribed
+                            ? <MaterialIcons name="chevron-right" size={22} color={colors.green} />
+                            : <MaterialIcons name="chevron-right" size={22} color={C.gray300} />
+                        }
                     </TouchableOpacity>
                 </View>
 

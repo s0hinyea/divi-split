@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, fonts, fontSizes, spacing, radii } from '@/styles/theme';
 import { FREE_SCAN_LIMIT } from '@/utils/usePaywall';
 import DiviLogo from '@/components/DiviLogo';
@@ -88,6 +88,8 @@ export default function PaywallModal({
     outputRange: [0, 1],
   });
 
+  const insets = useSafeAreaInsets();
+
   const monthlyPrice = monthlyPackage?.product.priceString ?? 'Unavailable';
   const yearlyPrice = yearlyPackage?.product.priceString ?? 'Unavailable';
   const selectedPackage = selectedPlan === 'yearly' ? yearlyPackage : monthlyPackage;
@@ -142,7 +144,11 @@ export default function PaywallModal({
           />
 
           <SafeAreaView edges={['top']} style={styles.heroSafe}>
-            <TouchableOpacity style={styles.closeBtn} onPress={onClose} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+            <TouchableOpacity
+              style={[styles.closeBtn, { top: insets.top + 12 }]}
+              onPress={onClose}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            >
               <Ionicons name="close" size={22} color="rgba(255,255,255,0.6)" />
             </TouchableOpacity>
 
