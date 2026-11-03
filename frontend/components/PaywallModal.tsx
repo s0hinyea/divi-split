@@ -8,6 +8,7 @@ import {
   Animated,
   Dimensions,
   ActivityIndicator,
+  Linking,
   Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -268,6 +269,13 @@ export default function PaywallModal({
               ? <ActivityIndicator color={colors.gray400} size="small" />
               : <Text style={styles.restoreText}>Restore Purchases</Text>
             }
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => Linking.openURL('https://www.apple.com/legal/internet-services/itunes/dev/stdeula/')}
+            style={styles.restoreBtn}
+          >
+            <Text style={styles.restoreText}>Terms of Use</Text>
           </TouchableOpacity>
 
         </View>
