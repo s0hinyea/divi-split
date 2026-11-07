@@ -27,7 +27,7 @@ export const handleOCR = async (
 			[{ resize: { width: 1200 } }],
 			{ compress: 0.72, format: ImageManipulator.SaveFormat.JPEG, base64: true }
 		);
-		const base64DataUrl = `data:image/jpeg;base64,${manipulatedImage.base64}`;
+		let base64DataUrl: string | null = `data:image/jpeg;base64,${manipulatedImage.base64}`;
 
 		if (signal?.aborted) return;
 
@@ -43,6 +43,7 @@ export const handleOCR = async (
 				Authorization: `Bearer ${session.access_token}`,
 			},
 		});
+		base64DataUrl = null;
 
 		// 1. Handle network-level or 500-level errors
 		if (error) {
